@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\Desert_raw2-main\\Desert_raw2-main\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A7212824-8A81-368A-747F-BB6E18245C26}|Assembly-CSharp-Editor.csproj|c:\\users\\lenovo ideapad\\downloads\\desert_raw2-main\\desert_raw2-main\\assets\\editor\\createprefabscript.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A7212824-8A81-368A-747F-BB6E18245C26}|Assembly-CSharp-Editor.csproj|solutionrelative:assets\\editor\\createprefabscript.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "CreatePrefabScript.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\Desert_raw2-main\\Desert_raw2-main\\Assets\\Editor\\CreatePrefabScript.cs",
+              "RelativeDocumentMoniker": "Assets\\Editor\\CreatePrefabScript.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\Desert_raw2-main\\Desert_raw2-main\\Assets\\Editor\\CreatePrefabScript.cs",
+              "RelativeToolTip": "Assets\\Editor\\CreatePrefabScript.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-15T17:47:30.768Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ceb21783dfe8874f93fda9977625099, type: 3}
+  m_Name: KatanaItem
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  ItemName: Katana
+  Icon: {fileID: 21300000, guid: e98a84928ee242145a3a512e736899dc, type: 3}
+  Type: 0
+  Prefab: {fileID: 2642112298571126213, guid: 81f3503e0e8bbf54981b617155c42192, type: 3}
+  MaxStack: 1
+  Damage: 30
+  AttackSpeed: 1.2
+  Range: 2.5
+  ProjectilePrefab: {fileID: 0}
+  ProjectileSpeed: 30
+  HoldPosition: {x: 0, y: 0, z: 0.15}
+  HoldRotation: {x: -90, y: 180, z: 0}
+  HoldScale: 3
+  DigMultiplier: 1.5
+  RadiusMultiplier: 1
+  HealthRestore: 0
+  HungerRestore: 5
+  ThirstRestore: 0

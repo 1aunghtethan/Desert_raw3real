@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ceb21783dfe8874f93fda9977625099, type: 3}
+  m_Name: ArrowItem
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  ItemName: Arrow
+  Icon: {fileID: 21300000, guid: c41b2e3ac65a90a4f8b8af96dd349d2d, type: 3}
+  Type: 3
+  Prefab: {fileID: 1618454836112838531, guid: ad0ff0703c32afd47a7ce0e2652ccb53, type: 3}
+  MaxStack: 1
+  Damage: 10
+  AttackSpeed: 1
+  Range: 2
+  ProjectilePrefab: {fileID: 1618454836112838531, guid: ad0ff0703c32afd47a7ce0e2652ccb53,
+    type: 3}
+  ProjectileSpeed: 30
+  HoldPosition: {x: 0, y: 0, z: 0}
+  HoldRotation: {x: 0, y: 0, z: 0}
+  HoldScale: 1
+  DigMultiplier: 1.5
+  RadiusMultiplier: 1
+  HealthRestore: 0
+  HungerRestore: 5
+  ThirstRestore: 0

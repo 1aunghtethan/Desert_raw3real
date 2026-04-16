@@ -1,0 +1,212 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{B61F8159-6EAF-46EA-16A0-5913EE673A28}|MCPForUnity.Editor.csproj|c:\\users\\lenovo ideapad\\downloads\\unity-mcp-beta\\unity-mcp-beta\\mcpforunity\\editor\\tools\\refreshunity.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|c:\\users\\lenovo ideapad\\downloads\\sandtest-master (1)\\sandtest-master\\assets\\scripts\\sandchunk.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\sandchunk.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\assets\\shaders\\triplanarrock.shader||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\shaders\\triplanarrock.shader||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\assets\\scripts\\items\\rangedweapon.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\items\\rangedweapon.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Library\\PackageCache\\com.unity.ugui@bb329a87fcdc\\Runtime\\UGUI\\UI\\Core\\Layout\\GridLayoutGroup.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Library\\PackageCache\\com.unity.ugui@bb329a87fcdc\\Runtime\\UGUI\\UI\\Core\\Layout\\GridLayoutGroup.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B61F8159-6EAF-46EA-16A0-5913EE673A28}|MCPForUnity.Editor.csproj|c:\\users\\lenovo ideapad\\downloads\\unity-mcp-beta\\unity-mcp-beta\\mcpforunity\\editor\\helpers\\mcplog.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\assets\\scripts\\plantspawner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\plantspawner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\assets\\scripts\\terrainmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\terrainmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\assets\\scripts\\sandutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\sandutils.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\assets\\scripts\\sandmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\sandmesh.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\assets\\scripts\\terrainconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3451AFEA-B48B-C08D-F468-488BCB3C6827}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\terrainconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Library\\PackageCache\\com.unity.purchasing@039fd41c6e81\\Editor\\UnityPurchasingEditor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Library\\PackageCache\\com.unity.purchasing@039fd41c6e81\\Editor\\UnityPurchasingEditor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "RefreshUnity.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Tools\\RefreshUnity.cs",
+              "RelativeDocumentMoniker": "..\\..\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Tools\\RefreshUnity.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Tools\\RefreshUnity.cs",
+              "RelativeToolTip": "..\\..\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Tools\\RefreshUnity.cs",
+              "ViewState": "AgIAACkAAAAAAAAAAAD4vzYAAAB6AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-03T04:09:51.739Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TriplanarRock.shader",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Shaders\\TriplanarRock.shader",
+              "RelativeDocumentMoniker": "Assets\\Shaders\\TriplanarRock.shader",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Shaders\\TriplanarRock.shader",
+              "RelativeToolTip": "Assets\\Shaders\\TriplanarRock.shader",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002777|",
+              "WhenOpened": "2026-03-31T04:54:01.327Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "RangedWeapon.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\Items\\RangedWeapon.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Items\\RangedWeapon.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\Items\\RangedWeapon.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Items\\RangedWeapon.cs",
+              "ViewState": "AgIAAGkAAAAAAAAAAAASwHwAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-28T00:02:25.28Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "GridLayoutGroup.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Library\\PackageCache\\com.unity.ugui@bb329a87fcdc\\Runtime\\UGUI\\UI\\Core\\Layout\\GridLayoutGroup.cs",
+              "RelativeDocumentMoniker": "Library\\PackageCache\\com.unity.ugui@bb329a87fcdc\\Runtime\\UGUI\\UI\\Core\\Layout\\GridLayoutGroup.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Library\\PackageCache\\com.unity.ugui@bb329a87fcdc\\Runtime\\UGUI\\UI\\Core\\Layout\\GridLayoutGroup.cs",
+              "RelativeToolTip": "Library\\PackageCache\\com.unity.ugui@bb329a87fcdc\\Runtime\\UGUI\\UI\\Core\\Layout\\GridLayoutGroup.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-01T04:45:34.912Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "McpLog.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Helpers\\McpLog.cs",
+              "RelativeDocumentMoniker": "..\\..\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Helpers\\McpLog.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Helpers\\McpLog.cs",
+              "RelativeToolTip": "..\\..\\unity-mcp-beta\\unity-mcp-beta\\MCPForUnity\\Editor\\Helpers\\McpLog.cs",
+              "ViewState": "AgIAABQAAAAAAAAAAAASwCcAAAA9AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-25T04:47:52.398Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "PlantSpawner.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\PlantSpawner.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\PlantSpawner.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\PlantSpawner.cs",
+              "RelativeToolTip": "Assets\\Scripts\\PlantSpawner.cs",
+              "ViewState": "AgIAAHoAAAAAAAAAAAASwI0AAABFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-22T15:57:01.762Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "TerrainManager.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\TerrainManager.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\TerrainManager.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\TerrainManager.cs",
+              "RelativeToolTip": "Assets\\Scripts\\TerrainManager.cs",
+              "ViewState": "AgIAAJ4AAAAAAAAAAAASwLEAAAArAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-22T01:44:02.655Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "SandUtils.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\SandUtils.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\SandUtils.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\SandUtils.cs",
+              "RelativeToolTip": "Assets\\Scripts\\SandUtils.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-16T13:10:55.965Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SandChunk.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\SandChunk.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\SandChunk.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\SandChunk.cs",
+              "RelativeToolTip": "Assets\\Scripts\\SandChunk.cs",
+              "ViewState": "AgIAAKIAAAAAAAAAAAD4v68AAADgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-16T13:03:31.591Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "TerrainConfig.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\TerrainConfig.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\TerrainConfig.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\TerrainConfig.cs",
+              "RelativeToolTip": "Assets\\Scripts\\TerrainConfig.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-16T12:58:44.733Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "SandMesh.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\SandMesh.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\SandMesh.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Assets\\Scripts\\SandMesh.cs",
+              "RelativeToolTip": "Assets\\Scripts\\SandMesh.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAHQCAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-16T03:16:59.494Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "UnityPurchasingEditor.cs",
+              "DocumentMoniker": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Library\\PackageCache\\com.unity.purchasing@039fd41c6e81\\Editor\\UnityPurchasingEditor.cs",
+              "RelativeDocumentMoniker": "Library\\PackageCache\\com.unity.purchasing@039fd41c6e81\\Editor\\UnityPurchasingEditor.cs",
+              "ToolTip": "C:\\Users\\LENOVO IDEAPAD\\Downloads\\SandTest-master (1)\\SandTest-master\\Library\\PackageCache\\com.unity.purchasing@039fd41c6e81\\Editor\\UnityPurchasingEditor.cs",
+              "RelativeToolTip": "Library\\PackageCache\\com.unity.purchasing@039fd41c6e81\\Editor\\UnityPurchasingEditor.cs",
+              "ViewState": "AgIAAFMAAAAAAAAAAAASwFsAAAA3AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-16T02:29:04.339Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
