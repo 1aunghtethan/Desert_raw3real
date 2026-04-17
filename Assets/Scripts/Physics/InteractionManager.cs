@@ -98,6 +98,7 @@ public class InteractionManager : MonoBehaviour
         if (m_PromptStyle == null)
         {
             m_PromptStyle = new GUIStyle(GUI.skin.label);
+            m_PromptStyle.font = Font.CreateDynamicFontFromOSFont("Arial", FontSize);
             m_PromptStyle.alignment = TextAnchor.MiddleCenter;
             m_PromptStyle.fontSize = FontSize;
             m_PromptStyle.fontStyle = FontStyle.Bold;

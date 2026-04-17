@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Unity Technologies. MIT license - license_unity.txt
+// Copyright (c) 2016 Unity Technologies. MIT license - license_unity.txt
 // #NVJOB Water Shaders. MIT license - license_nvjob.txt
 // #NVJOB Water Shaders v2.0 - https://nvjob.github.io/unity/nvjob-water-shaders-v2
 // #NVJOB Nicholas Veselov - https://nvjob.github.io
@@ -540,6 +540,7 @@ internal class NVWaterMaterials : MaterialEditor
         EditorGUILayout.Space();
         EditorGUILayout.Space();
         GUIStyle guiStyle = new GUIStyle();
+        guiStyle.font = Font.CreateDynamicFontFromOSFont("Arial", 17);
         guiStyle.fontSize = 17;
         EditorGUILayout.LabelField("#NVJOB Water Shaders V2", guiStyle);
 

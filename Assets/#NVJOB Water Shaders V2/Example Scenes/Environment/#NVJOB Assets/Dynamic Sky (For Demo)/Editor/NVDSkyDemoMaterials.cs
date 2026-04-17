@@ -1,4 +1,4 @@
-﻿// #NVJOB Dynamic Sky (for Demo)
+// #NVJOB Dynamic Sky (for Demo)
 // Full Asset #NVJOB Dynamic Sky - https://nvjob.github.io/unity/nvjob-dynamic-sky-lite
 // #NVJOB Nicholas Veselov - https://nvjob.github.io
 
@@ -279,6 +279,7 @@ internal class NVDSkyDemoMaterials : MaterialEditor
         EditorGUILayout.Space();
         EditorGUILayout.Space();
         GUIStyle guiStyle = new GUIStyle();
+        guiStyle.font = Font.CreateDynamicFontFromOSFont("Arial", 17);
         guiStyle.fontSize = 17;
         EditorGUILayout.LabelField("#NVJOB Dynamic Sky (for Demo)", guiStyle);
 

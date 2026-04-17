@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 551869
+  Seed: 23264367
   NoiseScale: 0.005
   HeightMultiplier: 30
   BaseHeight: 5
@@ -31,29 +31,13 @@ MonoBehaviour:
   ApronSandMaterial: {fileID: 2100000, guid: 1bad0c69a60bb714ba87c293802c7d57, type: 2}
   ApronSandTexture: {fileID: 2800000, guid: cdd12ada9ff1ca94582f5e89adc45e37, type: 3}
   ApronSandColor: {r: 0.9547169, g: 0.89725983, b: 0.7259451, a: 1}
-  MountainTestMode: 1
+  MountainTestMode: 0
   MountainPrefab: {fileID: 7525341741460606052, guid: 55bb650c36565c047806c469a4ae0f65,
     type: 3}
   MountainMaterial: {fileID: 2100000, guid: 3659fbb208c2bc7468ec1e77ef8655c0, type: 2}
-  StonePrefabPaths:
-  - Assets/Prefabs/rock/Rock_01.prefab
-  - Assets/Prefabs/rock/Rock_02.prefab
-  - Assets/Prefabs/rock/Rock_03.prefab
-  - Assets/Prefabs/rock/Rock_04.prefab
-  - Assets/Prefabs/rock/Rock_05.prefab
-  - Assets/Prefabs/rock/rock07_m.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Rocks_Gray_02a.001_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Rocks_Gray_02a_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Rocks_Gray_02b.001_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Rocks_Gray_02b_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Rocks_Gray_02c_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Rocks_Gray_02d_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Stone_Gray_01a_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Stone_Gray_01b_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Stone_Sand_01a_PRE.prefab
-  - Assets/Prefabs/Stone 2/EA04_Env_Stone_Sand_01b_PRE.prefab
+  StonePrefabPaths: []
   MountainSpawnChance: 0.0001
-  StoneSpawnChance: 0.08
+  StoneSpawnChance: 0.008
   MountainLoadingRadius: 40
   MountainMinScale: 400
   MountainMaxScale: 500
@@ -66,7 +50,11 @@ MonoBehaviour:
   StoneMinHeightScale: 0.5
   StoneMaxHeightScale: 1
   StoneGroundingOffset: 0.2
-  StonePrefabs: []
+  StonePrefabs:
+  - {fileID: 5758057825070733952, guid: df31d0d4726e7954c9a5bdf35497688b, type: 3}
+  - {fileID: 7219398685013066971, guid: 01fe44ad65f0eb0469d8ea6ca5a42ffa, type: 3}
+  - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
+  - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
   JoshuaTreePrefabs:
   - {fileID: 1600355717623300214, guid: a6b4926e02dc2f947b0d234e7e883aa3, type: 3}
   MountainBushPrefabs:

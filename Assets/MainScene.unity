@@ -215,6 +215,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!134 &94060597
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)
+    (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)
+    (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &102256948
 GameObject:
   m_ObjectHideFlags: 0
@@ -890,20 +905,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 209599438}
   m_CullTransparentMesh: 1
---- !u!134 &272236267
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ' (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)
-    (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)'
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
 --- !u!1 &300525297
 GameObject:
   m_ObjectHideFlags: 0
@@ -2639,9 +2640,9 @@ MonoBehaviour:
   Player: {fileID: 805342198}
   ChunkPrefab: {fileID: 5178343924159645472, guid: 8cd13e01effb5944aa48234a493127e3,
     type: 3}
-  LoadingRadius: 4
-  ColliderLODDistance: 500
-  SimulationLODDistance: 400
+  LoadingRadius: 6
+  ColliderLODDistance: 100
+  SimulationLODDistance: 100
 --- !u!114 &1316886688
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3060,7 +3061,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 272236267}
+      objectReference: {fileID: 94060597}
     m_RemovedComponents:
     - {fileID: 114963311885979670, guid: 11aaea5348574644a9eb4f4504fcce3f, type: 3}
     - {fileID: 114497868231759342, guid: 11aaea5348574644a9eb4f4504fcce3f, type: 3}

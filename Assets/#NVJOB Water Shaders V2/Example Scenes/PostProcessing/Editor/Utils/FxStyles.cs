@@ -33,22 +33,19 @@ namespace UnityEditor.PostProcessing
 
         static FxStyles()
         {
-            tickStyleRight = new GUIStyle("Label")
+            tickStyleRight = new GUIStyle(EditorStyles.miniLabel)
             {
-                alignment = TextAnchor.MiddleRight,
-                fontSize = 9
+                alignment = TextAnchor.MiddleRight
             };
 
-            tickStyleLeft = new GUIStyle("Label")
+            tickStyleLeft = new GUIStyle(EditorStyles.miniLabel)
             {
-                alignment = TextAnchor.MiddleLeft,
-                fontSize = 9
+                alignment = TextAnchor.MiddleLeft
             };
 
-            tickStyleCenter = new GUIStyle("Label")
+            tickStyleCenter = new GUIStyle(EditorStyles.miniLabel)
             {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 9
+                alignment = TextAnchor.MiddleCenter
             };
 
             preSlider = new GUIStyle("PreSlider");
@@ -72,10 +69,9 @@ namespace UnityEditor.PostProcessing
 
             wheelThumb = new GUIStyle("ColorPicker2DThumb");
 
-            centeredBoldLabel = new GUIStyle(GUI.skin.GetStyle("Label"))
+            centeredBoldLabel = new GUIStyle(EditorStyles.boldLabel)
             {
-                alignment = TextAnchor.UpperCenter,
-                fontStyle = FontStyle.Bold
+                alignment = TextAnchor.UpperCenter
             };
 
             centeredMiniLabel = new GUIStyle(EditorStyles.centeredGreyMiniLabel)

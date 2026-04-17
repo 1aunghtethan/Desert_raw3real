@@ -210,10 +210,9 @@ public class MountainSpawner : MonoBehaviour
 
             obj.transform.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
         }
-        else
+        else if (isMountain)
         {
-            string namePrefix = isMountain ? "MassiveMountain" : "ScatteredStone";
-            obj = new GameObject($"{namePrefix}_{coord.x}_{coord.y}");
+            obj = new GameObject($"MassiveMountain_{coord.x}_{coord.y}");
             obj.transform.position = pos;
             obj.transform.parent = transform;
             
@@ -231,23 +230,19 @@ public class MountainSpawner : MonoBehaviour
             obj.transform.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
             
             // Generate the procedural mesh using the improved stratified geometry
-            mf.sharedMesh = GenerateProceduralRockMesh(pos, isMountain);
+            mf.sharedMesh = GenerateProceduralRockMesh(pos, true);
             
-            // Procedural scaling: Mountains are taller, Stones use config height scale
-            float yMult;
-            if (isMountain)
-            {
-                yMult = Random.Range(0.8f, 1.3f);
-            }
-            else
-            {
-                yMult = Random.Range(_tm.Config.StoneMinHeightScale, _tm.Config.StoneMaxHeightScale);
-            }
-            
+            // Procedural scaling: Mountains are taller
+            float yMult = Random.Range(0.8f, 1.3f);
             obj.transform.localScale = new Vector3(scale, scale * yMult, scale);
             
             MeshCollider mc = obj.AddComponent<MeshCollider>();
             mc.sharedMesh = mf.sharedMesh;
+        }
+        else
+        {
+            // It's a stone but no prefab was found. We no longer want to form "ScatteredStone" procedural objects.
+            return;
         }
         
         if (!_activeMountains.ContainsKey(coord))

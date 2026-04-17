@@ -33,10 +33,20 @@ public class InventoryPanelUI : MonoBehaviour
     private Image _cursorIconImage;
     private Text _cursorIconText;
 
-    private void Start()
+    private void Awake()
     {
+        // Immediately hide the panel before anything renders
         _canvasGroup = GetComponent<CanvasGroup>();
         if (_canvasGroup == null) _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+        _canvasGroup.alpha = 0f;
+        _canvasGroup.interactable = false;
+        _canvasGroup.blocksRaycasts = false;
+        _isOpen = false;
+    }
+
+    private void Start()
+    {
         
         // Ensure the parent Canvas has a GraphicRaycaster (required for UI click events)
         Canvas parentCanvas = GetComponentInParent<Canvas>();
