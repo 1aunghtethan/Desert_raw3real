@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Unity Technologies. MIT license - license_unity.txt
+// Copyright (c) 2016 Unity Technologies. MIT license - license_unity.txt
 // #NVJOB Water Shaders. MIT license - license_nvjob.txt
 // #NVJOB Water Shaders v2.0 - https://nvjob.github.io/unity/nvjob-water-shaders-v2
 // #NVJOB Nicholas Veselov - https://nvjob.github.io
@@ -198,13 +198,15 @@ public class NVWaterShaders : MonoBehaviour
         }
 
         reflectionCamera = reflectionCameras[currentCamera] as Camera;
-        GameObject go = new GameObject("Mirror Refl Camera id" + GetInstanceID() + " for " + currentCamera.GetInstanceID(), typeof(Camera), typeof(Skybox));
-        reflectionCamera = go.GetComponent<Camera>();
-        reflectionCamera.enabled = false;
-        reflectionCamera.transform.SetPositionAndRotation(thisTransform.position, thisTransform.rotation);
-        reflectionCamera.gameObject.AddComponent<FlareLayer>();
-        go.hideFlags = HideFlags.HideAndDontSave;
-        reflectionCameras[currentCamera] = reflectionCamera;
+        if (!reflectionCamera) {
+            GameObject go = new GameObject("Mirror Refl Camera id" + GetInstanceID() + " for " + currentCamera.GetInstanceID(), typeof(Camera), typeof(Skybox));
+            reflectionCamera = go.GetComponent<Camera>();
+            reflectionCamera.enabled = false;
+            reflectionCamera.transform.SetPositionAndRotation(thisTransform.position, thisTransform.rotation);
+            reflectionCamera.gameObject.AddComponent<FlareLayer>();
+            go.hideFlags = HideFlags.HideAndDontSave;
+            reflectionCameras[currentCamera] = reflectionCamera;
+        }
 
         //--------------
     }
@@ -248,6 +250,7 @@ public class NVWaterShaders : MonoBehaviour
         dest.aspect = src.aspect;
         dest.orthographicSize = src.orthographicSize;
         dest.renderingPath = src.renderingPath;
+        dest.rect = new Rect(0, 0, 1, 1); // RESET: Ensure clean viewport
 
         //--------------
     }
@@ -278,7 +281,10 @@ public class NVWaterShaders : MonoBehaviour
         //--------------
 
         Vector4 q = projection.inverse * new Vector4(Sgn(clipPlane.x), Sgn(clipPlane.y), 1.0f, 1.0f);
-        Vector4 c = clipPlane * (2.0F / (Vector4.Dot(clipPlane, q)));
+        float dot = Vector4.Dot(clipPlane, q);
+        if (Mathf.Abs(dot) < 0.0001f) return; // SAFETY: Avoid "Out of view frustum" error by skipping degenerate planes
+
+        Vector4 c = clipPlane * (2.0F / dot);
         projection[2] = c.x - projection[3];
         projection[6] = c.y - projection[7];
         projection[10] = c.z - projection[11];

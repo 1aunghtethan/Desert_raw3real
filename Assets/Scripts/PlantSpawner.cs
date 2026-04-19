@@ -66,6 +66,19 @@ public class PlantSpawner : MonoBehaviour
             SpawnPlant(coord, false);
         }
 
+        // Check for mini stone spawn
+        if (_tm.Config.MiniStonePrefabs != null && _tm.Config.MiniStonePrefabs.Count > 0)
+        {
+            if (Random.value < _tm.Config.MiniStoneSpawnChance)
+            {
+                int stoneCount = Random.Range(1, _tm.Config.MiniStonesPerChunk + 1);
+                for (int i = 0; i < stoneCount; i++)
+                {
+                    SpawnMiniStone(coord);
+                }
+            }
+        }
+
         // Handle Joshua Trees specifically based on mountain centers
         if (LoadedJoshuaTreePrefabs.Count > 0 && MountainSpawner.Instance != null)
         {
@@ -248,6 +261,74 @@ public class PlantSpawner : MonoBehaviour
             
             // Trees stay kinematic — PlantPhysics pins them to terrain surface
             rb.mass = 10f;
+            rb.linearDamping = 0.5f;
+            rb.angularDamping = 0.5f;
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.constraints = RigidbodyConstraints.FreezeAll;
+
+            if (!_activePlants.ContainsKey(coord))
+                _activePlants[coord] = new List<GameObject>();
+                
+            _activePlants[coord].Add(obj);
+        }
+    }
+
+    private bool SpawnMiniStone(Vector2Int coord)
+    {
+        float chunkSizeWorld = (_tm.Config.ChunkSize - 1) * _tm.Config.CellSize;
+        float worldX = coord.x * chunkSizeWorld + Random.Range(chunkSizeWorld * 0.1f, chunkSizeWorld * 0.9f);
+        float worldZ = coord.y * chunkSizeWorld + Random.Range(chunkSizeWorld * 0.1f, chunkSizeWorld * 0.9f);
+        Vector3 worldPos = new Vector3(worldX, 0, worldZ);
+
+        if (Vector3.Distance(worldPos, _tm.Config.PlayerSpawnPoint) < _tm.Config.SpawnSafeRadius) return false;
+
+        var nearbyOases = _tm.GetNearbyOases(coord);
+        foreach (var o in nearbyOases) {
+            if (Vector2.Distance(new Vector2(worldX, worldZ), o.position) < o.basinRadius + 5f) {
+                return false;
+            }
+        }
+
+        InstantiateMiniStoneAtPos(worldPos, coord);
+        return true;
+    }
+
+    private void InstantiateMiniStoneAtPos(Vector3 position, Vector2Int coord)
+    {
+        float scale = Random.Range(_tm.Config.MiniStoneMinScale, _tm.Config.MiniStoneMaxScale);
+        float yPos = _tm.SampleHeight(position) - _tm.Config.MiniStoneGroundingOffset; 
+        Vector3 pos = new Vector3(position.x, yPos, position.z);
+        
+        var prefabs = _tm.Config.MiniStonePrefabs;
+        if (prefabs.Count > 0)
+        {
+            GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
+            GameObject obj = Instantiate(prefab, pos, Quaternion.identity, transform);
+            obj.transform.localScale = Vector3.one * scale;
+            obj.name = "MiniStone";
+            
+            obj.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+
+            Rigidbody rb = obj.GetComponent<Rigidbody>();
+            if (rb == null) rb = obj.AddComponent<Rigidbody>();
+            
+            PlantHealth health = obj.GetComponent<PlantHealth>();
+            if (health != null)
+            {
+                var physics = obj.GetComponent<PlantPhysics>();
+                if (physics == null) physics = obj.AddComponent<PlantPhysics>();
+                physics.DisableFall = true; 
+            }
+
+            // Make it collectible
+            LootItem loot = obj.GetComponent<LootItem>();
+            if (loot == null) loot = obj.AddComponent<LootItem>();
+            loot.Data = Resources.Load<ItemData>("Items/Stonemini_ItemData");
+            loot.PickupRadius = 2.0f; // Small pickup radius for small stones
+
+
+            rb.mass = 5f;
             rb.linearDamping = 0.5f;
             rb.angularDamping = 0.5f;
             rb.isKinematic = true;

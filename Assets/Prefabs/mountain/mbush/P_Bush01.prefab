@@ -454,7 +454,10 @@ GameObject:
   m_Component:
   - component: {fileID: 4937328643030043329}
   - component: {fileID: 6959007595107854347}
-  m_Layer: 0
+  - component: {fileID: 6829151132063610486}
+  - component: {fileID: 3665468889240365487}
+  - component: {fileID: 2946547726724204263}
+  m_Layer: 10
   m_Name: P_Bush01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -511,3 +514,51 @@ LODGroup:
     renderers:
     - renderer: {fileID: 1995132631821538098}
   m_Enabled: 1
+--- !u!65 &6829151132063610486
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8214100204761854514}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &3665468889240365487
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8214100204761854514}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 325bf6520a4f56543851d025b50a1b13, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlantPhysics
+  DisableFall: 0
+--- !u!114 &2946547726724204263
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8214100204761854514}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1968da957575d024d863d37ac2f9b3eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlantHealth
+  Data: {fileID: 11400000, guid: ee808d6003aa3834c91af97585677c2f, type: 2}
+  FeedbackOffset: {x: 0, y: 2, z: 0}

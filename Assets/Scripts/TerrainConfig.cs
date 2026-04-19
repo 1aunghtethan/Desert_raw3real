@@ -107,6 +107,17 @@ public class TerrainConfig : ScriptableObject
     [Tooltip("Manual list of stone prefabs for direct assignment.")]
     public List<GameObject> StonePrefabs = new List<GameObject>();
 
+    [Header("Mini Stones")]
+    [Tooltip("List of smaller stones meant to scatter like plants.")]
+    public List<GameObject> MiniStonePrefabs = new List<GameObject>();
+    [Tooltip("Probability of mini stones spawning per chunk.")]
+    public float MiniStoneSpawnChance = 0.5f;
+    [Tooltip("Number of mini stones to spawn when successful.")]
+    public int MiniStonesPerChunk = 2;
+    public float MiniStoneMinScale = 0.5f;
+    public float MiniStoneMaxScale = 1.5f;
+    public float MiniStoneGroundingOffset = 0.05f;
+
     [Header("Mountain Vegetation (Apron)")]
     public List<GameObject> JoshuaTreePrefabs = new List<GameObject>();
     public List<GameObject> MountainBushPrefabs = new List<GameObject>();
@@ -223,45 +234,14 @@ public class TerrainConfig : ScriptableObject
 
     [Header("Oasis Assets")]
     public GameObject OasisWaterPrefab;
-    public List<string> OasisPalmPrefabPaths = new List<string> {
-        "Assets/for_oasis/otree/Palm 1.prefab",
-        "Assets/for_oasis/otree/Palm 2.prefab",
-        "Assets/for_oasis/otree/Palm 3.prefab",
-        "Assets/for_oasis/otree/Palm 4.prefab"
-    };
-    public List<string> OasisBushPrefabPaths = new List<string> {
-        "Assets/for_oasis/obush/Bush 1.prefab",
-        "Assets/for_oasis/obush/Bush 2.prefab",
-        "Assets/for_oasis/obush/Bush 3.prefab",
-        "Assets/for_oasis/obush/Bush 4.prefab",
-        "Assets/for_oasis/obush/Bush 5.prefab",
-        "Assets/for_oasis/obush/Bush 6.prefab",
-        "Assets/for_oasis/obush/Bush 7.prefab",
-        "Assets/for_oasis/obush/Bush 8.prefab",
-        "Assets/for_oasis/obush/Bush 9.prefab",
-        "Assets/for_oasis/obush/Bush 10.prefab",
-        "Assets/for_oasis/obush/Bush 11.prefab",
-        "Assets/for_oasis/obush/Bush 12.prefab",
-        "Assets/for_oasis/obush/P_Bush04.prefab",
-        "Assets/for_oasis/obush/P_Bush05.prefab"
-    };
+    public List<GameObject> OasisPalmPrefabs = new List<GameObject>();
+    public List<GameObject> OasisBushPrefabs = new List<GameObject>();
 
-    [System.NonSerialized] public List<GameObject> LoadedOasisPalmPrefabs = new List<GameObject>();
-    [System.NonSerialized] public List<GameObject> LoadedOasisBushPrefabs = new List<GameObject>();
-    
     [Header("Oasis Fish")]
     [Tooltip("Number of fish to spawn in the oasis water.")]
     public int OasisFishCountPerOasis = 12;
     [Tooltip("Maximum depth from the water surface where fish will swim.")]
     public float OasisFishMaxSwimDepth = 4.0f;
     
-    public List<string> OasisFishPrefabPaths = new List<string> {
-        "Assets/for_oasis/ofish/Fish_4_v1.prefab",
-        "Assets/for_oasis/ofish/Fish_4_v2.prefab",
-        "Assets/for_oasis/ofish/Fish_4_v3.prefab",
-        "Assets/for_oasis/ofish/Fish_4_v4.prefab",
-        "Assets/for_oasis/ofish/Fish_4_v5.prefab"
-    };
-
-    [System.NonSerialized] public List<GameObject> LoadedOasisFishPrefabs = new List<GameObject>();
+    public List<GameObject> OasisFishPrefabs = new List<GameObject>();
 }

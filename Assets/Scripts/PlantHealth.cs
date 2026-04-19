@@ -94,7 +94,7 @@ public class PlantHealth : MonoBehaviour, IDamageable
     {
         Quaternion startRot = transform.rotation;
         // Target: Rotate 90 degrees forward on X axis
-        Quaternion targetRot = startRot * Quaternion.Euler(90, 0, 0);
+        Quaternion targetRot = startRot * Quaternion.Euler(75, 0, 0);
         
         float elapsed = 0f;
         float duration = 3.0f;
@@ -141,17 +141,19 @@ public class PlantHealth : MonoBehaviour, IDamageable
                 continue;
             }
 
-            // Place each log in a circle around the tree, 2m out
+            // Place each item in a tight cluster around the center (defaults to 0.2m)
+            float radius = (Data != null) ? Data.LootSpawnRadius : 0.2f;
             float angle = i * (360f / count) + Random.Range(-15f, 15f);
             Vector3 dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
-            Vector3 spawnPos = transform.position + dir * 2.0f;
+            Vector3 spawnPos = transform.position + dir * radius;
 
             // Place initially in air so they drop smoothly to ground
             if (TerrainManager.Instance != null)
             {
                 float h = TerrainManager.Instance.SampleHeight(spawnPos);
-                // Increased spawn height to 2.5m to clear any fallen tree debris
-                if (!float.IsNaN(h)) spawnPos.y = h + 2.5f; 
+                // Use configured height (recommended 0.5m for bushes, 1.5m for trees)
+                float spawnHeight = (Data != null) ? Data.LootSpawnHeight : 0.5f;
+                if (!float.IsNaN(h)) spawnPos.y = h + spawnHeight; 
             }
 
             // Random rotation for natural look
@@ -190,8 +192,8 @@ public class PlantHealth : MonoBehaviour, IDamageable
             Vector3 randomKick = (dir + Random.insideUnitSphere * 0.5f).normalized * 3f + Vector3.up * 1f;
             rb.AddForce(randomKick, ForceMode.Impulse);
             
-            // Implementation of "Double Falling Speed" - aggressive downward force
-            rb.AddForce(Vector3.down * 20f, ForceMode.Impulse);
+            // Implementation of "Natural Falling Speed" - moderate downward force to help grounding
+            rb.AddForce(Vector3.down * 5f, ForceMode.Impulse);
             
             rb.AddTorque(Random.insideUnitSphere * 15f, ForceMode.Impulse);
         }

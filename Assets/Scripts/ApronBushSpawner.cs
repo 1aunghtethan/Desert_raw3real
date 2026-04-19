@@ -276,7 +276,8 @@ public class ApronBushSpawner : MonoBehaviour
             if (physics == null) physics = obj.AddComponent<PlantPhysics>();
             physics.DisableFall = true; // Small plants don't fall over from erosion
 
-            if (!isGrass)
+            // Add interaction collider if it has health OR is a bush
+            if (obj.GetComponent<PlantHealth>() != null || !isGrass)
             {
                 CapsuleCollider cap = obj.GetComponent<CapsuleCollider>();
                 if (cap == null) cap = obj.AddComponent<CapsuleCollider>();
@@ -286,9 +287,13 @@ public class ApronBushSpawner : MonoBehaviour
             }
             else
             {
-                foreach (var col in obj.GetComponentsInChildren<Collider>())
+                // Only destroy colliders if this isn't a harvestable plant
+                if (obj.GetComponent<PlantHealth>() == null)
                 {
-                    Destroy(col);
+                    foreach (var col in obj.GetComponentsInChildren<Collider>())
+                    {
+                        Destroy(col);
+                    }
                 }
             }
         }

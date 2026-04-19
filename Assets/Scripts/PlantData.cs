@@ -22,6 +22,12 @@ public class PlantData : ScriptableObject
     [Tooltip("If true, the plant will majestically topple 90 degrees over 3 seconds when cut. Set to false for small logs/items.")]
     public bool TopplesOnDeath = true;
 
+    [Tooltip("How far from the center loot appears. Set to near 0 for a tight 'middle point' cluster.")]
+    public float LootSpawnRadius = 0.2f;
+
+    [Tooltip("Initial height above ground for loot drop. Recommended 0.5 for bushes/grass, 1.5 for trees.")]
+    public float LootSpawnHeight = 0.5f;
+
     [Header("Visual Feedback")]
     public GameObject HitParticles;
 }

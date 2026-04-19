@@ -143,7 +143,7 @@ public class HotbarController : MonoBehaviour
             countRect.sizeDelta = new Vector2(30, 20);
             countRect.anchoredPosition = new Vector2(-2, 2);
             slot.CountText = countObj.AddComponent<Text>();
-            slot.CountText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // Font defaults to Arial/LegacyRuntime automatically in code-created Text components
             slot.CountText.fontSize = 14;
             slot.CountText.fontStyle = FontStyle.Bold;
             slot.CountText.alignment = TextAnchor.LowerRight;
@@ -169,7 +169,7 @@ public class HotbarController : MonoBehaviour
             nameRect.offsetMin = Vector2.zero;
             nameRect.offsetMax = Vector2.zero;
             slot.NameText = nameObj.AddComponent<Text>();
-            slot.NameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // Font defaults to Arial/LegacyRuntime automatically
             slot.NameText.fontSize = 11;
             slot.NameText.alignment = TextAnchor.MiddleCenter;
             slot.NameText.color = Color.white;

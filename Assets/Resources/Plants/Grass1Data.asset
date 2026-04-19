@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16846a866ce7b0f499f5b6572cfdc922, type: 3}
+  m_Name: Grass1Data
+  m_EditorClassIdentifier: Assembly-CSharp::PlantData
+  PlantName: Bush 4
+  MaxHealth: 20
+  LootPrefabs:
+  - {fileID: 6428839927822431674, guid: c0e97d5be8339b24487434fc2eaded6e, type: 3}
+  LootCount: 1
+  TopplesOnDeath: 0
+  LootSpawnRadius: 0.2
+  LootSpawnHeight: 0.5
+  HitParticles: {fileID: 0}

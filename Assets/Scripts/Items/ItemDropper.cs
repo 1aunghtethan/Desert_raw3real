@@ -14,6 +14,9 @@ public class ItemDropper : MonoBehaviour
     public float DropSpawnDistance = 1.6f; // Restored and slightly increased
     public float DropPrefabScale = 0.4f;
 
+    /// <summary>Default scale for items without a DropPrefab (used by CreateWorldPickup).</summary>
+    public const float DefaultDropScale = 0.4f;
+
     private Inventory _inventory;
     private PlayerController _player;
 
@@ -102,7 +105,7 @@ public class ItemDropper : MonoBehaviour
         {
             // Clone the weapon prefab and scale it down, preserving original rotation
             pickupObj = Instantiate(item.Prefab, position, item.Prefab.transform.rotation);
-            pickupObj.transform.localScale = Vector3.one * 0.4f;
+            pickupObj.transform.localScale = Vector3.one * DefaultDropScale;
         }
         else
         {

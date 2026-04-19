@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 23264367
+  Seed: 2256589
   NoiseScale: 0.005
   HeightMultiplier: 30
   BaseHeight: 5
@@ -55,18 +55,28 @@ MonoBehaviour:
   - {fileID: 7219398685013066971, guid: 01fe44ad65f0eb0469d8ea6ca5a42ffa, type: 3}
   - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
   - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
+  MiniStonePrefabs:
+  - {fileID: 5758057825070733952, guid: df31d0d4726e7954c9a5bdf35497688b, type: 3}
+  - {fileID: 7219398685013066971, guid: 01fe44ad65f0eb0469d8ea6ca5a42ffa, type: 3}
+  - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
+  - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
+  MiniStoneSpawnChance: 10
+  MiniStonesPerChunk: 2
+  MiniStoneMinScale: 0.1
+  MiniStoneMaxScale: 0.3
+  MiniStoneGroundingOffset: 0.05
   JoshuaTreePrefabs:
   - {fileID: 1600355717623300214, guid: a6b4926e02dc2f947b0d234e7e883aa3, type: 3}
   MountainBushPrefabs:
   - {fileID: 8214100204761854514, guid: f69503684ecd24c408ade799b66bea95, type: 3}
   - {fileID: 7973196419042793069, guid: 7b9059e43e49df14ab6b77a3fbea556a, type: 3}
   MountainGrassPrefabs:
-  - {fileID: 5539350881753957070, guid: eba3722cd0eac7f43a4f12848e7e4e87, type: 3}
   - {fileID: 8229493715679364520, guid: d2590c0c02211cd48b3d6e340cfdfc27, type: 3}
+  - {fileID: 5539350881753957070, guid: eba3722cd0eac7f43a4f12848e7e4e87, type: 3}
   MountainBushCountPerChunk: {x: 10, y: 15}
   MountainGrassCountPerChunk: {x: 300, y: 400}
   MountainBushScale: 1
-  MountainGrassScale: 1
+  MountainGrassScale: 2
   MountainVegClumpScale: 0.05
   MountainVegClumpThreshold: 0.45
   LoadedPlantPrefabs:
@@ -77,7 +87,7 @@ MonoBehaviour:
   PlantSpawnChance: 0.1
   PlantMinScale: 1
   PlantMaxScale: 2.5
-  PlantGroundingOffset: 0.5
+  PlantGroundingOffset: 0.2
   LoadedJoshuaTreePrefabs:
   - {fileID: 1600355717623300214, guid: a6b4926e02dc2f947b0d234e7e883aa3, type: 3}
   JoshuaTreeSpawnChance: 0.1
@@ -116,25 +126,22 @@ MonoBehaviour:
   OasisRimWidth: 40
   OasisWaterPrefab: {fileID: 1152052189803245944, guid: be3a74ee4c9d4d899462b72a41f62728,
     type: 3}
-  OasisPalmPrefabPaths:
-  - Assets/for_oasis/otree/Palm 1.prefab
-  - Assets/for_oasis/otree/Palm 2.prefab
-  - Assets/for_oasis/otree/Palm 3.prefab
-  - Assets/for_oasis/otree/Palm 4.prefab
-  OasisBushPrefabPaths:
-  - Assets/for_oasis/obush/Bush 1.prefab
-  - Assets/for_oasis/obush/Bush 2.prefab
-  - Assets/for_oasis/obush/Bush 3.prefab
-  - Assets/for_oasis/obush/Bush 4.prefab
-  - Assets/for_oasis/obush/P_Bush04.prefab
-  - Assets/for_oasis/obush/P_Bush05.prefab
+  OasisPalmPrefabs:
+  - {fileID: 4215669187755930133, guid: aa1b85b12e6775c42812d00a08e3af32, type: 3}
+  - {fileID: 2322489114848180705, guid: 595f5e35c16806e4fb8b7d5cb29a44ac, type: 3}
+  - {fileID: 4092384702080309376, guid: ef294a53609305045ab39e8a36260fc0, type: 3}
+  - {fileID: 4155650250290915195, guid: 35a910fdbf6a8904e98b2d3f4bbdcbb8, type: 3}
+  - {fileID: 823219712683733375, guid: 0f9c3d828304b58489165814c1118a46, type: 3}
+  OasisBushPrefabs:
+  - {fileID: 2999466200640151525, guid: 08f3b737a2147a64bafccb4fb34f48e7, type: 3}
+  - {fileID: 4888475837483362381, guid: 7102a9dfd0c7b7b4eae000494f12ced9, type: 3}
+  - {fileID: 2493414687536083250, guid: 7585aa1418038684fa51fbace83346d4, type: 3}
+  - {fileID: 1455059045589388222, guid: b9028668dd1b471469eb0609bca3c92f, type: 3}
+  - {fileID: 4194061057386167280, guid: c3a34b158fdeb9a4b81f7e1a8b017098, type: 3}
   OasisFishCountPerOasis: 40
   OasisFishMaxSwimDepth: 4
-  OasisFishPrefabPaths:
-  - Assets/for_oasis/ofish/Fish_4_v1.prefab
-  - Assets/for_oasis/ofish/Fish_4_v2.prefab
-  - Assets/for_oasis/ofish/Fish_4_v3.prefab
-  - Assets/for_oasis/ofish/Fish_4_v4.prefab
-  - Assets/for_oasis/ofish/Fish_4_v5.prefab
-  - Assets/for_oasis/ofish/Fish_6_v1.prefab
-  - Assets/for_oasis/ofish/Fish_6_v5.prefab
+  OasisFishPrefabs:
+  - {fileID: 6156530131990788904, guid: d666a6ca1b5e1ff45bd7985bcd106df7, type: 3}
+  - {fileID: 8435293135910846810, guid: 6ddd2c4c53afb3a40bea75244834724b, type: 3}
+  - {fileID: 7694947418325751486, guid: 565bb9c1722c94c4e9d996eb43d6d0fa, type: 3}
+  - {fileID: 5603957270344205056, guid: a9ea9e847a47f2b41826f0345e85fd94, type: 3}

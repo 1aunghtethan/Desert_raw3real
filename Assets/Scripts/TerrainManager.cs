@@ -77,32 +77,8 @@ public class TerrainManager : MonoBehaviour
     {
         if (Config == null) return;
         
-        Debug.Log("[OasisFish] TerrainManager.Start: initializing prefab list.");
-        Config.LoadedOasisFishPrefabs.Clear();
-
-#if UNITY_EDITOR
-        if (Config.OasisWaterPrefab == null)
-            Config.OasisWaterPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/for_oasis/Water Specular Mirror.prefab");
-            
-        foreach (var p in Config.OasisPalmPrefabPaths) {
-            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(p);
-            if (prefab != null) Config.LoadedOasisPalmPrefabs.Add(prefab);
-        }
-        foreach (var p in Config.OasisBushPrefabPaths) {
-            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(p);
-            if (prefab != null) Config.LoadedOasisBushPrefabs.Add(prefab);
-        }
-        foreach (var p in Config.OasisFishPrefabPaths) {
-            var prefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(p);
-            if (prefab != null) {
-                Config.LoadedOasisFishPrefabs.Add(prefab);
-                Debug.Log($"[OasisFish] Loaded prefab: {p}");
-            } else {
-                Debug.LogError($"[OasisFish] FAILED to load prefab at: {p}");
-            }
-        }
-#endif
-        Debug.Log($"[OasisFish] Total fish prefabs loaded: {Config.LoadedOasisFishPrefabs.Count}");
+        Debug.Log("[OasisFish] TerrainManager.Start: Prefab lists are now manually assigned in Config.");
+        Debug.Log($"[OasisFish] Total fish prefabs available: {Config.OasisFishPrefabs.Count}");
 
         if (Config.MountainTestMode)
         {
@@ -860,11 +836,24 @@ public class TerrainManager : MonoBehaviour
             // Confine to a 120 degree wedge (1/3 of shore) on the 'vegetation side'
             float angle = oasisVegAngle + Random.Range(-Mathf.PI / 3f, Mathf.PI / 3f);
             
-            // Focus search strictly outside the water radius to prevent trees in the water.
-            float dist = Random.Range(Config.OasisWaterRadius + 1.0f, Config.OasisWaterRadius * 1.5f); 
+            // SHORELINE SEEKER: Seek the "touching point" (coastal) between water and sand
+            float dist = 0f;
+            bool foundShore = false;
+            // Scan from 5m out to BasinRadius to find the exact shoreline transition
+            for (float d = 5.0f; d < Config.OasisBasinRadius; d += 2.0f) {
+                Vector3 checkPos = center + new Vector3(Mathf.Cos(angle) * d, 0, Mathf.Sin(angle) * d);
+                float h = SampleHeight(checkPos);
+                if (h >= dynamicWaterLevel - 0.1f) {
+                    dist = d + 2.5f; // Place 2.5 meters back from the coastal point into the sand
+                    foundShore = true;
+                    break;
+                }
+            }
+            if (!foundShore) continue;
+
             Vector3 pPos = center + new Vector3(Mathf.Cos(angle) * dist, 0, Mathf.Sin(angle) * dist);
             
-            // Raycast from high above to find actual terrain mesh surface
+            // Final vertical alignment via Raycast (or SampleHeight fallback)
             Vector3 palmRayOrigin = new Vector3(pPos.x, 500f, pPos.z);
             if (Physics.Raycast(palmRayOrigin, Vector3.down, out RaycastHit palmHit, 1000f)) {
                 pPos.y = palmHit.point.y;
@@ -872,10 +861,9 @@ public class TerrainManager : MonoBehaviour
                 pPos.y = SampleHeight(pPos);
             }
             
-            // SHORELINE RULE: Compare ACTUAL ground level to water level. Must be above water level.
-            // LOOSENED: Increased max height from +2.0 to +5.0 to ensure trees always find a spot even in steep oasis banks.
-            if (pPos.y < dynamicWaterLevel + 0.05f) continue; // Ensure strictly above water
-            if (pPos.y > dynamicWaterLevel + 5.0f) continue; 
+            // Verify final position is within a reasonable shore height range
+            if (pPos.y < dynamicWaterLevel - 0.2f) continue; 
+            if (pPos.y > dynamicWaterLevel + 4.0f) continue;
             
             // Overlap check: ensure palms are spawned at least ~2 meters apart from each other
             bool isTooClose = false;
@@ -887,14 +875,14 @@ public class TerrainManager : MonoBehaviour
             }
             if (isTooClose) continue;
 
-            if (Config.LoadedOasisPalmPrefabs.Count > 0) {
-                float palmScale = Random.Range(1.5f, 3.0f);
-                // "10 percentage sink tree bottom in the sand": Lower the actual visual position based on its size
+            if (Config.OasisPalmPrefabs.Count > 0) {
+                float palmScale = Random.Range(8.0f, 10.0f); // Massive scale (8x to 10x)
+                // Adjust vertical position: sink a portion into the sand
                 Vector3 palmSpawnPos = pPos;
-                palmSpawnPos.y -= palmScale * 0.4f;
+                palmSpawnPos.y -= palmScale * 0.35f; 
 
                 GameObject palm = Instantiate(
-                    Config.LoadedOasisPalmPrefabs[Random.Range(0, Config.LoadedOasisPalmPrefabs.Count)],
+                    Config.OasisPalmPrefabs[Random.Range(0, Config.OasisPalmPrefabs.Count)],
                     palmSpawnPos, Quaternion.Euler(0, Random.Range(0, 360f), 0), transform);
                 palm.transform.localScale = Vector3.one * palmScale;
                 
@@ -931,8 +919,8 @@ public class TerrainManager : MonoBehaviour
 
     private void SpawnOasisFish(Vector3 center, float waterLevel, float radius, List<GameObject> assets)
     {
-        if (Config.LoadedOasisFishPrefabs == null || Config.LoadedOasisFishPrefabs.Count == 0) {
-            Debug.LogWarning("[OasisFish] SpawnOasisFish skipped: No fish prefabs loaded!");
+        if (Config.OasisFishPrefabs == null || Config.OasisFishPrefabs.Count == 0) {
+            Debug.LogWarning("[OasisFish] SpawnOasisFish skipped: No fish prefabs assigned in Config!");
             return;
         }
 
@@ -945,7 +933,7 @@ public class TerrainManager : MonoBehaviour
             Vector2 randomCircle = Random.insideUnitCircle * (radius * 0.9f);
             Vector3 spawnPos = new Vector3(center.x + randomCircle.x, waterLevel - 0.2f, center.z + randomCircle.y);
 
-            GameObject prefab = Config.LoadedOasisFishPrefabs[Random.Range(0, Config.LoadedOasisFishPrefabs.Count)];
+            GameObject prefab = Config.OasisFishPrefabs[Random.Range(0, Config.OasisFishPrefabs.Count)];
             // Instantiate with identity rotation first to make bounds calculation easier
             GameObject fish = Instantiate(prefab, spawnPos, Quaternion.identity, transform);
             fish.name = "OasisFish_" + i;
@@ -1027,7 +1015,7 @@ public class TerrainManager : MonoBehaviour
 
     public void SpawnBushesNearPlayer()
     {
-        if (Config == null || Config.LoadedOasisBushPrefabs.Count == 0) return;
+        if (Config == null || Config.OasisBushPrefabs.Count == 0) return;
 
         float sqrTriggerDist = Config.BushSpawnTriggerDistance * Config.BushSpawnTriggerDistance;
         Vector3 playerPos = Player.position;
@@ -1066,51 +1054,39 @@ public class TerrainManager : MonoBehaviour
         
         int bushCount = Config.OasisBushCount;
         int maxAttempts = Mathf.Max(2000, bushCount * 10);
-        int spawned = 0;
-        int attempts = 0;
-        
-        while (spawned < bushCount && attempts < maxAttempts)
-        {
-            attempts++;
-            
-            // Spawn strictly on the vegetation side (120 degree wedge, 1/3 of shore)
-            float angle = data.vegAngle + Random.Range(-Mathf.PI / 3f, Mathf.PI / 3f);
-            
-            // Search along shoreline starting from water edge
-            float dist = Random.Range(Config.OasisWaterRadius, Config.OasisWaterRadius * 1.5f);
-            Vector3 bPos = data.center + new Vector3(Mathf.Cos(angle) * dist, 0, Mathf.Sin(angle) * dist);
-
-            // Raycast for actual terrain mesh surface
-            float groundY;
-            Vector3 rayOrigin = new Vector3(bPos.x, 500f, bPos.z);
-            if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 1000f)) {
-                groundY = hit.point.y;
-            } else {
-                groundY = SampleHeight(bPos);
-            }
-            bPos.y = groundY;
-
-            // CONDITION: Must be in shore zone (<= 3m above water) OR near a tree (<= 1.5m radius)
-            // LOOSENED: Increased shore zone height from +1.0 to +3.0 and distance from 1.25 to 1.5
-            // This ensures bushes reliably spawn on the shoreline for any oasis seed.
-            bool inShoreZone = bPos.y >= data.waterLevel && bPos.y <= data.waterLevel + 3.0f && dist <= Config.OasisWaterRadius * 1.50f;
-            bool nearTree = false;
-            foreach (var tPos in data.palmPos) {
-                if (Vector3.Distance(new Vector3(bPos.x, 0, bPos.z), new Vector3(tPos.x, 0, tPos.z)) <= 1.5f) {
-                    nearTree = true;
-                    break;
+        // Focused Spawning: Place 8-10 bushes around each palm tree location
+        foreach (var tPos in data.palmPos) {
+            int bushesThisTree = Random.Range(8, 11);
+            for (int i = 0; i < bushesThisTree; i++) {
+                // Pick a small radius around the tree (1.0m to 3.0m)
+                float r = Random.Range(1.0f, 3.0f);
+                float a = Random.Range(0, Mathf.PI * 2f);
+                Vector3 bPos = new Vector3(tPos.x + Mathf.Cos(a) * r, 0, tPos.z + Mathf.Sin(a) * r);
+                
+                // Get precise vertical position
+                Vector3 rayOrigin = new Vector3(bPos.x, 500f, bPos.z);
+                if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 1000f)) {
+                    bPos.y = hit.point.y;
+                } else {
+                    bPos.y = SampleHeight(bPos);
                 }
+
+                // SUITABILITY: Check slope to ensure ground is reasonably flat for a bush
+                float hCenter = bPos.y;
+                float hOff = SampleHeight(bPos + new Vector3(0.5f, 0, 0.5f));
+                float slope = Mathf.Abs(hCenter - hOff) / 0.707f; // Approx diagonal distance slope
+                bool isSuitable = slope < 0.8f; // Skip steep basin walls
+
+                // SHORE ZONE: Check if spot is coastal (within 4m of water surface)
+                bool inShoreZone = bPos.y >= data.waterLevel - 0.2f && bPos.y <= data.waterLevel + 4.0f;
+
+                if (!isSuitable || !inShoreZone) continue;
+
+                GameObject prefab = Config.OasisBushPrefabs[Random.Range(0, Config.OasisBushPrefabs.Count)];
+                GameObject bush = Instantiate(prefab, bPos, Quaternion.Euler(0, Random.Range(0, 360f), 0), transform);
+                bush.transform.localScale = Vector3.one * Random.Range(0.8f, 1.2f); // Small scale variety
+                chunkBushes.Add(bush);
             }
-
-            if (!inShoreZone && !nearTree) continue;
-
-            GameObject prefab = Config.LoadedOasisBushPrefabs[Random.Range(0, Config.LoadedOasisBushPrefabs.Count)];
-            GameObject bush = Instantiate(prefab, bPos, Quaternion.Euler(0, Random.Range(0, 360f), 0), transform);
-            bush.transform.localScale = Vector3.one;
-
-            chunkBushes.Add(bush);
-
-            spawned++;
         }
     }
 

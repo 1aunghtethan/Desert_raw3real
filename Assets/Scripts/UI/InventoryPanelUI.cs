@@ -183,7 +183,7 @@ public class InventoryPanelUI : MonoBehaviour
             labelRect.sizeDelta = new Vector2(300, 25);
             Text labelText = labelObj.AddComponent<Text>();
             labelText.text = "Backpack";
-            labelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // Font defaults to Arial/LegacyRuntime automatically
             labelText.fontSize = 16;
             labelText.fontStyle = FontStyle.Bold;
             labelText.alignment = TextAnchor.MiddleCenter;
@@ -310,7 +310,7 @@ public class InventoryPanelUI : MonoBehaviour
             nameRect.offsetMin = Vector2.zero;
             nameRect.offsetMax = Vector2.zero;
             Text nameText = nameObj.AddComponent<Text>();
-            nameText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // Font defaults automatically
             nameText.fontSize = 12;
             nameText.alignment = TextAnchor.MiddleCenter;
             nameText.color = Color.white;
@@ -332,7 +332,7 @@ public class InventoryPanelUI : MonoBehaviour
             countRect.sizeDelta = new Vector2(30, 20);
             countRect.anchoredPosition = new Vector2(-2, 2);
             Text countText = countObj.AddComponent<Text>();
-            countText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            // Font defaults automatically
             countText.fontSize = 14;
             countText.fontStyle = FontStyle.Bold;
             countText.alignment = TextAnchor.LowerRight;
@@ -398,7 +398,7 @@ public class InventoryPanelUI : MonoBehaviour
         textRt.sizeDelta = new Vector2(40, 20);
         
         _cursorIconText = textObj.AddComponent<Text>();
-        _cursorIconText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        // Font defaults automatically
         _cursorIconText.fontSize = 16;
         _cursorIconText.alignment = TextAnchor.LowerRight;
         _cursorIconText.raycastTarget = false;

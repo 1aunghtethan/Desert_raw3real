@@ -188,9 +188,16 @@ public class MountainSpawner : MonoBehaviour
         
         GameObject obj;
         GameObject prefabToUse = isMountain ? _tm.Config.MountainPrefab : null;
-        if (!isMountain && _tm.Config.LoadedStonePrefabs != null && _tm.Config.LoadedStonePrefabs.Count > 0)
+        if (!isMountain)
         {
-            prefabToUse = _tm.Config.LoadedStonePrefabs[Random.Range(0, _tm.Config.LoadedStonePrefabs.Count)];
+            List<GameObject> combinedStones = new List<GameObject>();
+            if (_tm.Config.LoadedStonePrefabs != null) combinedStones.AddRange(_tm.Config.LoadedStonePrefabs);
+            if (_tm.Config.StonePrefabs != null) combinedStones.AddRange(_tm.Config.StonePrefabs);
+
+            if (combinedStones.Count > 0)
+            {
+                prefabToUse = combinedStones[Random.Range(0, combinedStones.Count)];
+            }
         }
 
         if (prefabToUse != null)

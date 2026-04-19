@@ -24,6 +24,10 @@ public class SandInteraction : MonoBehaviour
         // If a weapon is equipped, don't dig — the weapon handles its own behavior
         if (hasWeaponEquipped) return;
 
+        // If explicitly in placement mode, do not process sand interactions
+        ItemPlacer placer = _player != null ? _player.GetComponent<ItemPlacer>() : null;
+        if (placer != null && placer.IsPlacementModeActive) return;
+
         // If a consumable/tool is equipped and right-click is pressed, let ItemPlacer handle it
         bool hasNonDigItem = equipment != null 
             && equipment.CurrentItem != null 
