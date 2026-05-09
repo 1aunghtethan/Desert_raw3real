@@ -39,6 +39,8 @@ public class PlantPhysics : MonoBehaviour
             // Determine grounding offset based on what this is
             if (gameObject.name.Contains("Joshua") || gameObject.name.Contains("Tree"))
                 _groundingOffset = _tm.Config.JoshuaTreeGroundingOffset;
+            else if (gameObject.name.Contains("TerrainGrass"))
+                _groundingOffset = _tm.Config.TerrainGrassGroundingOffset;
             else if (gameObject.name.Contains("Grass"))
                 _groundingOffset = 0.02f;
             else

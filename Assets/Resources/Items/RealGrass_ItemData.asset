@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ceb21783dfe8874f93fda9977625099, type: 3}
+  m_Name: RealGrass_ItemData
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  ItemName: Real Grass
+  Icon: {fileID: 0}
+  Type: 2
+  Prefab: {fileID: 2801840134520357465, guid: b10e87e83c192b84ea73ef796fc3e10f,
+    type: 3}
+  MaxStack: 64
+  Damage: 0
+  AttackSpeed: 1
+  Range: 2
+  ProjectilePrefab: {fileID: 0}
+  ProjectileSpeed: 30
+  DropPrefab: {fileID: 2801840134520357465, guid: b10e87e83c192b84ea73ef796fc3e10f,
+    type: 3}
+  PickupsSpinAndBob: 0
+  HoldPosition: {x: 0, y: 0, z: 0}
+  HoldRotation: {x: 0, y: 0, z: 0}
+  HoldScale: 1
+  DigMultiplier: 1.5
+  RadiusMultiplier: 1
+  HealthRestore: 0
+  HungerRestore: 5
+  SaturationRestore: 5
+  ThirstRestore: 0

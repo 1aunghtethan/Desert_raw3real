@@ -1,14 +1,5 @@
 {
   "dependencies": {
-    "com.besty.unity-skills": {
-      "version": "file:C:/Users/LENOVO IDEAPAD/Downloads/Unity-Skills-main/Unity-Skills-main/SkillsForUnity",
-      "depth": 0,
-      "source": "local",
-      "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.0.2",
-        "com.unity.timeline": "1.7.7"
-      }
-    },
     "com.coplaydev.unity-mcp": {
       "version": "file:C:/Users/LENOVO IDEAPAD/Downloads/unity-mcp-beta/unity-mcp-beta/MCPForUnity",
       "depth": 0,

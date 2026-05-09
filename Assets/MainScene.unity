@@ -2632,8 +2632,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlantSpawner
   PlantPrefabs: []
   JoshuaTreePrefabs: []
+  TerrainGrassPrefabs: []
   LoadedPlantPrefabs: []
   LoadedJoshuaTreePrefabs: []
+  LoadedTerrainGrassPrefabs: []
 --- !u!114 &1316886686
 MonoBehaviour:
   m_ObjectHideFlags: 0

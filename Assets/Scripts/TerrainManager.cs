@@ -232,21 +232,45 @@ public class TerrainManager : MonoBehaviour
 
             Vector3 targetPos = new Vector3(TestMountainChunk.x * chunkSizeWorld + chunkSizeWorld * 0.5f, 0, TestMountainChunk.y * chunkSizeWorld + chunkSizeWorld * 0.5f);
             
-            // Try to find a valid spot on the apron sand to teleport the player
+            // Try to find a valid spot on the apron sand to teleport the player.
+            // Mountain footprints are huge, so search outward from the center instead of probing nearby random points.
             Vector3 treeWorldPos = targetPos;
             bool found = false;
-            for (int i = 0; i < 50; i++)
+            float searchStartRadius = Mathf.Max(10f, chunkSizeWorld * 0.5f);
+            float searchRadius = Mathf.Max(chunkSizeWorld, Config.MountainMaxScale * Config.MountainMeshRadiusMultiplier);
+            if (MountainSpawner.Instance != null)
             {
-                Vector3 checkPos = targetPos + new Vector3(Random.Range(-50, 50), 0, Random.Range(-50, 50));
-                float flatness = 0f;
-                float influence = MountainSpawner.Instance != null ? MountainSpawner.Instance.GetMountainInfluenceAtPoint(checkPos, out flatness) : 0f;
-                float apronBlend = Mathf.Max(flatness, influence * 0.5f);
-                
-                if (apronBlend > 0.3f && flatness < 0.99f)
+                List<MountainSpawner.MountainData> nearbyMountains = MountainSpawner.Instance.GetNearbyMountains(TestMountainChunk);
+                for (int i = 0; i < nearbyMountains.Count; i++)
                 {
-                    treeWorldPos = checkPos;
-                    found = true;
-                    break;
+                    MountainSpawner.MountainData mountain = nearbyMountains[i];
+                    if (Vector2.Distance(mountain.position, new Vector2(targetPos.x, targetPos.z)) <= chunkSizeWorld)
+                    {
+                        searchStartRadius = Mathf.Max(searchStartRadius, mountain.footprintRadius);
+                        searchRadius = Mathf.Max(chunkSizeWorld, mountain.radius);
+                        break;
+                    }
+                }
+            }
+
+            float radiusStep = Mathf.Max(10f, chunkSizeWorld * 0.5f);
+            const int angleSteps = 24;
+            for (float searchDistance = searchStartRadius; searchDistance <= searchRadius && !found; searchDistance += radiusStep)
+            {
+                for (int angleIndex = 0; angleIndex < angleSteps; angleIndex++)
+                {
+                    float angle = (Mathf.PI * 2f * angleIndex) / angleSteps;
+                    Vector3 checkPos = targetPos + new Vector3(Mathf.Cos(angle) * searchDistance, 0, Mathf.Sin(angle) * searchDistance);
+                    float flatness = 0f;
+                    float influence = MountainSpawner.Instance != null ? MountainSpawner.Instance.GetMountainInfluenceAtPoint(checkPos, out flatness) : 0f;
+                    float apronBlend = Mathf.Max(flatness, influence * 0.5f);
+
+                    if (apronBlend > 0.3f && flatness < 0.99f)
+                    {
+                        treeWorldPos = checkPos;
+                        found = true;
+                        break;
+                    }
                 }
             }
 

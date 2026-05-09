@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.besty.unity-skills": "file:C:/Users/LENOVO IDEAPAD/Downloads/Unity-Skills-main/Unity-Skills-main/SkillsForUnity",
     "com.coplaydev.unity-mcp": "file:C:/Users/LENOVO IDEAPAD/Downloads/unity-mcp-beta/unity-mcp-beta/MCPForUnity",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.2d.tilemap": "1.0.0",

@@ -134,6 +134,21 @@ public class TerrainConfig : ScriptableObject
     [Tooltip("Threshold for vegetation clumps (0-1). Lower = more vegetation.")]
     public float MountainVegClumpThreshold = 0.45f;
 
+    [Header("Terrain Grass")]
+    [Tooltip("Grass prefabs to scatter across all regular terrain chunks.")]
+    public List<GameObject> TerrainGrassPrefabs = new List<GameObject>();
+    [Tooltip("Number of grass formation spawn points to try per terrain chunk.")]
+    public Vector2Int TerrainGrassCountPerChunk = new Vector2Int(20, 35);
+    public float TerrainGrassScale = 1.0f;
+    public float TerrainGrassGroundingOffset = -0.25f;
+    [Range(0f, 1f)]
+    [Tooltip("Chance that each successful grass spawn point creates one blade instead of a group.")]
+    public float TerrainGrassSoloFormationChance = 0.8f;
+    [Tooltip("Smallest scatter radius used when a grass group forms.")]
+    public float TerrainGrassGroupRadiusMin = 0.3f;
+    [Tooltip("Largest scatter radius used when a grass group forms.")]
+    public float TerrainGrassGroupRadiusMax = 0.8f;
+
     [Header("Plants")]
     [Tooltip("Plant (tree/cactus) prefabs to randomly scatter. Drag & Drop here.")]
     public List<GameObject> LoadedPlantPrefabs = new List<GameObject>();

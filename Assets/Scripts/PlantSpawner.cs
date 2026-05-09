@@ -15,10 +15,12 @@ public class PlantSpawner : MonoBehaviour
     [Header("Manual Overrides (Drag & Drop here)")]
     public List<GameObject> PlantPrefabs = new List<GameObject>();
     public List<GameObject> JoshuaTreePrefabs = new List<GameObject>();
+    public List<GameObject> TerrainGrassPrefabs = new List<GameObject>();
 
     [Header("Runtime Active Prefabs (Read Only)")]
     public List<GameObject> LoadedPlantPrefabs = new List<GameObject>();
     public List<GameObject> LoadedJoshuaTreePrefabs = new List<GameObject>();
+    public List<GameObject> LoadedTerrainGrassPrefabs = new List<GameObject>();
     
     void Awake()
     {
@@ -46,6 +48,9 @@ public class PlantSpawner : MonoBehaviour
 
         if (JoshuaTreePrefabs.Count > 0) LoadedJoshuaTreePrefabs = JoshuaTreePrefabs;
         else if (_tm.Config.LoadedJoshuaTreePrefabs != null) LoadedJoshuaTreePrefabs = _tm.Config.LoadedJoshuaTreePrefabs;
+
+        if (TerrainGrassPrefabs.Count > 0) LoadedTerrainGrassPrefabs = TerrainGrassPrefabs;
+        else if (_tm.Config.TerrainGrassPrefabs != null) LoadedTerrainGrassPrefabs = _tm.Config.TerrainGrassPrefabs;
     }
 
     /// <summary>
@@ -65,6 +70,8 @@ public class PlantSpawner : MonoBehaviour
         {
             SpawnPlant(coord, false);
         }
+
+        SpawnTerrainGrass(coord);
 
         // Check for mini stone spawn
         if (_tm.Config.MiniStonePrefabs != null && _tm.Config.MiniStonePrefabs.Count > 0)
@@ -121,6 +128,160 @@ public class PlantSpawner : MonoBehaviour
         }
 
         Random.state = oldState;
+    }
+
+    private void SpawnTerrainGrass(Vector2Int coord)
+    {
+        if (LoadedTerrainGrassPrefabs == null || LoadedTerrainGrassPrefabs.Count == 0) return;
+
+        int targetCount = Random.Range(_tm.Config.TerrainGrassCountPerChunk.x, _tm.Config.TerrainGrassCountPerChunk.y + 1);
+        int attempts = targetCount * 8;
+        int spawnedFormations = 0;
+        int spawnedBlades = 0;
+
+        for (int i = 0; i < attempts && spawnedFormations < targetCount; i++)
+        {
+            int blades = TrySpawnTerrainGrassFormation(coord);
+            if (blades <= 0) continue;
+
+            spawnedFormations++;
+            spawnedBlades += blades;
+        }
+
+        if (spawnedBlades > 0)
+        {
+            Debug.Log($"[PlantSpawner] Chunk {coord}: Terrain grass formations={spawnedFormations}/{targetCount}, blades={spawnedBlades}");
+        }
+    }
+
+    private int TrySpawnTerrainGrassFormation(Vector2Int coord)
+    {
+        float chunkSizeWorld = (_tm.Config.ChunkSize - 1) * _tm.Config.CellSize;
+        float worldX = coord.x * chunkSizeWorld + Random.Range(0f, chunkSizeWorld);
+        float worldZ = coord.y * chunkSizeWorld + Random.Range(0f, chunkSizeWorld);
+        Vector3 center = new Vector3(worldX, 0, worldZ);
+
+        if (!IsValidTerrainGrassSpawnPoint(center, coord)) return 0;
+
+        float soloChance = Mathf.Clamp01(_tm.Config.TerrainGrassSoloFormationChance);
+        int bladeCount = Random.value < soloChance ? 1 : RollGrassGroupSize();
+        float radiusMin = Mathf.Max(0f, _tm.Config.TerrainGrassGroupRadiusMin);
+        float radiusMax = Mathf.Max(radiusMin, _tm.Config.TerrainGrassGroupRadiusMax);
+        float radius = bladeCount == 1 ? 0f : Random.Range(radiusMin, radiusMax);
+
+        int spawned = 0;
+        for (int i = 0; i < bladeCount; i++)
+        {
+            Vector3 position = center;
+            if (i > 0 || bladeCount > 1)
+            {
+                float angle = Random.Range(0f, Mathf.PI * 2f);
+                float distance = Random.Range(0f, radius);
+                position.x += Mathf.Cos(angle) * distance;
+                position.z += Mathf.Sin(angle) * distance;
+            }
+
+            if (!IsValidTerrainGrassSpawnPoint(position, coord)) continue;
+
+            InstantiateTerrainGrassAtPos(position, coord);
+            spawned++;
+        }
+
+        return spawned;
+    }
+
+    private bool IsValidTerrainGrassSpawnPoint(Vector3 worldPos, Vector2Int coord)
+    {
+        if (Vector3.Distance(worldPos, _tm.Config.PlayerSpawnPoint) < _tm.Config.SpawnSafeRadius)
+            return false;
+
+        var nearbyOases = _tm.GetNearbyOases(coord);
+        foreach (var o in nearbyOases)
+        {
+            if (Vector2.Distance(new Vector2(worldPos.x, worldPos.z), o.position) < o.basinRadius + 10f)
+                return false;
+        }
+
+        return true;
+    }
+
+    private int RollGrassGroupSize()
+    {
+        float roll = Random.value;
+
+        if (roll <= 0.30f) return 3;
+        if (roll <= 0.60f) return 4;
+        if (roll <= 0.75f) return 5;
+        if (roll <= 0.90f) return 6;
+        if (roll <= 0.9333f) return 7;
+        if (roll <= 0.9666f) return 8;
+
+        return 9;
+    }
+
+    private void InstantiateTerrainGrassAtPos(Vector3 position, Vector2Int coord)
+    {
+        float yPos = _tm.SampleHeight(position) - _tm.Config.TerrainGrassGroundingOffset;
+        Vector3 pos = new Vector3(position.x, yPos, position.z);
+        GameObject prefab = LoadedTerrainGrassPrefabs[Random.Range(0, LoadedTerrainGrassPrefabs.Count)];
+        if (prefab == null)
+        {
+            Debug.LogWarning("[PlantSpawner] Terrain grass prefab entry is missing or is not a GameObject. Check TerrainConfig_Default > Terrain Grass Prefabs.");
+            return;
+        }
+
+        GameObject obj = Instantiate(prefab, pos, Quaternion.identity, transform);
+        obj.transform.localScale = Vector3.one * _tm.Config.TerrainGrassScale;
+        obj.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        obj.name = "TerrainGrass";
+
+        var physics = obj.GetComponent<PlantPhysics>();
+        if (physics == null) physics = obj.AddComponent<PlantPhysics>();
+        physics.DisableFall = true;
+
+        PlantHealth health = obj.GetComponent<PlantHealth>();
+        if (health == null)
+            health = obj.AddComponent<PlantHealth>();
+
+        if (health.Data == null)
+            health.Data = Resources.Load<PlantData>("Plants/RealGrassData");
+
+        EnsureGrassCollider(obj);
+
+        if (health.Data == null)
+        {
+            foreach (var col in obj.GetComponentsInChildren<Collider>())
+            {
+                Destroy(col);
+            }
+        }
+
+        if (!_activePlants.ContainsKey(coord))
+            _activePlants[coord] = new List<GameObject>();
+
+        _activePlants[coord].Add(obj);
+    }
+
+    private void EnsureGrassCollider(GameObject obj)
+    {
+        if (obj.GetComponentInChildren<Collider>() != null)
+            return;
+
+        Renderer renderer = obj.GetComponentInChildren<Renderer>();
+        BoxCollider collider = obj.AddComponent<BoxCollider>();
+        collider.isTrigger = false;
+
+        if (renderer == null)
+            return;
+
+        collider.center = obj.transform.InverseTransformPoint(renderer.bounds.center);
+
+        Vector3 localSize = obj.transform.InverseTransformVector(renderer.bounds.size);
+        collider.size = new Vector3(
+            Mathf.Abs(localSize.x),
+            Mathf.Abs(localSize.y),
+            Mathf.Abs(localSize.z)
+        );
     }
 
     /// <summary>

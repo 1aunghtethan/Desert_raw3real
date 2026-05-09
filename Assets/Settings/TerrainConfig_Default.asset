@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 2256589
+  Seed: 872243
   NoiseScale: 0.005
   HeightMultiplier: 30
   BaseHeight: 5
@@ -79,6 +79,14 @@ MonoBehaviour:
   MountainGrassScale: 2
   MountainVegClumpScale: 0.05
   MountainVegClumpThreshold: 0.45
+  TerrainGrassPrefabs:
+  - {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
+  TerrainGrassCountPerChunk: {x: 2, y: 5}
+  TerrainGrassScale: 90
+  TerrainGrassGroundingOffset: 0.1
+  TerrainGrassSoloFormationChance: 0.8
+  TerrainGrassGroupRadiusMin: 0.3
+  TerrainGrassGroupRadiusMax: 0.8
   LoadedPlantPrefabs:
   - {fileID: 1485378158726796, guid: 5da07da6c25a65249aa4f03d5ed92684, type: 3}
   - {fileID: 1268516079989756, guid: 5c243d3591422814a81656730b54873b, type: 3}

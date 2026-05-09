@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 16846a866ce7b0f499f5b6572cfdc922, type: 3}
-  m_Name: Grass1Data
+  m_Name: RealGrassData
   m_EditorClassIdentifier: Assembly-CSharp::PlantData
-  PlantName: Bush 4
-  MaxHealth: 20
+  PlantName: Real Grass
+  MaxHealth: 10
   LootPrefabs:
-  - {fileID: 6668526669038768846, guid: 2da204b8009c55942910a9b82bc76c78, type: 3}
+  - {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
   LootCount: 1
   TopplesOnDeath: 0
-  LootSpawnRadius: 0.2
-  LootSpawnHeight: 0.5
+  LootSpawnRadius: 0.05
+  LootSpawnHeight: 0.35
   HitParticles: {fileID: 0}

@@ -15,7 +15,7 @@ MonoBehaviour:
   PlantName: Bush 5
   MaxHealth: 20
   LootPrefabs:
-  - {fileID: 6428839927822431674, guid: c0e97d5be8339b24487434fc2eaded6e, type: 3}
+  - {fileID: 6668526669038768846, guid: 2da204b8009c55942910a9b82bc76c78, type: 3}
   LootCount: 1
   TopplesOnDeath: 0
   LootSpawnRadius: 0.2

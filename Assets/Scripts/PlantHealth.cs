@@ -158,6 +158,11 @@ public class PlantHealth : MonoBehaviour, IDamageable
 
             // Random rotation for natural look
             Quaternion spawnRot = Quaternion.Euler(Random.Range(0, 360f), Random.Range(0, 360f), Random.Range(0, 360f));
+            bool isRealGrassLoot = Data != null && Data.PlantName == "Real Grass";
+            if (isRealGrassLoot)
+            {
+                spawnRot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            }
 
             GameObject loot = Instantiate(prefab, spawnPos, spawnRot);
             // Use the "Item" layer (10) so the interaction system can pick them up
@@ -181,11 +186,36 @@ public class PlantHealth : MonoBehaviour, IDamageable
             Rigidbody rb = loot.GetComponent<Rigidbody>();
             if (rb == null) rb = loot.AddComponent<Rigidbody>();
             
-            rb.isKinematic = false;
-            rb.useGravity = true;
             rb.mass = 10f; // Heavier logs settle faster and better
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
 
+            if (isRealGrassLoot)
+            {
+                LootItem lootItem = loot.GetComponent<LootItem>();
+                if (lootItem == null) lootItem = loot.AddComponent<LootItem>();
+                if (lootItem != null && lootItem.Data == null)
+                {
+                    lootItem.Data = Resources.Load<ItemData>("Items/RealGrass_ItemData");
+                }
+
+                if (TerrainManager.Instance != null)
+                {
+                    float h = TerrainManager.Instance.SampleHeight(spawnPos);
+                    if (!float.IsNaN(h))
+                    {
+                        loot.transform.position = new Vector3(spawnPos.x, h + 0.02f, spawnPos.z);
+                    }
+                }
+
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.isKinematic = true;
+                rb.useGravity = false;
+                continue;
+            }
+
+            rb.isKinematic = false;
+            rb.useGravity = true;
             rb.WakeUp();
             
             // Random scatter kick
