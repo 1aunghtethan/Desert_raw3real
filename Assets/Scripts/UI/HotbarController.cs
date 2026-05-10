@@ -140,11 +140,11 @@ public class HotbarController : MonoBehaviour
             countRect.anchorMin = new Vector2(1, 0);
             countRect.anchorMax = new Vector2(1, 0);
             countRect.pivot = new Vector2(1, 0);
-            countRect.sizeDelta = new Vector2(30, 20);
-            countRect.anchoredPosition = new Vector2(-2, 2);
+            countRect.sizeDelta = new Vector2(52, 32);
+            countRect.anchoredPosition = new Vector2(-4, 4);
             slot.CountText = countObj.AddComponent<Text>();
-            // Font defaults to Arial/LegacyRuntime automatically in code-created Text components
-            slot.CountText.fontSize = 14;
+            slot.CountText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            slot.CountText.fontSize = 25;
             slot.CountText.fontStyle = FontStyle.Bold;
             slot.CountText.alignment = TextAnchor.LowerRight;
             slot.CountText.color = Color.white;
@@ -152,6 +152,14 @@ public class HotbarController : MonoBehaviour
             Outline countOutline = countObj.AddComponent<Outline>();
             countOutline.effectColor = Color.black;
         }
+        else
+        {
+            slot.CountText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            slot.CountText.fontSize = 25;
+            slot.CountText.raycastTarget = false;
+        }
+
+        slot.CountText.transform.SetAsLastSibling();
 
         // Find or create name Text child (for items without icons)
         Transform nameChild = slotTransform.Find("NameText");
@@ -222,7 +230,11 @@ public class HotbarController : MonoBehaviour
 
             // Update count
             if (slot.CountText != null)
+            {
                 slot.CountText.text = (item != null && count > 1) ? count.ToString() : "";
+                slot.CountText.gameObject.SetActive(item != null && count > 1);
+                slot.CountText.transform.SetAsLastSibling();
+            }
 
             // Update selection highlight (only for handbar slots)
             if (idx < _inventory.HotbarSize)

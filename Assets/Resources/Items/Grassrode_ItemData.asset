@@ -10,25 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2ceb21783dfe8874f93fda9977625099, type: 3}
-  m_Name: RealGrass_ItemData
+  m_Name: Grassrode_ItemData
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
-  ItemName: Real Grass
-  Icon: {fileID: 21300000, guid: 53a4c3322de44df4daad676e9107f6cb, type: 3}
+  ItemName: Grassrode
+  Icon: {fileID: 21300000, guid: 041b41f4559009548b92dd823364d85c, type: 3}
   Type: 2
-  Prefab: {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
+  Prefab: {fileID: 3036353106062999304, guid: b10e87e83c192b84ea73ef796fc3e10f, type: 3}
   PrefabVariants: []
-  MaxStack: 25
-  Damage: 0
+  MaxStack: 10
+  Damage: 10
   AttackSpeed: 1
   Range: 2
   ProjectilePrefab: {fileID: 0}
   ProjectileSpeed: 30
-  DropPrefab: {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2,
+  DropPrefab: {fileID: 3036353106062999304, guid: b10e87e83c192b84ea73ef796fc3e10f,
     type: 3}
   PickupsSpinAndBob: 0
-  HoldPosition: {x: 0, y: 0, z: 0}
-  HoldRotation: {x: 0, y: 0, z: 0}
-  HoldScale: 1
+  HoldPosition: {x: 0.3, y: -0.2, z: 0.6}
+  HoldRotation: {x: 0, y: 90, z: 30}
+  HoldScale: 0.4
   DigMultiplier: 1.5
   RadiusMultiplier: 1
   HealthRestore: 0

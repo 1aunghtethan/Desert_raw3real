@@ -24,6 +24,7 @@ public class ItemData : ScriptableObject
     public Sprite Icon;
     public ItemType Type = ItemType.Melee;
     public GameObject Prefab;
+    public List<GameObject> PrefabVariants = new List<GameObject>();
     public int MaxStack = 1;
 
     [Header("Combat")]
@@ -61,4 +62,24 @@ public class ItemData : ScriptableObject
     public float HungerRestore = 5f;
     public float SaturationRestore = 5f; // Stops hunger drain temporarily
     public float ThirstRestore = 0f;
+
+    public GameObject GetRandomPrefab()
+    {
+        if (PrefabVariants != null && PrefabVariants.Count > 0)
+        {
+            return PrefabVariants[Random.Range(0, PrefabVariants.Count)];
+        }
+
+        return Prefab;
+    }
+
+    public GameObject GetDropPrefab()
+    {
+        return DropPrefab != null ? DropPrefab : GetRandomPrefab();
+    }
+
+    public GameObject GetPlacementPrefab()
+    {
+        return DropPrefab != null ? DropPrefab : (PrefabVariants != null && PrefabVariants.Count > 0 ? PrefabVariants[0] : Prefab);
+    }
 }

@@ -333,18 +333,27 @@ public class InventoryPanelUI : MonoBehaviour
             countRect.anchorMin = new Vector2(1, 0);
             countRect.anchorMax = new Vector2(1, 0);
             countRect.pivot = new Vector2(1, 0);
-            countRect.sizeDelta = new Vector2(30, 20);
-            countRect.anchoredPosition = new Vector2(-2, 2);
+            countRect.sizeDelta = new Vector2(52, 32);
+            countRect.anchoredPosition = new Vector2(-4, 4);
             Text countText = countObj.AddComponent<Text>();
-            // Font defaults automatically
-            countText.fontSize = 14;
+            countText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            countText.fontSize = 25;
             countText.fontStyle = FontStyle.Bold;
             countText.alignment = TextAnchor.LowerRight;
             countText.color = Color.white;
+            countText.raycastTarget = false;
             Outline countOutline = countObj.AddComponent<Outline>();
             countOutline.effectColor = Color.black;
             slot.CountText = countText;
         }
+        else
+        {
+            slot.CountText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            slot.CountText.fontSize = 25;
+            slot.CountText.raycastTarget = false;
+        }
+
+        slot.CountText.transform.SetAsLastSibling();
 
         // CRITICAL: Disable raycastTarget on ALL child graphics so they don't steal clicks
         // Only the slot's own Image should receive clicks (which triggers OnPointerClick)

@@ -241,7 +241,7 @@ public class ItemPlacer : MonoBehaviour
         DestroyGhost();
         if (item == null) return;
 
-        GameObject template = item.DropPrefab != null ? item.DropPrefab : item.Prefab;
+        GameObject template = item.GetPlacementPrefab();
         if (template == null) return;
 
         try

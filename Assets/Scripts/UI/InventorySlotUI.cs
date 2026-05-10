@@ -40,6 +40,8 @@ public class InventorySlotUI : MonoBehaviour, IPointerClickHandler
             if (CountText != null)
             {
                 CountText.text = count > 1 ? count.ToString() : "";
+                CountText.gameObject.SetActive(item != null && count > 1);
+                CountText.transform.SetAsLastSibling();
             }
         }
         else
@@ -51,7 +53,11 @@ public class InventorySlotUI : MonoBehaviour, IPointerClickHandler
                 IconImage.gameObject.SetActive(false);
             }
             if (NameText != null) NameText.text = "";
-            if (CountText != null) CountText.text = "";
+            if (CountText != null)
+            {
+                CountText.text = "";
+                CountText.gameObject.SetActive(false);
+            }
         }
     }
 

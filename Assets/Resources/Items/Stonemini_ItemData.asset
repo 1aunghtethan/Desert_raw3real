@@ -13,17 +13,22 @@ MonoBehaviour:
   m_Name: Stonemini_ItemData
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   ItemName: Stonemini
-  Icon: {fileID: 0}
-  Type: 0
-  Prefab: {fileID: 0}
-  MaxStack: 99
+  Icon: {fileID: 21300000, guid: 1c24285c22bde714fb36dd5b9e080836, type: 3}
+  Type: 2
+  Prefab: {fileID: 5758057825070733952, guid: df31d0d4726e7954c9a5bdf35497688b, type: 3}
+  PrefabVariants:
+  - {fileID: 5758057825070733952, guid: df31d0d4726e7954c9a5bdf35497688b, type: 3}
+  - {fileID: 7219398685013066971, guid: 01fe44ad65f0eb0469d8ea6ca5a42ffa, type: 3}
+  - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
+  - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
+  MaxStack: 4
   Damage: 10
   AttackSpeed: 1
   Range: 2
   ProjectilePrefab: {fileID: 0}
   ProjectileSpeed: 30
   DropPrefab: {fileID: 0}
-  PickupsSpinAndBob: 1
+  PickupsSpinAndBob: 0
   HoldPosition: {x: 0, y: 0, z: 0}
   HoldRotation: {x: 0, y: 0, z: 0}
   HoldScale: 1

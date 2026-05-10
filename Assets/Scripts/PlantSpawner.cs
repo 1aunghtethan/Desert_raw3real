@@ -78,7 +78,7 @@ public class PlantSpawner : MonoBehaviour
         {
             if (Random.value < _tm.Config.MiniStoneSpawnChance)
             {
-                int stoneCount = Random.Range(1, _tm.Config.MiniStonesPerChunk + 1);
+                int stoneCount = _tm.Config.MiniStonesPerChunk;
                 for (int i = 0; i < stoneCount; i++)
                 {
                     SpawnMiniStone(coord);
@@ -91,7 +91,7 @@ public class PlantSpawner : MonoBehaviour
         {
             if (Random.value < _tm.Config.SmallBranchSpawnChance)
             {
-                int branchCount = Random.Range(1, _tm.Config.SmallBranchesPerChunk + 1);
+                int branchCount = _tm.Config.SmallBranchesPerChunk;
                 for (int i = 0; i < branchCount; i++)
                 {
                     SpawnSmallBranch(coord);
@@ -576,7 +576,7 @@ public class PlantSpawner : MonoBehaviour
 
             LootItem loot = obj.GetComponent<LootItem>();
             if (loot == null) loot = obj.AddComponent<LootItem>();
-            loot.Data = Resources.Load<ItemData>("Items/Branch_ItemData");
+            loot.Data = Resources.Load<ItemData>("Items/SmallBranch_ItemData");
             loot.PickupRadius = 2.0f;
 
             rb.mass = 1f;

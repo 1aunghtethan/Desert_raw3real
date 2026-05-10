@@ -262,10 +262,11 @@ public class CraftingPanelUI : MonoBehaviour
         countRect.anchorMax = new Vector2(1f, 0f);
         countRect.pivot = new Vector2(1f, 0f);
         countRect.anchoredPosition = new Vector2(-4f, 4f);
-        countRect.sizeDelta = new Vector2(40f, 20f);
+        countRect.sizeDelta = new Vector2(52f, 32f);
         Text countText = countObj.GetComponent<Text>();
         if (countText == null) countText = countObj.AddComponent<Text>();
-        countText.fontSize = 14;
+        countText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        countText.fontSize = 25;
         countText.fontStyle = FontStyle.Bold;
         countText.alignment = TextAnchor.LowerRight;
         countText.color = Color.white;
@@ -274,6 +275,7 @@ public class CraftingPanelUI : MonoBehaviour
         if (countOutline == null) countOutline = countObj.AddComponent<Outline>();
         countOutline.effectColor = Color.black;
         slot.CountText = countText;
+        slot.CountText.transform.SetAsLastSibling();
     }
 
     private void Refresh()

@@ -22,7 +22,12 @@ public class CraftingSlotUI : MonoBehaviour, IPointerClickHandler
             }
 
             if (NameText != null) NameText.text = item.Icon == null ? item.ItemName : "";
-            if (CountText != null) CountText.text = count > 1 ? count.ToString() : "";
+            if (CountText != null)
+            {
+                CountText.text = count > 1 ? count.ToString() : "";
+                CountText.gameObject.SetActive(count > 1);
+                CountText.transform.SetAsLastSibling();
+            }
         }
         else
         {
@@ -34,7 +39,11 @@ public class CraftingSlotUI : MonoBehaviour, IPointerClickHandler
             }
 
             if (NameText != null) NameText.text = "";
-            if (CountText != null) CountText.text = "";
+            if (CountText != null)
+            {
+                CountText.text = "";
+                CountText.gameObject.SetActive(false);
+            }
         }
     }
 

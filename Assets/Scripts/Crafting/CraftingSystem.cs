@@ -26,6 +26,7 @@ public class CraftingSystem : MonoBehaviour
     {
         _inventory = Inventory.Instance;
         if (_inventory == null) _inventory = FindFirstObjectByType<Inventory>();
+        LoadResourceRecipes();
 
         if (_inventory != null)
         {
@@ -154,5 +155,17 @@ public class CraftingSystem : MonoBehaviour
     private void HandleInventoryChanged()
     {
         OnCraftingChanged?.Invoke();
+    }
+
+    private void LoadResourceRecipes()
+    {
+        CraftingRecipe[] loadedRecipes = Resources.LoadAll<CraftingRecipe>("CraftingRecipes");
+        foreach (CraftingRecipe recipe in loadedRecipes)
+        {
+            if (recipe != null && !Recipes.Contains(recipe))
+            {
+                Recipes.Add(recipe);
+            }
+        }
     }
 }

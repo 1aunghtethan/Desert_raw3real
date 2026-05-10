@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 188523
+  Seed: 166319
   NoiseScale: 0.005
   HeightMultiplier: 30
   BaseHeight: 5
@@ -62,14 +62,14 @@ MonoBehaviour:
   - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
   - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
   MiniStoneSpawnChance: 10
-  MiniStonesPerChunk: 2
+  MiniStonesPerChunk: 4
   MiniStoneMinScale: 0.1
   MiniStoneMaxScale: 0.3
   MiniStoneGroundingOffset: 0.05
   SmallBranchPrefabs:
   - {fileID: 2308397448223021452, guid: 55362b5f9f268fa4b8c7d8a9141d3bbf, type: 3}
   SmallBranchSpawnChance: 10
-  SmallBranchesPerChunk: 2
+  SmallBranchesPerChunk: 10
   SmallBranchMinScale: 0.4
   SmallBranchMaxScale: 0.8
   SmallBranchGroundingOffset: 0.03

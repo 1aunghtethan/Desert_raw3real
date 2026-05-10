@@ -96,25 +96,18 @@ public class ItemDropper : MonoBehaviour
 
         GameObject pickupObj;
 
-        if (item.DropPrefab != null)
+        GameObject template = item.GetDropPrefab();
+
+        if (template != null)
         {
-            // Use the dedicated drop prefab, preserving its original local rotation
+            // Use the dedicated drop prefab or a variant, preserving its original local rotation.
             try
             {
-                pickupObj = Instantiate(item.DropPrefab, position, item.DropPrefab.transform.rotation);
-            }
-            catch (System.InvalidCastException)
-            {
-                pickupObj = CreateFallbackPickup(item, position);
-            }
-        }
-        else if (item.Prefab != null)
-        {
-            // Clone the weapon prefab and scale it down, preserving original rotation
-            try
-            {
-                pickupObj = Instantiate(item.Prefab, position, item.Prefab.transform.rotation);
-                pickupObj.transform.localScale = Vector3.one * DefaultDropScale;
+                pickupObj = Instantiate(template, position, template.transform.rotation);
+                if (item.DropPrefab == null)
+                {
+                    pickupObj.transform.localScale = Vector3.one * DefaultDropScale;
+                }
             }
             catch (System.InvalidCastException)
             {
