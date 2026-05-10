@@ -86,6 +86,19 @@ public class PlantSpawner : MonoBehaviour
             }
         }
 
+        // Check for small branch spawn
+        if (_tm.Config.SmallBranchPrefabs != null && _tm.Config.SmallBranchPrefabs.Count > 0)
+        {
+            if (Random.value < _tm.Config.SmallBranchSpawnChance)
+            {
+                int branchCount = Random.Range(1, _tm.Config.SmallBranchesPerChunk + 1);
+                for (int i = 0; i < branchCount; i++)
+                {
+                    SpawnSmallBranch(coord);
+                }
+            }
+        }
+
         // Handle Joshua Trees specifically based on mountain centers
         if (LoadedJoshuaTreePrefabs.Count > 0 && MountainSpawner.Instance != null)
         {
@@ -501,5 +514,99 @@ public class PlantSpawner : MonoBehaviour
                 
             _activePlants[coord].Add(obj);
         }
+    }
+
+    private bool SpawnSmallBranch(Vector2Int coord)
+    {
+        float chunkSizeWorld = (_tm.Config.ChunkSize - 1) * _tm.Config.CellSize;
+        float worldX = coord.x * chunkSizeWorld + Random.Range(chunkSizeWorld * 0.1f, chunkSizeWorld * 0.9f);
+        float worldZ = coord.y * chunkSizeWorld + Random.Range(chunkSizeWorld * 0.1f, chunkSizeWorld * 0.9f);
+        Vector3 worldPos = new Vector3(worldX, 0, worldZ);
+
+        if (Vector3.Distance(worldPos, _tm.Config.PlayerSpawnPoint) < _tm.Config.SpawnSafeRadius) return false;
+
+        var nearbyOases = _tm.GetNearbyOases(coord);
+        foreach (var o in nearbyOases)
+        {
+            if (Vector2.Distance(new Vector2(worldX, worldZ), o.position) < o.basinRadius + 5f)
+            {
+                return false;
+            }
+        }
+
+        InstantiateSmallBranchAtPos(worldPos, coord);
+        return true;
+    }
+
+    private void InstantiateSmallBranchAtPos(Vector3 position, Vector2Int coord)
+    {
+        float scale = Random.Range(_tm.Config.SmallBranchMinScale, _tm.Config.SmallBranchMaxScale);
+        float yPos = _tm.SampleHeight(position) - _tm.Config.SmallBranchGroundingOffset;
+        Vector3 pos = new Vector3(position.x, yPos, position.z);
+
+        var prefabs = _tm.Config.SmallBranchPrefabs;
+        if (prefabs.Count > 0)
+        {
+            GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
+            if (prefab == null) return;
+
+            GameObject obj;
+            try
+            {
+                obj = Instantiate(prefab, pos, Quaternion.identity, transform);
+            }
+            catch (MissingReferenceException)
+            {
+                Debug.LogWarning("[PlantSpawner] Skipped a missing small branch prefab reference.");
+                return;
+            }
+
+            obj.transform.localScale = Vector3.one * scale;
+            obj.name = "SmallBranch";
+            obj.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            SnapObjectBottomToY(obj, yPos);
+
+            Rigidbody rb = obj.GetComponent<Rigidbody>();
+            if (rb == null) rb = obj.AddComponent<Rigidbody>();
+
+            Collider collider = obj.GetComponent<Collider>();
+            if (collider == null && obj.GetComponentsInChildren<Collider>().Length == 0)
+            {
+                BoxCollider box = obj.AddComponent<BoxCollider>();
+                box.size = Vector3.one * 0.5f;
+            }
+
+            LootItem loot = obj.GetComponent<LootItem>();
+            if (loot == null) loot = obj.AddComponent<LootItem>();
+            loot.Data = Resources.Load<ItemData>("Items/Branch_ItemData");
+            loot.PickupRadius = 2.0f;
+
+            rb.mass = 1f;
+            rb.linearDamping = 0.5f;
+            rb.angularDamping = 0.5f;
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.constraints = RigidbodyConstraints.FreezeAll;
+
+            if (!_activePlants.ContainsKey(coord))
+                _activePlants[coord] = new List<GameObject>();
+
+            _activePlants[coord].Add(obj);
+        }
+    }
+
+    private void SnapObjectBottomToY(GameObject obj, float groundY)
+    {
+        Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return;
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        float deltaY = groundY - bounds.min.y;
+        obj.transform.position += Vector3.up * deltaY;
     }
 }

@@ -244,7 +244,16 @@ public class ItemPlacer : MonoBehaviour
         GameObject template = item.DropPrefab != null ? item.DropPrefab : item.Prefab;
         if (template == null) return;
 
-        _ghostObj = Instantiate(template);
+        try
+        {
+            _ghostObj = Instantiate(template);
+        }
+        catch (System.InvalidCastException)
+        {
+            Debug.LogWarning($"[ItemPlacer] {item.ItemName} has an invalid placement prefab reference.");
+            return;
+        }
+
         _ghostObj.name = "Placement_Ghost";
 
         // Put ghost on Ignore Raycast layer so it doesn't interfere with

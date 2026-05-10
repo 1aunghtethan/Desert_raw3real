@@ -71,14 +71,6 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 7551855619713008771}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: ac1b3922646ab9845bb6c1eb63bb99eb,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 6955111470641685980}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: ac1b3922646ab9845bb6c1eb63bb99eb,
-        type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1062281493491205890}
   m_SourcePrefab: {fileID: 100100000, guid: ac1b3922646ab9845bb6c1eb63bb99eb, type: 3}
 --- !u!1 &6668526669038768846 stripped
 GameObject:
@@ -101,47 +93,3 @@ MonoBehaviour:
   OutlineMaterial: {fileID: 0}
   OutlineWidth: 0.02
   OutlineColor: {r: 1, g: 1, b: 1, a: 1}
---- !u!65 &6955111470641685980
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6668526669038768846}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.46885398, y: 0.44749597, z: 1.0480568}
-  m_Center: {x: 0.006293997, y: 0.049194988, z: -0.5240284}
---- !u!114 &1062281493491205890
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6668526669038768846}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3fe3279de6728d641a1d863af49d2a7b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LootItem
-  Data: {fileID: 11400000, guid: ae85ecef7f48eb74d83db460f951d451, type: 2}
-  PickupRadius: 4
-  AttractionSpeed: 30
-  HoverHeight: 0.25
-  BobAmplitude: 0.1
-  BobSpeed: 2
-  RotateSpeed: 40
-  GroundCheckDist: 50
-  GroundLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295

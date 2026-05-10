@@ -65,6 +65,13 @@ MonoBehaviour:
   MiniStoneMinScale: 0.1
   MiniStoneMaxScale: 0.3
   MiniStoneGroundingOffset: 0.05
+  SmallBranchPrefabs:
+  - {fileID: 2308397448223021452, guid: 55362b5f9f268fa4b8c7d8a9141d3bbf, type: 3}
+  SmallBranchSpawnChance: 0.5
+  SmallBranchesPerChunk: 2
+  SmallBranchMinScale: 0.4
+  SmallBranchMaxScale: 0.8
+  SmallBranchGroundingOffset: 0.03
   JoshuaTreePrefabs:
   - {fileID: 1600355717623300214, guid: a6b4926e02dc2f947b0d234e7e883aa3, type: 3}
   MountainBushPrefabs:

@@ -99,29 +99,31 @@ public class ItemDropper : MonoBehaviour
         if (item.DropPrefab != null)
         {
             // Use the dedicated drop prefab, preserving its original local rotation
-            pickupObj = Instantiate(item.DropPrefab, position, item.DropPrefab.transform.rotation);
+            try
+            {
+                pickupObj = Instantiate(item.DropPrefab, position, item.DropPrefab.transform.rotation);
+            }
+            catch (System.InvalidCastException)
+            {
+                pickupObj = CreateFallbackPickup(item, position);
+            }
         }
         else if (item.Prefab != null)
         {
             // Clone the weapon prefab and scale it down, preserving original rotation
-            pickupObj = Instantiate(item.Prefab, position, item.Prefab.transform.rotation);
-            pickupObj.transform.localScale = Vector3.one * DefaultDropScale;
+            try
+            {
+                pickupObj = Instantiate(item.Prefab, position, item.Prefab.transform.rotation);
+                pickupObj.transform.localScale = Vector3.one * DefaultDropScale;
+            }
+            catch (System.InvalidCastException)
+            {
+                pickupObj = CreateFallbackPickup(item, position);
+            }
         }
         else
         {
-            // Fallback: create a simple cube
-            pickupObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            pickupObj.transform.position = position;
-            pickupObj.transform.localScale = Vector3.one * 0.3f;
-
-            // Color it based on item type
-            Renderer rend = pickupObj.GetComponent<Renderer>();
-            if (rend != null)
-            {
-                Material mat = new Material(rend.sharedMaterial);
-                mat.color = GetItemColor(item.Type);
-                rend.material = mat;
-            }
+            pickupObj = CreateFallbackPickup(item, position);
         }
         
         pickupObj.name = $"Drop_{item.ItemName}";
@@ -191,6 +193,24 @@ public class ItemDropper : MonoBehaviour
             if (spin != null) Object.Destroy(spin);
         }
 
+        return pickupObj;
+    }
+
+    private static GameObject CreateFallbackPickup(ItemData item, Vector3 position)
+    {
+        GameObject pickupObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        pickupObj.transform.position = position;
+        pickupObj.transform.localScale = Vector3.one * 0.3f;
+
+        Renderer rend = pickupObj.GetComponent<Renderer>();
+        if (rend != null)
+        {
+            Material mat = new Material(rend.sharedMaterial);
+            mat.color = GetItemColor(item.Type);
+            rend.material = mat;
+        }
+
+        Debug.LogWarning($"[ItemDropper] {item.ItemName} has an invalid pickup prefab reference. Using fallback pickup.");
         return pickupObj;
     }
 

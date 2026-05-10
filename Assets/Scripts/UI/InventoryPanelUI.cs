@@ -33,6 +33,10 @@ public class InventoryPanelUI : MonoBehaviour
     private Image _cursorIconImage;
     private Text _cursorIconText;
 
+    public bool HasHeldItem => _heldItem != null && _heldCount > 0;
+    public ItemData HeldItem => _heldItem;
+    public int HeldCount => _heldCount;
+
     private void Awake()
     {
         // Immediately hide the panel before anything renders
@@ -417,6 +421,12 @@ public class InventoryPanelUI : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
+        CraftingPanelUI craftingPanel = FindFirstObjectByType<CraftingPanelUI>(FindObjectsInactive.Include);
+        if (craftingPanel != null)
+        {
+            craftingPanel.SetVisible(visible);
+        }
+
         _isOpen = visible;
         
         if (_canvasGroup != null)
@@ -446,6 +456,11 @@ public class InventoryPanelUI : MonoBehaviour
         }
         else
         {
+            if (craftingPanel != null)
+            {
+                craftingPanel.ReturnIngredientsToInventory();
+            }
+
             // If we closed the inventory while holding something, throw it back into the first empty slot
             if (_heldItem != null)
             {
@@ -478,6 +493,58 @@ public class InventoryPanelUI : MonoBehaviour
             Cursor.visible = false;
             if (PauseGameWhenOpen) Time.timeScale = 1f;
         }
+    }
+
+    public bool TryRemoveOneHeldItem()
+    {
+        if (_heldItem == null || _heldCount <= 0) return false;
+
+        _heldCount--;
+        if (_heldCount <= 0)
+        {
+            _heldItem = null;
+            _heldCount = 0;
+        }
+
+        UpdateCursorIcon();
+        return true;
+    }
+
+    public bool TrySetHeldItem(ItemData item, int count)
+    {
+        if (item == null || count <= 0) return false;
+        if (_heldItem != null) return false;
+
+        _heldItem = item;
+        _heldCount = count;
+        UpdateCursorIcon();
+        return true;
+    }
+
+    public bool CanAcceptHeldItem(ItemData item, int amount)
+    {
+        if (item == null || amount <= 0) return false;
+        if (_heldItem == null) return true;
+        if (_heldItem.ItemName != item.ItemName) return false;
+        return _heldCount + amount <= Mathf.Max(1, item.MaxStack);
+    }
+
+    public bool AddToHeldItem(ItemData item, int amount)
+    {
+        if (!CanAcceptHeldItem(item, amount)) return false;
+
+        if (_heldItem == null)
+        {
+            _heldItem = item;
+            _heldCount = amount;
+        }
+        else
+        {
+            _heldCount += amount;
+        }
+
+        UpdateCursorIcon();
+        return true;
     }
 
     public void OnSlotClicked(int index)

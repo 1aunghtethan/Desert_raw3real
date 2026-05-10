@@ -118,6 +118,17 @@ public class TerrainConfig : ScriptableObject
     public float MiniStoneMaxScale = 1.5f;
     public float MiniStoneGroundingOffset = 0.05f;
 
+    [Header("Small Branches")]
+    [Tooltip("List of small branch prefabs meant to scatter like mini stones.")]
+    public List<GameObject> SmallBranchPrefabs = new List<GameObject>();
+    [Tooltip("Probability of small branches spawning per chunk.")]
+    public float SmallBranchSpawnChance = 0.5f;
+    [Tooltip("Number of small branches to spawn when successful.")]
+    public int SmallBranchesPerChunk = 2;
+    public float SmallBranchMinScale = 0.5f;
+    public float SmallBranchMaxScale = 1.5f;
+    public float SmallBranchGroundingOffset = 0.05f;
+
     [Header("Mountain Vegetation (Apron)")]
     public List<GameObject> JoshuaTreePrefabs = new List<GameObject>();
     public List<GameObject> MountainBushPrefabs = new List<GameObject>();

@@ -92,19 +92,38 @@ public class Inventory : MonoBehaviour
     /// </summary>
     public bool AddItem(ItemData item)
     {
+        return AddItem(item, 1);
+    }
+
+    /// <summary>
+    /// Adds multiple copies of an item, stacking first and then using empty slots.
+    /// Rolls back anything added if the full amount cannot fit.
+    /// </summary>
+    public bool AddItem(ItemData item, int amount)
+    {
         if (item == null) return false;
+        if (amount <= 0) return true;
+
+        int[] originalCounts = (int[])SlotCounts.Clone();
+        ItemData[] originalSlots = (ItemData[])Slots.Clone();
+        int remaining = amount;
 
         // 1. Try to find existing stack
         for (int i = 0; i < Slots.Length; i++)
         {
             if (Slots[i] != null && Slots[i].ItemName == item.ItemName)
             {
-                if (SlotCounts[i] < Slots[i].MaxStack)
+                int space = Mathf.Max(0, Slots[i].MaxStack - SlotCounts[i]);
+                if (space > 0)
                 {
-                    SlotCounts[i]++;
-                    if (i == SelectedIndex) OnSelectedItemChanged?.Invoke(SelectedIndex, SelectedItem);
-                    BroadcastInventoryChange();
-                    return true;
+                    int toAdd = Mathf.Min(space, remaining);
+                    SlotCounts[i] += toAdd;
+                    remaining -= toAdd;
+                    if (remaining <= 0)
+                    {
+                        NotifyInventoryMutated();
+                        return true;
+                    }
                 }
             }
         }
@@ -115,14 +134,20 @@ public class Inventory : MonoBehaviour
             if (Slots[i] == null)
             {
                 Slots[i] = item;
-                SlotCounts[i] = 1;
-                if (i == SelectedIndex) OnSelectedItemChanged?.Invoke(SelectedIndex, SelectedItem);
-                BroadcastInventoryChange();
-                return true;
+                int toAdd = Mathf.Min(Mathf.Max(1, item.MaxStack), remaining);
+                SlotCounts[i] = toAdd;
+                remaining -= toAdd;
+                if (remaining <= 0)
+                {
+                    NotifyInventoryMutated();
+                    return true;
+                }
             }
         }
 
-        Debug.LogWarning("[Inventory] No empty slot available!");
+        Slots = originalSlots;
+        SlotCounts = originalCounts;
+        Debug.LogWarning($"[Inventory] Not enough space for {amount}x {item.ItemName}.");
         return false;
     }
 
@@ -132,6 +157,7 @@ public class Inventory : MonoBehaviour
     /// </summary>
     public void RemoveItem(int slotIndex, int amount = 1)
     {
+        if (amount <= 0) return;
         if (slotIndex < 0 || slotIndex >= Slots.Length) return;
         if (Slots[slotIndex] == null) return;
 
@@ -152,14 +178,93 @@ public class Inventory : MonoBehaviour
     public void RemoveItem(ItemData item, int amount = 1)
     {
         if (item == null) return;
+        if (amount <= 0) return;
 
+        int remaining = amount;
         for (int i = 0; i < Slots.Length; i++)
         {
             if (Slots[i] != null && Slots[i].ItemName == item.ItemName)
             {
-                RemoveItem(i, amount);
-                return;
+                int toRemove = Mathf.Min(SlotCounts[i], remaining);
+                RemoveItem(i, toRemove);
+                remaining -= toRemove;
+                if (remaining <= 0) return;
             }
         }
+    }
+
+    public int CountItem(ItemData item)
+    {
+        if (item == null) return 0;
+
+        int count = 0;
+        for (int i = 0; i < Slots.Length; i++)
+        {
+            if (Slots[i] != null && Slots[i].ItemName == item.ItemName)
+            {
+                count += SlotCounts[i];
+            }
+        }
+
+        return count;
+    }
+
+    public bool HasItem(ItemData item, int amount = 1)
+    {
+        return CountItem(item) >= amount;
+    }
+
+    public bool HasItems(System.Collections.Generic.IEnumerable<CraftingIngredient> ingredients)
+    {
+        if (ingredients == null) return true;
+
+        System.Collections.Generic.Dictionary<string, int> required = new System.Collections.Generic.Dictionary<string, int>();
+        foreach (CraftingIngredient ingredient in ingredients)
+        {
+            if (ingredient == null || ingredient.Item == null || ingredient.Amount <= 0) continue;
+            string itemName = ingredient.Item.ItemName;
+            if (!required.ContainsKey(itemName)) required[itemName] = 0;
+            required[itemName] += ingredient.Amount;
+        }
+
+        foreach (System.Collections.Generic.KeyValuePair<string, int> requirement in required)
+        {
+            if (CountItemByName(requirement.Key) < requirement.Value) return false;
+        }
+
+        return true;
+    }
+
+    public bool RemoveItems(System.Collections.Generic.IEnumerable<CraftingIngredient> ingredients)
+    {
+        if (!HasItems(ingredients)) return false;
+
+        foreach (CraftingIngredient ingredient in ingredients)
+        {
+            if (ingredient == null || ingredient.Item == null || ingredient.Amount <= 0) continue;
+            RemoveItem(ingredient.Item, ingredient.Amount);
+        }
+
+        return true;
+    }
+
+    private void NotifyInventoryMutated()
+    {
+        OnSelectedItemChanged?.Invoke(SelectedIndex, SelectedItem);
+        BroadcastInventoryChange();
+    }
+
+    private int CountItemByName(string itemName)
+    {
+        int count = 0;
+        for (int i = 0; i < Slots.Length; i++)
+        {
+            if (Slots[i] != null && Slots[i].ItemName == itemName)
+            {
+                count += SlotCounts[i];
+            }
+        }
+
+        return count;
     }
 }

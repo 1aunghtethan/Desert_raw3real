@@ -194,7 +194,16 @@ public class EquipmentHolder : MonoBehaviour
         if (item == null || item.Prefab == null) return;
 
         // Spawn weapon
-        _currentWeaponObj = Instantiate(item.Prefab, HandAnchor);
+        try
+        {
+            _currentWeaponObj = Instantiate(item.Prefab, HandAnchor);
+        }
+        catch (System.InvalidCastException)
+        {
+            Debug.LogWarning($"[Equipment] {item.ItemName} has an invalid hand prefab reference. Leaving hand empty.");
+            return;
+        }
+
         _currentWeaponObj.transform.localPosition = item.HoldPosition;
         _currentWeaponObj.transform.localRotation = Quaternion.Euler(item.HoldRotation);
         _currentWeaponObj.transform.localScale = Vector3.one * item.HoldScale;
