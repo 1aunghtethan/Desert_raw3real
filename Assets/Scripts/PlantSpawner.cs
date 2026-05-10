@@ -259,15 +259,7 @@ public class PlantSpawner : MonoBehaviour
         if (health.Data == null)
             health.Data = Resources.Load<PlantData>("Plants/RealGrassData");
 
-        EnsureGrassCollider(obj);
-
-        if (health.Data == null)
-        {
-            foreach (var col in obj.GetComponentsInChildren<Collider>())
-            {
-                Destroy(col);
-            }
-        }
+        EnsureGrassTriggerCollider(obj);
 
         if (!_activePlants.ContainsKey(coord))
             _activePlants[coord] = new List<GameObject>();
@@ -275,14 +267,20 @@ public class PlantSpawner : MonoBehaviour
         _activePlants[coord].Add(obj);
     }
 
-    private void EnsureGrassCollider(GameObject obj)
+    private void EnsureGrassTriggerCollider(GameObject obj)
     {
-        if (obj.GetComponentInChildren<Collider>() != null)
+        Collider[] colliders = obj.GetComponentsInChildren<Collider>();
+        foreach (var col in colliders)
+        {
+            col.isTrigger = true;
+        }
+
+        if (colliders.Length > 0)
             return;
 
         Renderer renderer = obj.GetComponentInChildren<Renderer>();
         BoxCollider collider = obj.AddComponent<BoxCollider>();
-        collider.isTrigger = false;
+        collider.isTrigger = true;
 
         if (renderer == null)
             return;

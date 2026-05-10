@@ -30,6 +30,9 @@ public class SandChunk : MonoBehaviour
     
     public bool IsInitialized { get; private set; }
     public bool IsSimulating { get; private set; } = true;
+    public bool HasActiveFlow => _flowTimer > 0f;
+
+    private float _flowTimer;
 
     // Counts
     private int _numSurfaceVerts;
@@ -476,7 +479,7 @@ public class SandChunk : MonoBehaviour
         if (_meshColors.IsCreated) _meshColors.Dispose();
     }
 
-    public void ModifyHeight(Vector3 worldPos, float amount, float radius)
+    public bool ModifyHeight(Vector3 worldPos, float amount, float radius)
     {
         // Convert worldPos to Local Grid Space
         float localX = (worldPos.x - transform.position.x) / Config.CellSize;
@@ -502,9 +505,23 @@ public class SandChunk : MonoBehaviour
         }
         
         if (modified) {
+            RestartFlow();
             ScheduleMeshUpdate(default).Complete();
             ApplyMeshUpdate();
         }
+
+        return modified;
+    }
+
+    public void RestartFlow()
+    {
+        _flowTimer = Config != null ? Mathf.Max(0f, Config.FlowDurationAfterEdit) : 2.5f;
+    }
+
+    public void TickFlow(float deltaTime)
+    {
+        if (_flowTimer <= 0f) return;
+        _flowTimer = Mathf.Max(0f, _flowTimer - deltaTime);
     }
 
     /// <summary>

@@ -29,6 +29,8 @@ public class TerrainConfig : ScriptableObject
     public float FlowThreshold = 1.0f;
     [Tooltip("Speed of sand flow.")]
     public float FlowSpeed = 0.1f;
+    [Tooltip("How long sand keeps flowing after digging or placing sand.")]
+    public float FlowDurationAfterEdit = 2.5f;
     [Tooltip("Depth of the volume skirt (visual only).")]
     public float BottomDepth = 10.0f;
 

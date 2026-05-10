@@ -110,8 +110,9 @@ public class TerrainManager : MonoBehaviour
         _simTimer += Time.deltaTime;
         if (_simTimer >= 0.1f)
         {
+            float simStep = _simTimer;
             _simTimer = 0f;
-            Simulate();
+            Simulate(simStep);
         }
 
         // 3. Dynamic Bush Spawning — bushes form from sand when player approaches palm trees
@@ -123,7 +124,7 @@ public class TerrainManager : MonoBehaviour
         }
     }
 
-    void Simulate()
+    void Simulate(float deltaTime)
     {
         if (_chunks.Count == 0) return;
 
@@ -144,7 +145,7 @@ public class TerrainManager : MonoBehaviour
             float chunkSizeWorld = (Config.ChunkSize - 1) * Config.CellSize;
             Vector3 chunkCenter = chunkPos + new Vector3(chunkSizeWorld * 0.5f, 0, chunkSizeWorld * 0.5f);
             // LOD update moved to per-frame Update()
-            if (!chunk.IsSimulating) {
+            if (!chunk.IsSimulating || !chunk.HasActiveFlow) {
                 simHandles[i++] = default;
                 continue;
             }
@@ -196,8 +197,9 @@ public class TerrainManager : MonoBehaviour
         // 2. Batch Schedule Mesh Updates for Modified Chunks
         List<SandChunk> modifiedChunks = new List<SandChunk>();
         foreach (var chunk in chunkList) {
-            if (chunk.IsInitialized && chunk.IsSimulating) {
+            if (chunk.IsInitialized && chunk.IsSimulating && chunk.HasActiveFlow) {
                 chunk.SwapBuffers();
+                chunk.TickFlow(deltaTime);
                 if (chunk.ModifiedFlag[0] == 1) {
                     modifiedChunks.Add(chunk);
                 }
@@ -503,8 +505,25 @@ public class TerrainManager : MonoBehaviour
             {
                 if (_chunks.TryGetValue(new Vector2Int(x, z), out SandChunk chunk))
                 {
-                    chunk.ModifyHeight(worldPos, amount, radius);
+                    if (chunk.ModifyHeight(worldPos, amount, radius))
+                    {
+                        ActivateFlowAround(chunk);
+                    }
                 }
+            }
+        }
+    }
+
+    private void ActivateFlowAround(SandChunk chunk)
+    {
+        chunk.RestartFlow();
+
+        for (int i = 0; i < chunk.Neighbors.Length; i++)
+        {
+            SandChunk neighbor = chunk.Neighbors[i];
+            if (neighbor != null && neighbor.IsInitialized)
+            {
+                neighbor.RestartFlow();
             }
         }
     }

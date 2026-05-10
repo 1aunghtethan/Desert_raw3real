@@ -79,7 +79,7 @@ public class MeleeWeapon : ItemBehaviour
 
         // Raycast from camera center
         Ray ray = new Ray(OwnerCamera.transform.position, OwnerCamera.transform.forward);
-        RaycastHit[] hits = Physics.RaycastAll(ray, Data.Range);
+        RaycastHit[] hits = Physics.RaycastAll(ray, Data.Range, ~0, QueryTriggerInteraction.Collide);
 
         foreach (var hit in hits)
         {
