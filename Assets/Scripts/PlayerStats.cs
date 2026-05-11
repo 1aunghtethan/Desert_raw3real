@@ -32,7 +32,7 @@ public class PlayerStats : MonoBehaviour, IDamageable
     [Header("Temperature Influence")]
     public float BaseThirstDecay = 0.15f;
     public float HeatThirstMultiplier = 3.0f; // Thirst drops 3x faster at 50C
-    private DayNightCycle _cycle;
+    private cyclemanager _cycle;
     
     [Header("Effects")]
     public float StarvationDamage = 1f;
@@ -57,8 +57,12 @@ public class PlayerStats : MonoBehaviour, IDamageable
     /// <summary>Set by SleepSystem while the player is sleeping.</summary>
     [HideInInspector] public bool IsSleeping;
 
-    /// <summary>True when the player is starving or dehydrated and taking damage.</summary>
+    /// <summary>True when the player is starving, dehydrated, or sleep-deprived and taking damage.</summary>
     public bool IsTakingDamage { get; private set; }
+
+    /// <summary>True only when health is reducing from hunger or thirst (not sleep deprivation alone).
+    /// Used by SleepSystem to allow sleeping when the only damage source is sleep deprivation.</summary>
+    public bool IsTakingNonSleepDamage { get; private set; }
 
     private Rigidbody _rb;
     private float _damageTimer;
@@ -70,7 +74,7 @@ public class PlayerStats : MonoBehaviour, IDamageable
         else Destroy(this);
 
         _rb = GetComponent<Rigidbody>();
-        _cycle = FindFirstObjectByType<DayNightCycle>();
+        _cycle = FindFirstObjectByType<cyclemanager>();
     }
 
     private void Update()
@@ -179,7 +183,10 @@ public class PlayerStats : MonoBehaviour, IDamageable
     private void HandleEffects()
     {
         // Damage if starving, thirsty, or severely sleep deprived
-        IsTakingDamage = (CurrentHunger <= 0 || CurrentThirst <= 0 || CurrentSleep <= 0);
+        bool starvingOrDehydrated = (CurrentHunger <= 0 || CurrentThirst <= 0);
+        bool sleepDeprived = (CurrentSleep <= 0);
+        IsTakingDamage = starvingOrDehydrated || sleepDeprived;
+        IsTakingNonSleepDamage = starvingOrDehydrated;
         if (IsTakingDamage)
         {
             _damageTimer += Time.deltaTime;

@@ -1,45 +1,53 @@
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditorInternal;
+#endif
 
 /// <summary>
-/// Handles placing items from inventory onto the ground with a ghost preview.
-/// Press B to toggle placement mode on/off.
-/// While in placement mode: Right-click to place, R to rotate.
-/// For weapons, hold Left Shift + Right Click to place.
+/// Inventory-aware adapter for the ItemPlacement/ObjectPlacer tutorial system.
+/// B toggles placement mode, R and mouse wheel yaw, right-click pitches up/down, left-click places the selected item.
 /// </summary>
 public class ItemPlacer : MonoBehaviour
 {
-    [Header("Placement Settings")]
-    public float PlaceDistance = 10f;
+    [Header("Placement Parameters")]
+    public float PlaceDistance = 6f;
     public float PlaceHeightOffset = 0.05f;
     public LayerMask GroundLayers = ~0;
+    public LayerMask InvalidPlacementLayers = ~0;
     public KeyCode PlaceModeKey = KeyCode.B;
     public KeyCode RotateKey = KeyCode.R;
     public float RotationStep = 90f;
+    public float ScrollRotationStep = 15f;
 
-    [Header("Ghost Preview")]
-    public Color ValidColor = new Color(0.2f, 1.0f, 0.2f, 0.4f);
-    public Color InvalidColor = new Color(1.0f, 0.2f, 0.2f, 0.4f);
+    [Header("ObjectPlacement Raycast")]
+    public float ObjectDistanceFromPlayer = 3f;
+    public float RaycastStartVerticalOffset = 4f;
+    public float RaycastDistance = 8f;
+
+    [Header("Preview Material")]
+    public Color ValidColor = new Color(0.2f, 1f, 0.2f, 0.45f);
+    public Color InvalidColor = new Color(1f, 0.2f, 0.2f, 0.45f);
 
     private Inventory _inventory;
     private PlayerController _player;
-    private EquipmentHolder _equipment;
-    private ItemDropper _dropper;
-
-    // Cached UI reference (avoid FindFirstObjectByType every frame)
     private InventoryPanelUI _cachedPanel;
     private CanvasGroup _cachedPanelCanvasGroup;
 
-    // Ghost state
-    private GameObject _ghostObj;
-    private Material _ghostMaterial;
-    private ItemData _lastItem;
-    private float _currentRotationY = 0f;
-    private bool _placementModeActive = false;
+    private GameObject _previewObject;
+    private ItemData _previewItem;
+    private Material _previewMaterial;
+    private Vector3 _currentPlacementPosition;
+    private float _currentRotationX;
+    private float _currentRotationY;
+    private bool _inPlacementMode;
+    private bool _validPreviewState;
 
-    // Layer for ghost to prevent interference with other raycasts
     private const string GhostLayerName = "Ignore Raycast";
 
-    void Start()
+    public bool IsPlacementModeActive => _inPlacementMode;
+
+    private void Start()
     {
         _inventory = GetComponent<Inventory>();
         if (_inventory == null) _inventory = Inventory.Instance;
@@ -47,206 +55,226 @@ public class ItemPlacer : MonoBehaviour
         _player = GetComponent<PlayerController>();
         if (_player == null) _player = FindFirstObjectByType<PlayerController>();
 
-        _equipment = GetComponent<EquipmentHolder>();
-        if (_equipment == null) _equipment = EquipmentHolder.Instance;
-
-        _dropper = GetComponent<ItemDropper>();
-        if (_dropper == null) _dropper = FindFirstObjectByType<ItemDropper>();
-
-        // Cache the UI panel reference once instead of searching every frame
         _cachedPanel = FindFirstObjectByType<InventoryPanelUI>();
         if (_cachedPanel != null)
             _cachedPanelCanvasGroup = _cachedPanel.GetComponent<CanvasGroup>();
 
-        CreateGhostMaterial();
+        CreatePreviewMaterial();
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
-        DestroyGhost();
+        ExitPlacementMode();
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
-        DestroyGhost();
-        if (_ghostMaterial != null) Destroy(_ghostMaterial);
+        ExitPlacementMode();
+        if (_previewMaterial != null)
+            Destroy(_previewMaterial);
     }
 
-    /// <summary>Whether placement mode is currently active (ghost visible).</summary>
-    public bool IsPlacementModeActive => _placementModeActive;
-
-    void Update()
+    private void Update()
     {
-        // Toggle placement mode on/off
-        if (Input.GetKeyDown(PlaceModeKey))
-        {
-            TogglePlacementMode();
-        }
+        UpdateInput();
 
-        // Only process ghost & placement when mode is active
-        if (_placementModeActive)
-        {
-            UpdateGhostPreview();
+        if (!_inPlacementMode)
+            return;
 
-            if (Input.GetKeyDown(RotateKey))
-            {
-                _currentRotationY = (_currentRotationY + RotationStep) % 360f;
-            }
-
-            // Handle placement: Left Click
-            if (Input.GetMouseButtonDown(0))
-            {
-                TryPlaceItem();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Toggles placement mode on/off. When off, the ghost is hidden.
-    /// </summary>
-    public void TogglePlacementMode()
-    {
-        _placementModeActive = !_placementModeActive;
-
-        if (_placementModeActive)
-        {
-            Debug.Log("[ItemPlacer] Placement mode ON — look at ground to preview");
-        }
-        else
-        {
-            // Hide and destroy the ghost when exiting placement mode
-            DestroyGhost();
-            _lastItem = null;
-            _currentRotationY = 0f;
-            Debug.Log("[ItemPlacer] Placement mode OFF");
-        }
-    }
-
-    private bool IsInventoryPanelOpen()
-    {
-        // Re-cache if the panel was destroyed and re-created (e.g. scene reload)
-        if (_cachedPanel == null)
-        {
-            _cachedPanel = FindFirstObjectByType<InventoryPanelUI>();
-            _cachedPanelCanvasGroup = _cachedPanel != null
-                ? _cachedPanel.GetComponent<CanvasGroup>()
-                : null;
-        }
-
-        if (_cachedPanel == null) return false;
-        if (_cachedPanelCanvasGroup != null) return _cachedPanelCanvasGroup.alpha > 0.5f;
-
-        // Fallback: check if the panel's GameObject is active
-        return _cachedPanel.gameObject.activeInHierarchy;
-    }
-
-    private void UpdateGhostPreview()
-    {
-        if (_inventory == null) return;
-
-        // Skip ghost if inventory UI is open
         if (IsInventoryPanelOpen())
         {
-            if (_ghostObj != null) _ghostObj.SetActive(false);
+            if (_previewObject != null)
+                _previewObject.SetActive(false);
             return;
         }
 
-        ItemData currentItem = _inventory.SelectedItem;
+        ItemData selectedItem = _inventory != null ? _inventory.SelectedItem : null;
+        if (selectedItem != _previewItem)
+            RebuildPreview(selectedItem);
 
-        // If item changed, rebuild ghost
-        if (currentItem != _lastItem)
+        if (_previewObject == null)
+            return;
+
+        UpdateCurrentPlacementPosition();
+        UpdatePreviewState();
+    }
+
+    private void UpdateInput()
+    {
+        if (Input.GetKeyDown(PlaceModeKey))
         {
-            RebuildGhost(currentItem);
-            _lastItem = currentItem;
-            _currentRotationY = 0f; // Reset rotation for new item
+            if (_inPlacementMode)
+                ExitPlacementMode();
+            else
+                EnterPlacementMode();
         }
 
-        if (_ghostObj == null) return;
+        if (!_inPlacementMode)
+            return;
 
-        // Raycast to find placement point
-        Camera cam = (_player != null) ? _player.GetActiveCamera() : Camera.main;
+        if (Input.GetKeyDown(RotateKey))
+            RotatePreviewYaw(RotationStep);
+
+        if (Input.GetMouseButtonDown(1))
+            RotatePreviewPitch(RotationStep);
+
+        float scroll = Input.mouseScrollDelta.y;
+        if (Mathf.Abs(scroll) > 0.01f)
+            RotatePreviewYaw(scroll * ScrollRotationStep);
+
+        if (Input.GetMouseButtonDown(0))
+            PlaceObject();
+    }
+
+    private void UpdateCurrentPlacementPosition()
+    {
+        Camera cam = GetPlacementCamera();
         if (cam == null)
         {
-            _ghostObj.SetActive(false);
+            _previewObject.SetActive(false);
+            _validPreviewState = false;
             return;
         }
 
-        Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
-        
-        RaycastHit validHit = default;
-        bool foundValid = false;
-        float closestDistance = float.MaxValue;
+        Vector3 cameraForward = new Vector3(cam.transform.forward.x, 0f, cam.transform.forward.z);
+        if (cameraForward.sqrMagnitude < 0.001f)
+            cameraForward = transform.forward;
+        cameraForward.Normalize();
 
-        // Use RaycastAll to explicitly ignore the player and ghost
-        // Note: Extent is 200f instead of PlaceDistance + 10f in case the Third-Person Camera is very far back
-        RaycastHit[] hits = Physics.RaycastAll(ray, 200f, GroundLayers, QueryTriggerInteraction.Ignore);
-        foreach (var h in hits)
+        Vector3 startPos = cam.transform.position + cameraForward * ObjectDistanceFromPlayer;
+        startPos.y += RaycastStartVerticalOffset;
+
+        if (Physics.Raycast(startPos, Vector3.down, out RaycastHit hitInfo, RaycastDistance, GroundLayers, QueryTriggerInteraction.Ignore))
         {
-            // Ignore Player's colliders
-            if (_player != null && h.collider.transform.root == _player.transform) continue;
-            // Ignore Ghost's colliders
-            if (_ghostObj != null && h.collider.transform.root == _ghostObj.transform) continue;
-
-            if (h.distance < closestDistance)
-            {
-                closestDistance = h.distance;
-                validHit = h;
-                foundValid = true;
-            }
-        }
-
-        if (foundValid)
-        {
-            // Calculate distance from the Player (crucial for Third Person camera), using 2D horizontal distance
-            float distFromPlayer = validHit.distance;
-            if (_player != null)
-            {
-                Vector2 playerPos2D = new Vector2(_player.transform.position.x, _player.transform.position.z);
-                Vector2 hitPos2D = new Vector2(validHit.point.x, validHit.point.z);
-                distFromPlayer = Vector2.Distance(playerPos2D, hitPos2D);
-            }
-            
-            bool inRange = distFromPlayer <= PlaceDistance;
-            
-            _ghostObj.SetActive(true);
-            
-            // Positioning
-            _ghostObj.transform.position = validHit.point + validHit.normal * PlaceHeightOffset;
-            
-            // Alignment: Use surface normal for Up, but preserve custom Y rotation
-            Quaternion baseRot = Quaternion.FromToRotation(Vector3.up, validHit.normal);
-            _ghostObj.transform.rotation = baseRot * Quaternion.Euler(0, _currentRotationY, 0);
-
-            // Visibility/Color
-            Color targetColor = inRange ? ValidColor : InvalidColor;
-            
-            MaterialPropertyBlock propBlock = new MaterialPropertyBlock();
-            propBlock.SetColor("_BaseColor", targetColor);
-            propBlock.SetColor("_Color", targetColor);
-            propBlock.SetColor("_MainColor", targetColor); // Support more shaders
-
-            foreach (var rend in _ghostObj.GetComponentsInChildren<Renderer>())
-            {
-                rend.SetPropertyBlock(propBlock);
-            }
+            _currentPlacementPosition = hitInfo.point + hitInfo.normal * PlaceHeightOffset;
+            _previewObject.SetActive(true);
         }
         else
         {
-            _ghostObj.SetActive(false);
+            _previewObject.SetActive(false);
+            _validPreviewState = false;
+            return;
         }
+
+        float yaw = cam.transform.eulerAngles.y + _currentRotationY;
+        Quaternion rotation = Quaternion.Euler(0f, yaw, 0f) * Quaternion.Euler(_currentRotationX, 0f, 0f);
+        _previewObject.transform.SetPositionAndRotation(_currentPlacementPosition, rotation);
     }
 
-    private void RebuildGhost(ItemData item)
+    private void RotatePreviewYaw(float degrees)
     {
-        DestroyGhost();
-        if (item == null) return;
+        _currentRotationY = Mathf.Repeat(_currentRotationY + degrees, 360f);
+    }
+
+    private void RotatePreviewPitch(float degrees)
+    {
+        _currentRotationX = Mathf.Repeat(_currentRotationX + degrees, 360f);
+    }
+
+    private void UpdatePreviewState()
+    {
+        bool canPlace = CanPlaceObject();
+        SetPreviewColor(canPlace ? ValidColor : InvalidColor);
+        _validPreviewState = canPlace;
+    }
+
+    private bool CanPlaceObject()
+    {
+        if (_previewObject == null || !_previewObject.activeInHierarchy)
+            return false;
+
+        if (GetHorizontalDistance(GetPlacementOrigin(), _currentPlacementPosition) > PlaceDistance)
+            return false;
+
+        PreviewObjectValidChecker checker = _previewObject.GetComponentInChildren<PreviewObjectValidChecker>();
+        return checker == null || checker.IsValid;
+    }
+
+    private void PlaceObject()
+    {
+        if (!_inPlacementMode || !_validPreviewState || _inventory == null)
+            return;
+
+        ItemData item = _inventory.SelectedItem;
+        if (item == null)
+            return;
+
+        GameObject placedObject = ItemDropper.CreateWorldPickup(item, _currentPlacementPosition);
+        if (placedObject == null)
+            return;
+
+        placedObject.transform.rotation = _previewObject.transform.rotation;
+
+        Rigidbody rb = placedObject.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+
+            if (!item.PickupsSpinAndBob)
+            {
+                rb.isKinematic = true;
+                rb.useGravity = false;
+                rb.constraints = RigidbodyConstraints.FreezeAll;
+            }
+        }
+
+        _inventory.RemoveItem(_inventory.SelectedIndex, 1);
+
+        if (_inventory.SelectedItem == null)
+            ExitPlacementMode();
+        else
+            RebuildPreview(_inventory.SelectedItem);
+    }
+
+    private void EnterPlacementMode()
+    {
+        if (_inPlacementMode)
+            return;
+
+        _inPlacementMode = true;
+        _currentRotationX = 0f;
+        _currentRotationY = 0f;
+        RebuildPreview(_inventory != null ? _inventory.SelectedItem : null);
+    }
+
+    private void ExitPlacementMode()
+    {
+        if (!_inPlacementMode && _previewObject == null)
+            return;
+
+        ClearEditorSelectionIfPreviewSelected();
+
+        if (_previewObject != null)
+            Destroy(_previewObject);
+
+        _previewObject = null;
+        _previewItem = null;
+        _validPreviewState = false;
+        _inPlacementMode = false;
+    }
+
+    private void RebuildPreview(ItemData item)
+    {
+        ClearEditorSelectionIfPreviewSelected();
+
+        if (_previewObject != null)
+            Destroy(_previewObject);
+
+        _previewObject = null;
+        _previewItem = item;
+        _validPreviewState = false;
+
+        if (!_inPlacementMode || item == null)
+            return;
 
         GameObject template = item.GetPlacementPrefab();
-        if (template == null) return;
+        if (template == null)
+            return;
 
         try
         {
-            _ghostObj = Instantiate(template);
+            _previewObject = Instantiate(template, transform);
         }
         catch (System.InvalidCastException)
         {
@@ -254,161 +282,136 @@ public class ItemPlacer : MonoBehaviour
             return;
         }
 
-        _ghostObj.name = "Placement_Ghost";
+        _previewObject.name = "Placement_Preview";
 
-        // Put ghost on Ignore Raycast layer so it doesn't interfere with
-        // placement raycasts, interaction raycasts, or weapon raycasts.
         int ghostLayer = LayerMask.NameToLayer(GhostLayerName);
-        if (ghostLayer >= 0) SetLayerRecursive(_ghostObj, ghostLayer);
+        if (ghostLayer >= 0)
+            SetLayerRecursive(_previewObject, ghostLayer);
 
-        // Strip functionality
-        foreach (var script in _ghostObj.GetComponentsInChildren<MonoBehaviour>())
-        {
-            if (script != this) Destroy(script);
-        }
-        foreach (var rb in _ghostObj.GetComponentsInChildren<Rigidbody>()) Destroy(rb);
-        foreach (var col in _ghostObj.GetComponentsInChildren<Collider>()) col.isTrigger = true;
+        foreach (MonoBehaviour script in _previewObject.GetComponentsInChildren<MonoBehaviour>())
+            Destroy(script);
 
-        // Materials
-        foreach (var rend in _ghostObj.GetComponentsInChildren<Renderer>())
+        foreach (Rigidbody rb in _previewObject.GetComponentsInChildren<Rigidbody>())
+            Destroy(rb);
+
+        Collider[] colliders = _previewObject.GetComponentsInChildren<Collider>();
+        foreach (Collider col in colliders)
         {
-            // Replace ALL material slots to ensure consistent ghost appearance
-            Material[] mats = new Material[rend.sharedMaterials.Length];
-            for (int i = 0; i < mats.Length; i++) mats[i] = _ghostMaterial;
-            rend.materials = mats;
+            col.enabled = true;
+            col.isTrigger = true;
         }
 
-        // Scaling logic: Sync with ItemDropper settings exact behavior
-        if (item.DropPrefab != null)
+        PreviewObjectValidChecker checker = _previewObject.AddComponent<PreviewObjectValidChecker>();
+        checker.Configure(GetEffectiveInvalidPlacementLayers());
+
+        foreach (Renderer renderer in _previewObject.GetComponentsInChildren<Renderer>())
         {
-            // CreateWorldPickup preserves internal DropPrefab scale entirely
-            _ghostObj.transform.localScale = item.DropPrefab.transform.localScale;
-        }
-        else
-        {
-            float targetScale = (_dropper != null) ? _dropper.DropPrefabScale : ItemDropper.DefaultDropScale;
-            _ghostObj.transform.localScale = Vector3.one * targetScale;
+            Material[] materials = new Material[renderer.sharedMaterials.Length];
+            for (int i = 0; i < materials.Length; i++)
+                materials[i] = _previewMaterial;
+            renderer.sharedMaterials = materials;
         }
 
-        _ghostObj.SetActive(false);
+        _previewObject.SetActive(false);
     }
 
-    private void CreateGhostMaterial()
+    private bool IsInventoryPanelOpen()
     {
-        // Use URP Lit or Unlit with Transparency
-        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-        if (shader == null) shader = Shader.Find("Standard"); // Fallback
+        if (_cachedPanel == null)
+        {
+            _cachedPanel = FindFirstObjectByType<InventoryPanelUI>();
+            _cachedPanelCanvasGroup = _cachedPanel != null ? _cachedPanel.GetComponent<CanvasGroup>() : null;
+        }
 
-        _ghostMaterial = new Material(shader);
-        
-        // Setup for transparency in URP
+        if (_cachedPanel == null)
+            return false;
+
+        if (_cachedPanelCanvasGroup != null)
+            return _cachedPanelCanvasGroup.alpha > 0.5f;
+
+        return _cachedPanel.gameObject.activeInHierarchy;
+    }
+
+    private Camera GetPlacementCamera()
+    {
+        return _player != null ? _player.GetActiveCamera() : Camera.main;
+    }
+
+    private Vector3 GetPlacementOrigin()
+    {
+        return _player != null ? _player.transform.position : transform.position;
+    }
+
+    private LayerMask GetEffectiveInvalidPlacementLayers()
+    {
+        int mask = InvalidPlacementLayers.value & ~GroundLayers.value;
+
+        int ghostLayer = LayerMask.NameToLayer(GhostLayerName);
+        if (ghostLayer >= 0)
+            mask &= ~(1 << ghostLayer);
+
+        return mask;
+    }
+
+    private static float GetHorizontalDistance(Vector3 a, Vector3 b)
+    {
+        return Vector2.Distance(new Vector2(a.x, a.z), new Vector2(b.x, b.z));
+    }
+
+    private void CreatePreviewMaterial()
+    {
+        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (shader == null) shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+
+        _previewMaterial = new Material(shader);
+
         if (shader.name.Contains("Universal Render Pipeline"))
         {
-            _ghostMaterial.SetFloat("_Surface", 1); // 1 = Transparent
-            _ghostMaterial.SetFloat("_Blend", 0); // 0 = Alpha
-            _ghostMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _ghostMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _ghostMaterial.SetInt("_ZWrite", 0);
-            _ghostMaterial.DisableKeyword("_ALPHATEST_ON");
-            _ghostMaterial.EnableKeyword("_ALPHABLEND_ON");
-            _ghostMaterial.renderQueue = 3000;
-        }
-        else
-        {
-            // Standard Shader Fallback
-            _ghostMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            _ghostMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            _ghostMaterial.SetInt("_ZWrite", 0);
-            _ghostMaterial.EnableKeyword("_ALPHABLEND_ON");
-            _ghostMaterial.renderQueue = 3000;
+            _previewMaterial.SetFloat("_Surface", 1f);
+            _previewMaterial.SetFloat("_Blend", 0f);
+            _previewMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _previewMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _previewMaterial.SetInt("_ZWrite", 0);
+            _previewMaterial.DisableKeyword("_ALPHATEST_ON");
+            _previewMaterial.EnableKeyword("_ALPHABLEND_ON");
+            _previewMaterial.renderQueue = 3000;
         }
 
-        _ghostMaterial.color = ValidColor;
+        SetPreviewColor(InvalidColor);
     }
 
-    private void TryPlaceItem()
+    private void SetPreviewColor(Color color)
     {
-        ItemData item = _inventory?.SelectedItem;
-        if (item == null) return;
-
-        // Skip if ghost is invalid/off
-        if (_ghostObj == null || !_ghostObj.activeInHierarchy) return;
-
-        // Double check range from the Player (not the camera, which is further back in TPS mode)
-        Camera cam = (_player != null) ? _player.GetActiveCamera() : Camera.main;
-        if (cam == null) return;
-        
-        float distFromPlayer = Vector3.Distance(cam.transform.position, _ghostObj.transform.position);
-        if (_player != null)
-        {
-            Vector2 p2D = new Vector2(_player.transform.position.x, _player.transform.position.z);
-            Vector2 g2D = new Vector2(_ghostObj.transform.position.x, _ghostObj.transform.position.z);
-            distFromPlayer = Vector2.Distance(p2D, g2D);
-        }
-
-        if (distFromPlayer > PlaceDistance) 
-        {
-            Debug.Log($"[ItemPlacer] Cannot place, horizontally out of range ({distFromPlayer:F1}m).");
+        if (_previewMaterial == null)
             return;
-        }
 
-        // Place at ghost's position AND rotation
-        GameObject placedObj = ItemDropper.CreateWorldPickup(item, _ghostObj.transform.position);
-
-        if (placedObj != null)
-        {
-            placedObj.transform.rotation = _ghostObj.transform.rotation;
-
-            Rigidbody rb = placedObj.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-                
-                // If weight/physics is disabled for this item, lock it in place
-                if (!item.PickupsSpinAndBob)
-                {
-                    rb.isKinematic = true;
-                    rb.useGravity = false;
-                    rb.constraints = RigidbodyConstraints.FreezeAll;
-                }
-            }
-            
-            _inventory.RemoveItem(_inventory.SelectedIndex, 1);
-            Debug.Log($"[ItemPlacer] Placed {item.ItemName} at {placedObj.transform.position}");
-
-            // If the slot is now empty, auto-exit placement mode
-            if (_inventory.SelectedItem == null)
-            {
-                _placementModeActive = false;
-                DestroyGhost();
-                _lastItem = null;
-                Debug.Log("[ItemPlacer] Slot empty — placement mode OFF");
-            }
-        }
+        _previewMaterial.color = color;
+        if (_previewMaterial.HasProperty("_BaseColor"))
+            _previewMaterial.SetColor("_BaseColor", color);
+        if (_previewMaterial.HasProperty("_Color"))
+            _previewMaterial.SetColor("_Color", color);
     }
 
-    /// <summary>
-    /// Safely destroys the ghost object if it exists.
-    /// </summary>
-    private void DestroyGhost()
+    private void ClearEditorSelectionIfPreviewSelected()
     {
-        if (_ghostObj != null)
+#if UNITY_EDITOR
+        if (_previewObject == null)
+            return;
+
+        GameObject selected = Selection.activeGameObject;
+        if (selected != null && selected.transform.root == _previewObject.transform.root)
         {
-            Destroy(_ghostObj);
-            _ghostObj = null;
+            Selection.activeGameObject = null;
+            InternalEditorUtility.RepaintAllViews();
         }
+#endif
     }
 
-    /// <summary>
-    /// Recursively sets the layer on an object and all its children.
-    /// </summary>
     private static void SetLayerRecursive(GameObject obj, int layer)
     {
         obj.layer = layer;
         foreach (Transform child in obj.transform)
-        {
             SetLayerRecursive(child.gameObject, layer);
-        }
     }
 }

@@ -32,6 +32,6 @@ MonoBehaviour:
   DigMultiplier: 1.5
   RadiusMultiplier: 1
   HealthRestore: 0
-  HungerRestore: 5
-  SaturationRestore: 5
+  HungerRestore: 0
+  SaturationRestore: 0
   ThirstRestore: 0

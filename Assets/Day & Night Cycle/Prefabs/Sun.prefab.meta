@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 7b296cc52f53caa49b1c7c8d6bbc9be1
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 323828
+  packageName: Day/Night Cycle (HDRP)
+  packageVersion: 1.0
+  assetPath: Assets/Day & Night Cycle/Prefabs/Sun.prefab
+  uploadId: 767069

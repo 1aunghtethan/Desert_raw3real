@@ -248,18 +248,33 @@ public class PlantSpawner : MonoBehaviour
         obj.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
         obj.name = "TerrainGrass";
 
-        var physics = obj.GetComponent<PlantPhysics>();
-        if (physics == null) physics = obj.AddComponent<PlantPhysics>();
-        physics.DisableFall = true;
+        PlantPhysics physics = obj.GetComponent<PlantPhysics>();
+        if (physics != null)
+            Destroy(physics);
 
         PlantHealth health = obj.GetComponent<PlantHealth>();
-        if (health == null)
-            health = obj.AddComponent<PlantHealth>();
+        if (health != null)
+            Destroy(health);
 
-        if (health.Data == null)
-            health.Data = Resources.Load<PlantData>("Plants/RealGrassData");
+        int itemLayer = LayerMask.NameToLayer("Item");
+        if (itemLayer >= 0)
+            SetLayerRecursive(obj, itemLayer);
 
-        EnsureGrassTriggerCollider(obj);
+        EnsureGrassPickupCollider(obj);
+
+        LootItem loot = obj.GetComponent<LootItem>();
+        if (loot == null) loot = obj.AddComponent<LootItem>();
+        loot.Data = Resources.Load<ItemData>("Items/RealGrass_ItemData");
+        loot.PickupRadius = 2.0f;
+
+        Rigidbody rb = obj.GetComponent<Rigidbody>();
+        if (rb == null) rb = obj.AddComponent<Rigidbody>();
+        rb.mass = 1f;
+        rb.linearDamping = 0.5f;
+        rb.angularDamping = 0.5f;
+        rb.isKinematic = true;
+        rb.useGravity = false;
+        rb.constraints = RigidbodyConstraints.FreezeAll;
 
         if (!_activePlants.ContainsKey(coord))
             _activePlants[coord] = new List<GameObject>();
@@ -267,12 +282,12 @@ public class PlantSpawner : MonoBehaviour
         _activePlants[coord].Add(obj);
     }
 
-    private void EnsureGrassTriggerCollider(GameObject obj)
+    private void EnsureGrassPickupCollider(GameObject obj)
     {
         Collider[] colliders = obj.GetComponentsInChildren<Collider>();
         foreach (var col in colliders)
         {
-            col.isTrigger = true;
+            col.isTrigger = false;
         }
 
         if (colliders.Length > 0)
@@ -280,7 +295,7 @@ public class PlantSpawner : MonoBehaviour
 
         Renderer renderer = obj.GetComponentInChildren<Renderer>();
         BoxCollider collider = obj.AddComponent<BoxCollider>();
-        collider.isTrigger = true;
+        collider.isTrigger = false;
 
         if (renderer == null)
             return;
@@ -293,6 +308,13 @@ public class PlantSpawner : MonoBehaviour
             Mathf.Abs(localSize.y),
             Mathf.Abs(localSize.z)
         );
+    }
+
+    private static void SetLayerRecursive(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+            SetLayerRecursive(child.gameObject, layer);
     }
 
     /// <summary>

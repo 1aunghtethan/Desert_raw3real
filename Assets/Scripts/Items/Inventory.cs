@@ -34,6 +34,8 @@ public class Inventory : MonoBehaviour
     /// <summary>Fired when ANY slot contents change (drag/drop, added, removed).</summary>
     public event Action OnInventoryChanged;
 
+    private ItemPlacer _itemPlacer;
+
     public void BroadcastInventoryChange()
     {
         OnInventoryChanged?.Invoke();
@@ -42,6 +44,12 @@ public class Inventory : MonoBehaviour
     void Awake()
     {
         Instance = this;
+    }
+
+    void Start()
+    {
+        _itemPlacer = GetComponent<ItemPlacer>();
+        if (_itemPlacer == null) _itemPlacer = FindFirstObjectByType<ItemPlacer>();
     }
 
     void Update()
@@ -62,6 +70,9 @@ public class Inventory : MonoBehaviour
         }
 
         // Scroll wheel cycling (hotbar only, slots 0 to HotbarSize-1)
+        if (_itemPlacer != null && _itemPlacer.IsPlacementModeActive)
+            return;
+
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (Mathf.Abs(scroll) > 0.01f)
         {

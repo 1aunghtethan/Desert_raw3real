@@ -1,4 +1,6 @@
 using UnityEngine;
+using GinjaGaming.FinalCharacterController;
+using System.Collections;
 
 /// <summary>
 /// Handles player interaction with world objects (Meat, Water, etc.).
@@ -16,11 +18,23 @@ public class InteractionManager : MonoBehaviour
     public Color PromptColor = Color.white;
     public int FontSize = 22;
 
+    [Header("Pickup Animation")]
+    public float PickupGatherDuration = 0.8f;
+    public float PickupActionDelay = 0.6f;
+
     private LootItem m_CurrentTarget;
     private LootItem m_PreviousOutlineTarget;
     private OutlineController m_CurrentOutline;
     private Camera m_MainCamera;
     private PlayerController m_Controller;
+    private PlayerActionsInput m_PlayerActionsInput;
+    private Animator m_Animator;
+    private Coroutine m_PickupRoutine;
+
+    // Hash for the Gathering state name (used with CrossFadeInFixedTime)
+    private static readonly int GatheringStateHash = Animator.StringToHash("Gathering");
+    private static readonly int LocomotionStateHash = Animator.StringToHash("Locomotion");
+    private static readonly int IsGatheringHash = Animator.StringToHash("isGathering");
 
     private GUIStyle m_PromptStyle;
     private GUIStyle m_ShadowStyle;
@@ -28,7 +42,33 @@ public class InteractionManager : MonoBehaviour
     private void Start()
     {
         m_Controller = GetComponent<PlayerController>();
+
+        // Search in children too, in case PlayerActionsInput is on a child object
+        m_PlayerActionsInput = GetComponent<PlayerActionsInput>();
+        if (m_PlayerActionsInput == null)
+            m_PlayerActionsInput = GetComponentInChildren<PlayerActionsInput>();
+
+        // Find the Animator that has the isGathering parameter (via PlayerAnimation's serialized reference)
+        FindCorrectAnimator();
+
         UpdateCameraReference();
+    }
+
+    private void FindCorrectAnimator()
+    {
+        // Try to find the Animator used by PlayerAnimation (which is serialized to the correct one)
+        var playerAnim = GetComponentInChildren<GinjaGaming.FinalCharacterController.PlayerAnimation>();
+        if (playerAnim != null)
+        {
+            // PlayerAnimation has a [SerializeField] Animator - get it via reflection or just find the Animator on the same object
+            m_Animator = playerAnim.GetComponent<Animator>();
+            if (m_Animator == null)
+                m_Animator = playerAnim.GetComponentInChildren<Animator>();
+        }
+
+        // Fallback: find any Animator in children
+        if (m_Animator == null)
+            m_Animator = GetComponentInChildren<Animator>();
     }
 
     private void Update()
@@ -41,9 +81,9 @@ public class InteractionManager : MonoBehaviour
         PerformDetection();
 
         // Frame-perfect input handling
-        if (m_CurrentTarget != null && Input.GetKeyDown(InteractionKey))
+        if (m_CurrentTarget != null && Input.GetKeyDown(InteractionKey) && m_PickupRoutine == null)
         {
-            m_CurrentTarget.RequestPickup();
+            m_PickupRoutine = StartCoroutine(PickupAfterGathering(m_CurrentTarget));
         }
 
         UpdateOutline(m_CurrentTarget);
@@ -141,5 +181,55 @@ public class InteractionManager : MonoBehaviour
     {
         if (m_Controller != null) m_MainCamera = m_Controller.GetActiveCamera();
         if (m_MainCamera == null) m_MainCamera = Camera.main;
+    }
+
+    private void PlayPickupAnimation()
+    {
+        // Method 1: Trigger via PlayerActionsInput pipeline (sets GatherPressed → PlayerAnimation reads it)
+        if (m_PlayerActionsInput == null)
+        {
+            m_PlayerActionsInput = GetComponent<PlayerActionsInput>();
+            if (m_PlayerActionsInput == null)
+                m_PlayerActionsInput = GetComponentInChildren<PlayerActionsInput>();
+        }
+
+        if (m_PlayerActionsInput != null)
+            m_PlayerActionsInput.TriggerGathering(PickupGatherDuration);
+
+        // Method 2: Also directly force-play the Gathering animation via CrossFade
+        // This is the reliable fallback that works regardless of parameter pipeline issues
+        if (m_Animator == null)
+            FindCorrectAnimator();
+
+        if (m_Animator != null)
+        {
+            m_Animator.CrossFadeInFixedTime(GatheringStateHash, 0.15f);
+        }
+    }
+
+    private void StopPickupAnimation()
+    {
+        if (m_Animator != null)
+        {
+            m_Animator.CrossFadeInFixedTime(LocomotionStateHash, 0.2f);
+        }
+    }
+
+    private IEnumerator PickupAfterGathering(LootItem target)
+    {
+        PlayPickupAnimation();
+
+        yield return new WaitForSeconds(PickupActionDelay);
+
+        if (target != null)
+            target.RequestPickup();
+
+        float remainingAnimationTime = Mathf.Max(0f, PickupGatherDuration - PickupActionDelay);
+        if (remainingAnimationTime > 0f)
+            yield return new WaitForSeconds(remainingAnimationTime);
+
+        StopPickupAnimation();
+
+        m_PickupRoutine = null;
     }
 }

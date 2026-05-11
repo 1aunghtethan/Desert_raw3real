@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b152c89efeb9c4c4ba88f59a587785e1
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 323828
+  packageName: Day/Night Cycle (HDRP)
+  packageVersion: 1.0
+  assetPath: Assets/Day & Night Cycle/Demo/Demo Scene/Global Volume Profile.asset
+  uploadId: 767069

@@ -4,11 +4,10 @@ using System.Collections;
 
 /// <summary>
 /// Handles the player sleep mechanic with a fade-to-black screen effect.
-///   - Night (TimeOfDay >= 180): Can always sleep.
-///   - Day (TimeOfDay < 180):    Can only sleep if in shadow. Time won't advance past 180.
-///   - Can't sleep if health is actively reducing (starving/dehydrated).
-///   - During sleep: hunger & thirst drain at a significantly reduced rate (configured in PlayerStats).
-///   - Screen effect: fade in 2.5s → black 3s → fade out 2.5s = 8s total.
+/// - Rest hours: sleep is allowed from 18.5 through 5.5.
+/// - Daytime: sleep is allowed only if the player is in shadow.
+/// - After waking: sleep is blocked until SleepCooldownHours in-game hours pass.
+/// - Sleep is blocked while health is actively reducing.
 /// Attach to the Player GameObject.
 /// </summary>
 public class SleepSystem : MonoBehaviour
@@ -17,8 +16,14 @@ public class SleepSystem : MonoBehaviour
     public KeyCode SleepKey = KeyCode.T;
 
     [Header("Sleep Settings")]
-    [Tooltip("How many degrees of time to advance when sleeping.")]
+    [Tooltip("How many degrees of time to advance when sleeping. 90 degrees = 6 in-game hours.")]
     public float TimeAdvanceDegrees = 90f;
+    [Tooltip("Player can sleep from this clock hour until midnight, and from midnight until SleepAllowedEndHour.")]
+    public float SleepAllowedStartHour = 18.5f;
+    [Tooltip("Player can sleep until this clock hour after midnight.")]
+    public float SleepAllowedEndHour = 5.5f;
+    [Tooltip("How many in-game clock hours must pass after waking before sleeping again.")]
+    public float SleepCooldownHours = 6f;
 
     [Header("Screen Fade Timing (seconds)")]
     [Tooltip("Duration of fade to black.")]
@@ -29,22 +34,22 @@ public class SleepSystem : MonoBehaviour
     public float FadeOutDuration = 2.5f;
 
     [Header("References (auto-found if empty)")]
-    public DayNightCycle DayNight;
+    public cyclemanager DayNight;
     public PlayerStats Stats;
 
-    /// <summary>True while the player is currently sleeping.</summary>
     public bool IsSleeping { get; private set; }
 
     private PlayerController _playerController;
     private ThirdPersonCamera _tpCam;
-
-    // Screen overlay
     private Canvas _fadeCanvas;
     private Image _fadeImage;
+    private float _lastSleepEndHour = -999f;
 
-    void Start()
+    private float CurrentHour => DayNight != null ? Mathf.Repeat(DayNight.currentTime, 24f) : 0f;
+
+    private void Start()
     {
-        if (DayNight == null) DayNight = FindFirstObjectByType<DayNightCycle>();
+        if (DayNight == null) DayNight = FindFirstObjectByType<cyclemanager>();
         if (Stats == null) Stats = PlayerStats.Instance ?? FindFirstObjectByType<PlayerStats>();
         _playerController = GetComponent<PlayerController>();
         _tpCam = FindFirstObjectByType<ThirdPersonCamera>();
@@ -52,9 +57,9 @@ public class SleepSystem : MonoBehaviour
         CreateFadeOverlay();
     }
 
-    void Update()
+    private void Update()
     {
-        if (IsSleeping) return; // Coroutine handles everything
+        if (IsSleeping) return;
 
         if (Input.GetKeyDown(SleepKey))
         {
@@ -66,41 +71,29 @@ public class SleepSystem : MonoBehaviour
     {
         if (DayNight == null || Stats == null) return;
 
-        // --- Can't sleep while taking damage (starving, dehydrated) ---
-        if (Stats.IsTakingDamage)
+        // Block sleep if health is reducing from hunger or thirst.
+        // BUT allow sleep when the only damage is from sleep deprivation (since sleeping cures it).
+        if (Stats.IsTakingNonSleepDamage)
         {
-            Debug.Log("[SleepSystem] Can't sleep — health is reducing! (starving or dehydrated)");
+            Debug.Log("[SleepSystem] Can't sleep while health is reducing from hunger or thirst.");
             return;
         }
 
-        bool isDay = DayNight.IsDay;
-
-        // --- Daytime: require shadow ---
-        if (isDay)
+        float currentHour = CurrentHour;
+        if (!HasSleepCooldownElapsed(currentHour))
         {
-            if (!Stats.IsInShadow)
-            {
-                Debug.Log("[SleepSystem] Can't sleep during the day — find shadow first!");
-                return;
-            }
-
-            // Check if time would go past 180 (sunset)
-            float maxAdvance = 180f - DayNight.TimeOfDay;
-            if (maxAdvance <= 1f)
-            {
-                Debug.Log("[SleepSystem] Can't sleep — too close to sunset.");
-                return;
-            }
-
-            // Cap advance so we don't go past 180
-            float advance = Mathf.Min(TimeAdvanceDegrees, maxAdvance);
-            StartSleep(advance);
+            float remaining = SleepCooldownHours - HoursSince(_lastSleepEndHour, currentHour);
+            Debug.Log($"[SleepSystem] Can't sleep yet. Rest again in {remaining:F1} in-game hours.");
+            return;
         }
-        else
+
+        if (IsWithinSleepHours(currentHour) || Stats.IsInShadow)
         {
-            // --- Nighttime: always allowed ---
             StartSleep(TimeAdvanceDegrees);
+            return;
         }
+
+        Debug.Log($"[SleepSystem] Can't sleep now. Sleep from {SleepAllowedStartHour:F1} to {SleepAllowedEndHour:F1}, or find shadow during the day.");
     }
 
     private void StartSleep(float degreesToAdvance)
@@ -108,51 +101,31 @@ public class SleepSystem : MonoBehaviour
         IsSleeping = true;
         Stats.IsSleeping = true;
 
-        // Disable player controls during sleep
         if (_playerController != null) _playerController.enabled = false;
         if (_tpCam != null) _tpCam.enabled = false;
 
-        Debug.Log($"[SleepSystem] Sleeping... time will advance by {degreesToAdvance:F0}° (from {DayNight.TimeOfDay:F0}°)");
+        Debug.Log($"[SleepSystem] Sleeping... time will advance by {degreesToAdvance:F0} degrees from {CurrentHour:F1}.");
         StartCoroutine(SleepSequence(degreesToAdvance));
     }
 
-    /// <summary>
-    /// Fade in (2.5s) → hold black (3s, time advances here) → fade out (2.5s).
-    /// </summary>
     private IEnumerator SleepSequence(float degreesToAdvance)
     {
-        // ─── Phase 1: Fade to black ───
         float elapsed = 0f;
         while (elapsed < FadeInDuration)
         {
             elapsed += Time.deltaTime;
-            float alpha = Mathf.Clamp01(elapsed / FadeInDuration);
-            SetOverlayAlpha(alpha);
+            SetOverlayAlpha(Mathf.Clamp01(elapsed / FadeInDuration));
             yield return null;
         }
         SetOverlayAlpha(1f);
 
-        // ─── Phase 2: Stay black — advance time instantly ───
         DayNight.AdvanceTime(degreesToAdvance);
-        Debug.Log($"[SleepSystem] Time advanced to {DayNight.TimeOfDay:F0}°");
+        Debug.Log($"[SleepSystem] Time advanced to {CurrentHour:F1}.");
 
-        // Apply reduced stat drain for the skipped time period
-        // Calculate how many real seconds the skipped degrees represent
-        float originalSpeed = DayNight.CycleSpeed;
-        if (originalSpeed > 0f)
-        {
-            float skippedRealSeconds = degreesToAdvance / originalSpeed;
-            float sleepMult = Stats.SleepDecayMultiplier;
-            float hungerDrain = Stats.HungerDecayRate * skippedRealSeconds * sleepMult;
-            float thirstDrain = Stats.BaseThirstDecay * skippedRealSeconds * sleepMult;
-            Stats.CurrentHunger = Mathf.Max(0, Stats.CurrentHunger - hungerDrain);
-            Stats.CurrentThirst = Mathf.Max(0, Stats.CurrentThirst - thirstDrain);
-        }
+        ApplySkippedTimeStatDrain(degreesToAdvance);
 
-        // Hold black screen
         yield return new WaitForSeconds(BlackDuration);
 
-        // ─── Phase 3: Fade from black ───
         elapsed = 0f;
         while (elapsed < FadeOutDuration)
         {
@@ -163,51 +136,78 @@ public class SleepSystem : MonoBehaviour
         }
         SetOverlayAlpha(0f);
 
-        // ─── Done ───
         WakeUp();
+    }
+
+    private void ApplySkippedTimeStatDrain(float degreesToAdvance)
+    {
+        float originalSpeed = DayNight.CycleSpeed;
+        if (originalSpeed <= 0f) return;
+
+        float skippedRealSeconds = degreesToAdvance / originalSpeed;
+        float sleepMult = Stats.SleepDecayMultiplier;
+        float hungerDrain = Stats.HungerDecayRate * skippedRealSeconds * sleepMult;
+        float thirstDrain = Stats.BaseThirstDecay * skippedRealSeconds * sleepMult;
+        Stats.CurrentHunger = Mathf.Max(0, Stats.CurrentHunger - hungerDrain);
+        Stats.CurrentThirst = Mathf.Max(0, Stats.CurrentThirst - thirstDrain);
     }
 
     private void WakeUp()
     {
         if (Stats != null)
         {
-            Stats.CurrentSleep = Stats.MaxSleep; // Restore sleep to max
+            Stats.CurrentSleep = Stats.MaxSleep;
+            Stats.IsSleeping = false;
         }
-        IsSleeping = false;
-        Stats.IsSleeping = false;
 
-        // Re-enable player controls
+        IsSleeping = false;
+        _lastSleepEndHour = CurrentHour;
+
         if (_playerController != null) _playerController.enabled = true;
         if (_tpCam != null) _tpCam.enabled = true;
 
-        // Re-lock cursor
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        Debug.Log($"[SleepSystem] Woke up at time {DayNight.TimeOfDay:F0}°");
+        Debug.Log($"[SleepSystem] Woke up at {CurrentHour:F1}. Next sleep allowed after {SleepCooldownHours:F1} in-game hours.");
     }
 
-    // ═══════════════════════════════════════════
-    // FADE OVERLAY
-    // ═══════════════════════════════════════════
+    private bool IsWithinSleepHours(float hour)
+    {
+        hour = Mathf.Repeat(hour, 24f);
+        float start = Mathf.Repeat(SleepAllowedStartHour, 24f);
+        float end = Mathf.Repeat(SleepAllowedEndHour, 24f);
+
+        if (start <= end)
+            return hour >= start && hour <= end;
+
+        return hour >= start || hour <= end;
+    }
+
+    private bool HasSleepCooldownElapsed(float currentHour)
+    {
+        return _lastSleepEndHour < 0f || HoursSince(_lastSleepEndHour, currentHour) >= SleepCooldownHours;
+    }
+
+    private static float HoursSince(float fromHour, float toHour)
+    {
+        return Mathf.Repeat(toHour - fromHour, 24f);
+    }
 
     private void CreateFadeOverlay()
     {
-        // Create a dedicated screen-space overlay canvas for the fade
         GameObject canvasObj = new GameObject("SleepFadeCanvas");
         canvasObj.transform.SetParent(transform);
         _fadeCanvas = canvasObj.AddComponent<Canvas>();
         _fadeCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _fadeCanvas.sortingOrder = 999; // On top of everything
+        _fadeCanvas.sortingOrder = 999;
 
-        // Full-screen black image
         GameObject imgObj = new GameObject("FadeImage");
         imgObj.transform.SetParent(canvasObj.transform, false);
         _fadeImage = imgObj.AddComponent<Image>();
-        _fadeImage.color = new Color(0f, 0f, 0f, 0f); // Start transparent
+        _fadeImage.color = new Color(0f, 0f, 0f, 0f);
         _fadeImage.raycastTarget = false;
 
-        // Stretch to fill screen
         RectTransform rt = _fadeImage.rectTransform;
         rt.anchorMin = Vector2.zero;
         rt.anchorMax = Vector2.one;

@@ -18,13 +18,13 @@ public class PlayerStatsUI : MonoBehaviour
     [Header("Temperature Display")]
     public TextMeshProUGUI TempTextDisplay;
 
-    private DayNightCycle _cycle;
+    private cyclemanager _cycle;
     private PlayerStats _stats;
 
     private void Start()
     {
         _stats = PlayerStats.Instance;
-        _cycle = FindFirstObjectByType<DayNightCycle>();
+        _cycle = FindFirstObjectByType<cyclemanager>();
 
         Debug.Log($"<color=cyan>[StatsUI]</color> HUD with single-icon mode initialized.");
     }
