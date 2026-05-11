@@ -17,8 +17,8 @@ public class ThirdPersonCamera : MonoBehaviour
     public float MaxVerticalAngle = 70f;
 
     [Header("Smoothing")]
-    public float PositionSmoothTime = 0.08f;
-    public float RotationSmoothTime = 8.0f; // Slerp speed
+    public float PositionSmoothTime = 0f;
+    public float RotationSmoothTime = 0f;
 
     [Header("Field of View")]
     public float FOV = 60f;
@@ -28,6 +28,13 @@ public class ThirdPersonCamera : MonoBehaviour
     public LayerMask CollisionLayers = ~0; // Everything by default
 
     [Header("Offset")]
+    [Tooltip("Camera target height above the player feet.")]
+    public float CameraHeight = 1.5f;
+    public float MinCameraHeight = 0.5f;
+    public float MaxCameraHeight = 4f;
+    public float CameraHeightStep = 0.25f;
+    public KeyCode CameraHighKey = KeyCode.PageUp;
+    public KeyCode CameraLowKey = KeyCode.PageDown;
     public Vector3 TargetOffset = new Vector3(0, 1.5f, 0); // Look above player feet
     [Tooltip("Pushes the camera to the right (over the shoulder).")]
     public float RightOffset = 0.5f;
@@ -86,6 +93,16 @@ public class ThirdPersonCamera : MonoBehaviour
 
         if (!_cursorLocked) return;
 
+        if (Input.GetKeyDown(CameraHighKey))
+        {
+            AddCameraHeight(CameraHeightStep);
+        }
+
+        if (Input.GetKeyDown(CameraLowKey))
+        {
+            AddCameraHeight(-CameraHeightStep);
+        }
+
         // Mouse rotation
         float mouseX = Input.GetAxis("Mouse X") * MouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * MouseSensitivity;
@@ -105,6 +122,7 @@ public class ThirdPersonCamera : MonoBehaviour
 
     void UpdateCameraPosition()
     {
+        TargetOffset.y = CameraHeight;
         Vector3 baseTargetPos = Target.position + TargetOffset;
 
         // Calculate desired camera rotation from angles
@@ -125,8 +143,7 @@ public class ThirdPersonCamera : MonoBehaviour
             finalDistance = Mathf.Max(finalDistance, MinDistance * 0.5f);
         }
 
-        // Smooth the distance change
-        _currentDistance = Mathf.Lerp(_currentDistance, finalDistance, Time.deltaTime * 10f);
+        _currentDistance = finalDistance;
 
         // Final position
         Vector3 finalPosition = targetPos - (targetRotation * Vector3.forward * _currentDistance);  
@@ -156,6 +173,16 @@ public class ThirdPersonCamera : MonoBehaviour
     {
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !locked;
+    }
+
+    public void SetCameraHeight(float height)
+    {
+        CameraHeight = Mathf.Clamp(height, MinCameraHeight, MaxCameraHeight);
+    }
+
+    public void AddCameraHeight(float amount)
+    {
+        SetCameraHeight(CameraHeight + amount);
     }
 
     /// <summary>

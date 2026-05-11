@@ -103,7 +103,7 @@ public class TerrainManager : MonoBehaviour
                 new Vector2(Player.position.x, Player.position.z), 
                 new Vector2(chunk.transform.position.x + chunkSizeWorld * 0.5f, chunk.transform.position.z + chunkSizeWorld * 0.5f)
             );
-            chunk.UpdateLOD(dist2D, Config.ColliderLODDistance, Config.SimulationLODDistance, Player.position);
+            chunk.UpdateLOD(dist2D, Config.ColliderLODDistance, Config.SimulationLODDistance);
         }
 
         // 2. Throttled Simulation (0.1s interval)
@@ -484,7 +484,7 @@ public class TerrainManager : MonoBehaviour
             new Vector2(Player.position.x, Player.position.z),
             new Vector2(go.transform.position.x + chunkSizeWorld*0.5f, go.transform.position.z + chunkSizeWorld*0.5f)
         );
-        chunk.UpdateLOD(dist2D, Config.ColliderLODDistance, Config.SimulationLODDistance, Player.position);
+        chunk.UpdateLOD(dist2D, Config.ColliderLODDistance, Config.SimulationLODDistance);
         
         _chunks.Add(coord, chunk);
     }

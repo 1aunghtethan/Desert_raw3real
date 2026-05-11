@@ -49,7 +49,6 @@ public class SandChunk : MonoBehaviour
     private NativeArray<Vector2> _meshUVs;
     private NativeArray<Color> _meshColors;
 
-    private Vector3 _lastBakePlayerPos;
     private bool _needsBake = true;
 
     public void Initialize(Vector2Int coord, TerrainConfig config, float[] initialData = null)
@@ -544,7 +543,7 @@ public class SandChunk : MonoBehaviour
     // LOD Settings (Moved to Config)
     // private const float COLLIDER_ENABLE_DIST ...
 
-    public void UpdateLOD(float distanceToPlayer, float colliderDist, float simDist, Vector3 playerPos)
+    public void UpdateLOD(float distanceToPlayer, float colliderDist, float simDist)
     {
         // 1. Collider Enabled State
         bool shouldHaveCollider = distanceToPlayer < colliderDist;
@@ -552,16 +551,14 @@ public class SandChunk : MonoBehaviour
             _mc.enabled = shouldHaveCollider;
         }
 
-        // 2. Proactive Physics Baking
+        // 2. Physics Baking
+        // Re-baking a MeshCollider is expensive. Only do it when the mesh changed,
+        // or when the collider is first enabled/has no mesh assigned.
         if (shouldHaveCollider) {
-            float distToLastBakeSq = (playerPos - _lastBakePlayerPos).sqrMagnitude;
-            
-            // IF it's the first time OR player moved significantly OR mesh changed OR sharedMesh is null
-            if (_needsBake || distToLastBakeSq > 4.0f || _mc.sharedMesh == null) {
+            if (_needsBake || _mc.sharedMesh == null) {
                 // Re-assigning sharedMesh triggers Physics Bake.
                 _mc.sharedMesh = null; 
                 _mc.sharedMesh = _mesh;
-                _lastBakePlayerPos = playerPos;
                 _needsBake = false;
             }
         }

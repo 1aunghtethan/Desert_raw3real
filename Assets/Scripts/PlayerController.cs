@@ -55,11 +55,14 @@ public class PlayerController : MonoBehaviour
 
     // ─── Rotation Smoothing (TP) ───
     [Header("Third Person")]
-    public float TPRotationSpeed = 10f;
+    [Tooltip("How fast the player turns in third person. Set to 0 for instant rotation with no walk delay.")]
+    public float TPRotationSpeed = 0f;
 
     // ─── Animation ───
     private Animator _animator;
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
+    private static readonly int MoveXHash = Animator.StringToHash("MoveX");
+    private static readonly int MoveYHash = Animator.StringToHash("MoveY");
     private static readonly int JumpHash = Animator.StringToHash("Jump");
     private static readonly int GroundedHash = Animator.StringToHash("Grounded");
 
@@ -67,6 +70,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody _rb;
     private CapsuleCollider _capsule;
     private bool _isRunning;
+    private Vector2 _moveInput;
 
     void Awake()
     {
@@ -135,6 +139,8 @@ public class PlayerController : MonoBehaviour
         {
             float horizontalVel = new Vector3(_rb.linearVelocity.x, 0, _rb.linearVelocity.z).magnitude;
             _animator.SetFloat(SpeedHash, horizontalVel);
+            _animator.SetFloat(MoveXHash, _moveInput.x);
+            _animator.SetFloat(MoveYHash, _moveInput.y);
 
             bool grounded = IsGrounded();
             _animator.SetBool(GroundedHash, grounded);
@@ -170,6 +176,10 @@ public class PlayerController : MonoBehaviour
 
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
+        float runBlend = _isRunning ? 2f : 1f;
+        _moveInput = new Vector2(h, v);
+        if (_moveInput.sqrMagnitude > 1f) _moveInput.Normalize();
+        _moveInput *= runBlend;
 
         Vector3 moveDir;
 
@@ -230,7 +240,9 @@ public class PlayerController : MonoBehaviour
             if (targetForward.sqrMagnitude > 0.01f)
             {
                 Quaternion targetRot = Quaternion.LookRotation(targetForward, Vector3.up);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.fixedDeltaTime * TPRotationSpeed);
+                transform.rotation = TPRotationSpeed > 0f
+                    ? Quaternion.Slerp(transform.rotation, targetRot, Time.fixedDeltaTime * TPRotationSpeed)
+                    : targetRot;
             }
         }
     }

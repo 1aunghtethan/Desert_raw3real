@@ -12,7 +12,7 @@ public class ThirdPersonMovement : MonoBehaviour
     public KeyCode RunKey = KeyCode.LeftShift;
 
     [Header("Rotation")]
-    public float RotationSpeed = 10f; // How fast the player model rotates to face movement direction
+    public float RotationSpeed = 0f; // Set to 0 for instant rotation with no walk delay.
 
     [Header("References")]
     public ThirdPersonCamera CameraController; // Assign the camera with ThirdPersonCamera
@@ -62,7 +62,9 @@ public class ThirdPersonMovement : MonoBehaviour
         if (moveDirection.sqrMagnitude > 0.01f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * RotationSpeed);
+            transform.rotation = RotationSpeed > 0f
+                ? Quaternion.Slerp(transform.rotation, targetRotation, Time.fixedDeltaTime * RotationSpeed)
+                : targetRotation;
         }
     }
 }
