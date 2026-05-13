@@ -20,11 +20,11 @@ RenderSettings:
   m_FogDensity: 0.01
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  m_AmbientSkyColor: {r: 0.05947538, g: 0.058835864, b: 0.058379058, a: 0.22840004}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
   m_AmbientIntensity: 1
-  m_AmbientMode: 0
+  m_AmbientMode: 3
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 2100000, guid: 1733da1d8a67f0b4c81c7063c8f0466d, type: 2}
   m_HaloStrength: 0.5
@@ -497,13 +497,13 @@ Light:
   serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
-  m_Intensity: 0.00024861115
+  m_Intensity: 0.64496267
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
-    m_Type: 0
+    m_Type: 2
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
@@ -559,7 +559,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 170076733}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.4002362, y: -0.5715965, z: -0.41085395, w: 0.5867602}
+  m_LocalRotation: {x: 0.022518491, y: 0.03215974, z: -0.57313424, w: 0.81852055}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -578,11 +578,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97e7e8ebfab090f4d9026f5523143717, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::cyclemanager
-  CycleSpeed: 0.2
-  TimeOfDay: 1.5
+  CycleSpeed: 0.4
+  TimeOfDay: 94.5
   MinTemperature: -5
   MaxTemperature: 50
-  currentTime: 0.1
+  currentTime: 6.3
   timeSpeed: 1
   currentTimeString: 
   sunLight: {fileID: 170076734}
@@ -642,6 +642,14 @@ MonoBehaviour:
   moonLatitude: 40
   moonLongitude: 90
   moonIntensity: 1
+  useMoonVisualAsLightSource: 1
+  moonLightRange: 500
+  moonSpotAngle: 70
+  moonTerrainLightIntensity: 0.45
+  nightAmbientIntensity: 0.03
+  dayAmbientIntensity: 0.65
+  nightAmbientColor: {r: 0.03, g: 0.04, b: 0.07, a: 1}
+  dayAmbientColor: {r: 0.75, g: 0.72, b: 0.65, a: 1}
   moonIntensityMultiplier:
     serializedVersion: 2
     m_Curve:
@@ -693,12 +701,13 @@ MonoBehaviour:
   lunarDay: 1
   lunarCycleSpeed: 1
   moonModel: {fileID: 296759298}
-  moonOrbitTarget: {fileID: 0}
-  moonVisualDistance: 85
-  moonVisualScale: 7.5
-  isDay: 0
-  sunActive: 0
-  moonActive: 1
+  moonOrbitTarget: {fileID: 1704939370}
+  moonVisualDistance: 800
+  moonVisualScale: 55
+  moonMinHorizon: 0.82
+  isDay: 1
+  sunActive: 1
+  moonActive: 0
 --- !u!1 &178005983
 GameObject:
   m_ObjectHideFlags: 0
@@ -928,7 +937,6 @@ GameObject:
   m_Component:
   - component: {fileID: 296759298}
   - component: {fileID: 296759301}
-  - component: {fileID: 296759300}
   - component: {fileID: 296759299}
   m_Layer: 0
   m_Name: MoonVisual
@@ -945,8 +953,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 296759297}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.035890803, y: -0.99935573, z: 0.00000010430813, w: 0.000000029802322}
-  m_LocalPosition: {x: -0.1721909, y: -2.3941536, z: -78.42441}
+  m_LocalRotation: {x: -0.4222925, y: 0.9056091, z: -0.016591944, w: 0.035581473}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1001,27 +1009,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!135 &296759300
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 296759297}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!33 &296759301
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -1541,21 +1528,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 443525332}
   m_CullTransparentMesh: 1
---- !u!134 &470042232
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ' (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)
-    (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)
-    (Instance) (Instance) (Instance) (Instance) (Instance)'
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
 --- !u!1 &614205789
 GameObject:
   m_ObjectHideFlags: 0
@@ -1945,8 +1917,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a9cb7f609bd73e4ab793d5004a72f06, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SandInteraction
-  BrushStrength: 20
-  BrushRadius: 2
+  BrushStrength: 10
+  BrushRadius: 0.5
 --- !u!114 &805342206
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2007,10 +1979,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemSetup
   StartingItems:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 3505e047d63a47b280f70803600cc5f1, type: 2}
+  - {fileID: 11400000, guid: ac07510969c88284eadec9e01b3316aa, type: 2}
+  - {fileID: 11400000, guid: 343f0d90f795eb142baaeeb353b72616, type: 2}
+  - {fileID: 11400000, guid: b037557c49277e74a81d3d616b5e3338, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -2048,7 +2020,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Inventory
   Slots:
-  - {fileID: 11400000, guid: 39d94dae6ba39db49a0ed1adf84e6128, type: 2}
+  - {fileID: 11400000, guid: 3505e047d63a47b280f70803600cc5f1, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -2058,7 +2030,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  SlotCounts: 00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  SlotCounts: 01000000000000000000000000000000000000000000000000000000000000000000000000000000
   HotbarSize: 10
   SlotKeys: 31000000320000003300000034000000350000003600000037000000380000003900000039000000
 --- !u!114 &805342221
@@ -2098,17 +2070,17 @@ MonoBehaviour:
   HungerSaturation: 0
   MaxThirst: 50
   CurrentThirst: 50
-  MaxSleep: 20
-  CurrentSleep: 20
-  HungerDecayRate: 0.1
+  MaxSleep: 50
+  CurrentSleep: 50
+  HungerDecayRate: 0.05
   MovementHungerMultiplier: 2
-  BaseSleepDecay: 0.166
+  BaseSleepDecay: 0.08
   SleepDeprivedThirstMultiplier: 2
   BaseThirstDecay: 0.1
   HeatThirstMultiplier: 2
   StarvationDamage: 1
   DamageInterval: 2
-  RegenerationRate: 1
+  RegenerationRate: 5
   RegenInterval: 4
   ShadeTemperatureReduction: 15
   ShadowCheckInterval: 0.15
@@ -2186,7 +2158,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63495fc450c8b4e4f9c35e095c1f2d7a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemPlacer
-  PlaceDistance: 6
+  PlaceDistance: 4.22
   PlaceHeightOffset: 0.05
   GroundLayers:
     serializedVersion: 2
@@ -2198,11 +2170,15 @@ MonoBehaviour:
   RotateKey: 114
   RotationStep: 90
   ScrollRotationStep: 15
-  ObjectDistanceFromPlayer: 3
-  RaycastStartVerticalOffset: 4
-  RaycastDistance: 8
-  ValidColor: {r: 0.2, g: 1, b: 0.2, a: 0.4}
+  ObjectDistanceFromPlayer: 2.34
+  RaycastStartVerticalOffset: 1.91
+  RaycastDistance: 4.58
+  ValidColor: {r: 0.019188304, g: 0.9245283, b: 0.019188304, a: 0.4}
   InvalidColor: {r: 1, g: 0.2, b: 0.2, a: 0.4}
+  RequireFullGroundSupport: 1
+  TerrainPenetrationTolerance: 0.03
+  TerrainSupportProbeHeight: 1.5
+  TerrainSupportProbeDepth: 3
 --- !u!114 &805342233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2945,7 +2921,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!108 &1302061579
 Light:
   m_ObjectHideFlags: 0
@@ -2955,15 +2931,15 @@ Light:
   m_GameObject: {fileID: 1302061578}
   m_Enabled: 1
   serializedVersion: 12
-  m_Type: 1
+  m_Type: 0
   m_Color: {r: 0.68, g: 0.78, b: 1, a: 1}
   m_Intensity: 0
-  m_Range: 10
-  m_SpotAngle: 30
+  m_Range: 500
+  m_SpotAngle: 70
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 0.5, y: 0.5}
   m_Shadows:
-    m_Type: 2
+    m_Type: 0
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1
@@ -3019,8 +2995,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1302061578}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.41085392, y: 0.5867602, z: -0.4002362, w: 0.5715965}
-  m_LocalPosition: {x: 0, y: 10, z: 0}
+  m_LocalRotation: {x: 0, y: 1, z: 0.000000042915346, w: 0}
+  m_LocalPosition: {x: 50, y: 39.99993, z: 850}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3328,6 +3304,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1373557344}
   m_CullTransparentMesh: 1
+--- !u!134 &1412344910
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)
+    (Instance) (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)
+    (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1461121199
 GameObject:
   m_ObjectHideFlags: 0
@@ -3529,7 +3520,7 @@ PrefabInstance:
     - target: {fileID: 136877096903737240, guid: 11aaea5348574644a9eb4f4504fcce3f, type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 470042232}
+      objectReference: {fileID: 1412344910}
     m_RemovedComponents:
     - {fileID: 114963311885979670, guid: 11aaea5348574644a9eb4f4504fcce3f, type: 3}
     - {fileID: 114497868231759342, guid: 11aaea5348574644a9eb4f4504fcce3f, type: 3}

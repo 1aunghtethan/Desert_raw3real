@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e3e470b190639443ab2bb332c74fffe, type: 3}
+  m_Name: SwardedCactausWater_Recipe
+  m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipe
+  Result: {fileID: 11400000, guid: b037557c49277e74a81d3d616b5e3338, type: 2}
+  ResultAmount: 1
+  Ingredients:
+  - Item: {fileID: 11400000, guid: df1d647b91fcbcf4eb66e94b240249b5, type: 2}
+    Amount: 1
+    PreserveAfterCraft: 1
+  - Item: {fileID: 11400000, guid: 343f0d90f795eb142baaeeb353b72616, type: 2}
+    Amount: 1
+    PreserveAfterCraft: 0

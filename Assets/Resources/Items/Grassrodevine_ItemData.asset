@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Grassrodevine_ItemData
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   ItemName: Grassrodevine
-  Icon: {fileID: 21300000, guid: 6977e0ee5394856479b2dd29ab885a96, type: 3}
+  Icon: {fileID: 21300000, guid: cf9b265d5900ff94798a723206e73b0a, type: 3}
   Type: 2
   Prefab: {fileID: 4227474900393818345, guid: ade9d2604c4dd8e4b97cb11867a7147b, type: 3}
   PrefabVariants: []

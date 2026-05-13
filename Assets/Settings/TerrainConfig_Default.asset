@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 235634577
+  Seed: 279823
   NoiseScale: 0.005
   HeightMultiplier: 30
   BaseHeight: 5

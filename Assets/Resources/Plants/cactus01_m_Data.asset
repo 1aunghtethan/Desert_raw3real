@@ -16,6 +16,7 @@ MonoBehaviour:
   MaxHealth: 75
   LootPrefabs:
   - {fileID: 5504753093673380884, guid: 97f990c31befc0d438e0c68b4118ae37, type: 3}
+  - {fileID: 8816908053072400646, guid: 4b30993ed8a5e564c8e13bf03c05d2f8, type: 3}
   LootCount: 5
   TopplesOnDeath: 1
   LootSpawnRadius: 0.2

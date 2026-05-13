@@ -115,6 +115,7 @@ public class CraftingSystem : MonoBehaviour
         foreach (CraftingIngredient ingredient in recipe.Ingredients)
         {
             if (ingredient == null || ingredient.Item == null || ingredient.Amount <= 0) continue;
+            if (ingredient.PreserveAfterCraft) continue;
 
             int remainingToRemove = ingredient.Amount;
             for (int i = 0; i < simulatedSlots.Length && remainingToRemove > 0; i++)

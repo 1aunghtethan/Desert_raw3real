@@ -60,6 +60,27 @@ public class cyclemanager : MonoBehaviour
     [Tooltip("Base intensity for moon.")]
     public float moonIntensity = 1f;
 
+    [Tooltip("If enabled, the moon light is positioned at MoonVisual and shines down from there.")]
+    public bool useMoonVisualAsLightSource = true;
+
+    [Tooltip("Moon spotlight range when using MoonVisual as the light source.")]
+    public float moonLightRange = 500f;
+
+    [Tooltip("Moon spotlight cone angle when using MoonVisual as the light source.")]
+    [Range(1f, 179f)] public float moonSpotAngle = 70f;
+
+    [Tooltip("Maximum moon terrain light intensity at night.")]
+    public float moonTerrainLightIntensity = 0.45f;
+
+    [Tooltip("Ambient light level at night. Keep this low so terrain stays dark.")]
+    [Range(0f, 1f)] public float nightAmbientIntensity = 0.03f;
+
+    [Tooltip("Ambient light level during the day.")]
+    [Range(0f, 1f)] public float dayAmbientIntensity = 0.65f;
+
+    public Color nightAmbientColor = new Color(0.03f, 0.04f, 0.07f, 1f);
+    public Color dayAmbientColor = new Color(0.75f, 0.72f, 0.65f, 1f);
+
     public AnimationCurve moonIntensityMultiplier;
     public AnimationCurve moonTemperatureCurve;
 
@@ -77,10 +98,13 @@ public class cyclemanager : MonoBehaviour
     public Transform moonOrbitTarget;
 
     [Tooltip("Distance of the generated moon visual from the orbit target.")]
-    public float moonVisualDistance = 85f;
+    public float moonVisualDistance = 350f;
 
     [Tooltip("Size of the generated moon visual.")]
-    public float moonVisualScale = 7.5f;
+    public float moonVisualScale = 25f;
+
+    [Tooltip("Minimum Y direction for the moon orbit. Higher = moon stays higher in sky. 0.05 = near horizon, 0.5 = never dips low.")]
+    [Range(0.01f, 1f)] public float moonMinHorizon = 0.05f;
 
     [Space]
     [Header("🔁 Status Flags (Read-Only)")]
@@ -142,12 +166,12 @@ public class cyclemanager : MonoBehaviour
 
         float sunRotation = currentTime / 24f * 360f;
         float moonTimeOfDay = Mathf.Repeat(TimeOfDay - moonTimeDelay, 360f);
-        float moonRotation = moonTimeOfDay;
+        float moonRotation = moonTimeOfDay + 180f;
 
         sunLight.transform.localRotation = Quaternion.Euler(sunLatitude - 90f, sunLongitude, 0) * Quaternion.Euler(0, sunRotation, 0);
         if (moonLight != null)
         {
-            moonLight.transform.localRotation = Quaternion.Euler(sunLatitude - 90f, sunLongitude, 0) * Quaternion.Euler(0, moonRotation, 0);
+            moonLight.transform.localRotation = Quaternion.Euler(moonLatitude - 90f, sunLongitude + 180f, 0) * Quaternion.Euler(0, moonRotation, 0);
             UpdateMoonVisualPosition();
         }
 
@@ -160,7 +184,9 @@ public class cyclemanager : MonoBehaviour
         {
             float moonCurve = moonIntensityMultiplier.Evaluate(moonTimeOfDay / 360f);
             float phaseMultiplier = Mathf.Sin((float)lunarDay / 30f * Mathf.PI);
-            moonLight.intensity = moonCurve * moonIntensity * phaseMultiplier;
+            float clampedPhase = Mathf.Max(phaseMultiplier, 0.3f);
+            float targetMoonIntensity = useMoonVisualAsLightSource ? moonTerrainLightIntensity : moonIntensity;
+            moonLight.intensity = IsNightTime(currentTime) ? moonCurve * targetMoonIntensity * clampedPhase : 0f;
         }
 
         sunLight.useColorTemperature = true;
@@ -174,6 +200,8 @@ public class cyclemanager : MonoBehaviour
 
         float sunHeight = Mathf.Sin(TimeOfDay * Mathf.Deg2Rad);
         CurrentTemperature = Mathf.Lerp(MinTemperature, MaxTemperature, (sunHeight + 1f) * 0.5f);
+
+        UpdateAmbientLight();
     }
 
     void CheckShadowStatus(bool applyActiveState = true)
@@ -187,15 +215,18 @@ public class cyclemanager : MonoBehaviour
 
         sunLight.shadows = isDay ? LightShadows.Soft : LightShadows.None;
         if (moonLight != null)
-            moonLight.shadows = !isDay ? LightShadows.Soft : LightShadows.None;
+            moonLight.shadows = moonActive ? LightShadows.Soft : LightShadows.None;
 
-        sunActive = t >= 5.7f && t <= 18.3f;
+        sunActive = t >= 5.5f && t <= 18.5f;
         if (applyActiveState)
             sunLight.enabled = sunActive;
 
-        moonActive = !(t >= 6.3f && t <= 17.7f);
+        moonActive = (t >= 18.5f || t <= 5.5f);
         if (applyActiveState && moonLight != null)
+        {
+            moonLight.gameObject.SetActive(moonActive);
             moonLight.enabled = moonActive;
+        }
 
         if (applyActiveState && Application.isPlaying && moonModel != null)
             moonModel.gameObject.SetActive(moonActive);
@@ -219,10 +250,37 @@ public class cyclemanager : MonoBehaviour
 
         Transform target = GetMoonOrbitTarget();
         Vector3 center = target != null ? target.position : transform.position;
-        Vector3 skyDirection = -moonLight.transform.forward;
 
-        moonModel.position = center + skyDirection.normalized * moonVisualDistance;
+        // Night window: 18.5h to 5.5h (in TimeOfDay degrees: 277.5 to 82.5)
+        float nightStartDeg = 277.5f; // 18.5h * 15
+        float nightEndDeg = 82.5f;    // 5.5h * 15
+        float nightSpanDeg = (360f - nightStartDeg) + nightEndDeg; // = 165 degrees
+
+        // How far through the night are we? 0 = moonrise (18.5h), 1 = moonset (5.5h)
+        float progress = Mathf.Repeat(TimeOfDay - nightStartDeg, 360f) / nightSpanDeg;
+        progress = Mathf.Clamp01(progress);
+
+        // Half-circle arc: 0° at rise, 90° at peak (midnight), 180° at set
+        float moonArcRad = progress * Mathf.PI;
+
+        // Y = sin (0→1→0 = rise, peak, set), Z = -cos (sweeps from one horizon to the other)
+        float y = Mathf.Sin(moonArcRad);
+        float z = -Mathf.Cos(moonArcRad);
+
+        Vector3 skyDirection = new Vector3(0f, y, z);
+        skyDirection.Normalize();
+
+        moonModel.position = center + skyDirection * moonVisualDistance;
         moonModel.rotation = Quaternion.LookRotation(moonModel.position - center, Vector3.up);
+
+        if (useMoonVisualAsLightSource && moonLight != null)
+        {
+            moonLight.type = LightType.Spot;
+            moonLight.range = moonLightRange;
+            moonLight.spotAngle = moonSpotAngle;
+            moonLight.transform.position = moonModel.position;
+            moonLight.transform.rotation = Quaternion.LookRotation(center - moonModel.position, Vector3.up);
+        }
     }
 
     private Transform GetMoonOrbitTarget()
@@ -273,11 +331,17 @@ public class cyclemanager : MonoBehaviour
             if (moonLight == null)
                 moonLight = moonObject.AddComponent<Light>();
 
-            moonLight.type = LightType.Directional;
+            moonLight.type = useMoonVisualAsLightSource ? LightType.Spot : LightType.Directional;
             moonLight.color = new Color(0.68f, 0.78f, 1f, 1f);
             moonLight.intensity = moonIntensity;
+            moonLight.range = moonLightRange;
+            moonLight.spotAngle = moonSpotAngle;
             moonLight.shadows = LightShadows.Soft;
         }
+
+        // Ensure the Moon GameObject is active so its Light component can work
+        if (moonLight != null && !moonLight.gameObject.activeSelf)
+            moonLight.gameObject.SetActive(true);
 
         if (moonModel == null && moonLight != null)
         {
@@ -291,13 +355,16 @@ public class cyclemanager : MonoBehaviour
                 GameObject moonVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 moonVisual.name = "MoonVisual";
                 moonVisual.transform.SetParent(null, true);
+                moonVisual.layer = 2; // Ignore Raycast layer
 
-                Collider moonCollider = moonVisual.GetComponent<Collider>();
-                if (moonCollider != null)
+                // Remove ALL colliders to prevent physics freeze
+                foreach (Collider col in moonVisual.GetComponents<Collider>())
+                {
                     if (Application.isPlaying)
-                        Destroy(moonCollider);
+                        Destroy(col);
                     else
-                        DestroyImmediate(moonCollider);
+                        DestroyImmediate(col);
+                }
 
                 moonModel = moonVisual.transform;
             }
@@ -309,11 +376,54 @@ public class cyclemanager : MonoBehaviour
 
         if (moonModel != null)
         {
+            // Safety: strip any collider that survived (e.g. from saved scene)
+            Collider leftover = moonModel.GetComponent<Collider>();
+            if (leftover != null)
+            {
+                if (Application.isPlaying) Destroy(leftover);
+                else DestroyImmediate(leftover);
+            }
+            moonModel.gameObject.layer = 2; // Ignore Raycast
+
             moonModelBaseScale = Vector3.one * moonVisualScale;
             moonModel.localScale = moonModelBaseScale;
             ApplyMoonVisualMaterial();
             UpdateMoonVisualPosition();
         }
+    }
+
+    private void UpdateAmbientLight()
+    {
+        float dayBlend = GetDayAmbientBlend(currentTime);
+        float ambientIntensity = Mathf.Lerp(nightAmbientIntensity, dayAmbientIntensity, dayBlend);
+        Color ambientColor = Color.Lerp(nightAmbientColor, dayAmbientColor, dayBlend);
+
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = ambientColor * ambientIntensity;
+    }
+
+    private static float GetDayAmbientBlend(float hour)
+    {
+        const float dawnStart = 5.5f;
+        const float fullDayStart = 8f;
+        const float fullDayEnd = 16f;
+        const float duskEnd = 18.5f;
+
+        if (hour < dawnStart || hour > duskEnd)
+            return 0f;
+
+        if (hour < fullDayStart)
+            return Mathf.InverseLerp(dawnStart, fullDayStart, hour);
+
+        if (hour > fullDayEnd)
+            return 1f - Mathf.InverseLerp(fullDayEnd, duskEnd, hour);
+
+        return 1f;
+    }
+
+    private static bool IsNightTime(float hour)
+    {
+        return hour >= 18.5f || hour <= 5.5f;
     }
 
     private void ApplyMoonVisualMaterial()
@@ -325,12 +435,18 @@ public class cyclemanager : MonoBehaviour
         if (moonRenderer == null)
             return;
 
-        Shader moonShader = Shader.Find("Custom/MoonUnlit") ?? Shader.Find("Universal Render Pipeline/Unlit");
+        // Try shaders in priority order — pick the first one that exists
+        Shader moonShader = Shader.Find("Custom/MoonUnlit");
+        if (moonShader == null) moonShader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (moonShader == null) moonShader = Shader.Find("Unlit/Color");
+        if (moonShader == null) moonShader = Shader.Find("Standard");
+
         if (moonShader == null)
         {
-            Debug.LogWarning("[cyclemanager] Could not find a supported moon shader. Moon visual material was not changed.");
+            Debug.LogWarning("[cyclemanager] Could not find any supported shader for moon visual.");
             return;
         }
+
         Material moonMaterial = moonRenderer.sharedMaterial;
         if (moonMaterial == null || moonMaterial.name != "Generated Moon Material")
         {
@@ -343,22 +459,41 @@ public class cyclemanager : MonoBehaviour
             moonMaterial.shader = moonShader;
         }
 
-        Color moonColor = moonActive ? new Color(0.95f, 0.94f, 0.82f, 1f) : new Color(0.55f, 0.56f, 0.52f, 1f);
-        moonMaterial.color = moonColor;
+        // Render after skybox (Background=1000) but before transparent geometry
+        moonMaterial.renderQueue = 2501;
+
+        Color moonColor = moonActive
+            ? new Color(0.95f, 0.94f, 0.82f, 1f)
+            : new Color(0.55f, 0.56f, 0.52f, 1f);
+
+        Color glowColor = new Color(0.85f, 0.88f, 1f, 1f);
+
+        // Set every color property the shader might use
+        if (moonMaterial.HasProperty("_Color"))
+            moonMaterial.SetColor("_Color", moonColor);
         if (moonMaterial.HasProperty("_BaseColor"))
             moonMaterial.SetColor("_BaseColor", moonColor);
+        if (moonMaterial.HasProperty("_BaseMap"))
+            moonMaterial.SetTexture("_BaseMap", null); // ensure no missing texture
+
+        // Emission for glow
+        if (moonMaterial.HasProperty("_EmissionColor"))
+        {
+            moonMaterial.EnableKeyword("_EMISSION");
+            moonMaterial.SetColor("_EmissionColor", glowColor * 1.5f);
+            moonMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        }
+
+        // Surface type = Opaque for URP shaders
+        if (moonMaterial.HasProperty("_Surface"))
+            moonMaterial.SetFloat("_Surface", 0f); // 0 = Opaque
+
+        // Custom shader properties (if using Custom/MoonUnlit)
         if (moonMaterial.HasProperty("_GlowColor"))
-            moonMaterial.SetColor("_GlowColor", new Color(0.55f, 0.67f, 1f, 1f));
+            moonMaterial.SetColor("_GlowColor", glowColor);
         if (moonMaterial.HasProperty("_Phase"))
             moonMaterial.SetFloat("_Phase", ((lunarDay - 1f) / 29f) * 2f - 1f);
         if (moonMaterial.HasProperty("_Visibility"))
             moonMaterial.SetFloat("_Visibility", moonActive ? 1f : 0.2f);
-        if (moonMaterial.HasProperty("_Color"))
-            moonMaterial.SetColor("_Color", moonColor);
-        if (moonMaterial.HasProperty("_EmissionColor"))
-        {
-            moonMaterial.EnableKeyword("_EMISSION");
-            moonMaterial.SetColor("_EmissionColor", moonColor);
-        }
     }
 }

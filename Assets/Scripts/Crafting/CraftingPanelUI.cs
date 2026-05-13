@@ -352,6 +352,7 @@ public class CraftingPanelUI : MonoBehaviour
         foreach (CraftingIngredient ingredient in recipe.Ingredients)
         {
             if (ingredient == null || ingredient.Item == null || ingredient.Amount <= 0) continue;
+            if (ingredient.PreserveAfterCraft) continue;
 
             int remaining = ingredient.Amount;
             for (int i = 0; i < IngredientSlotCount && remaining > 0; i++)

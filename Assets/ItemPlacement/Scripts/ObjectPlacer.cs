@@ -14,8 +14,8 @@ public class ObjectPlacer : MonoBehaviour
 
     [Header("Preview Material")]
     [SerializeField] private Material previewMaterial;
-    [SerializeField] private Color validColor;
-    [SerializeField] private Color invalidColor;
+    public Color validColor;
+    public Color invalidColor;
 
     [Header("Raycast Parameters")]
     [SerializeField] private float objectDistanceFromPlayer;
@@ -31,6 +31,7 @@ public class ObjectPlacer : MonoBehaviour
     private float _currentPlacementYaw = 0f;
     private bool _inPlacementMode = false;
     private bool _validPreviewState = false;
+    private Material _previewMaterialInstance = null;
 
     private void Update()
     {
@@ -87,13 +88,13 @@ public class ObjectPlacer : MonoBehaviour
 
     private void SetValidPreviewState()
     {
-        previewMaterial.color = validColor;
+        SetPreviewColor(validColor);
         _validPreviewState = true;
     }
 
     private void SetInvalidPreviewState()
     {
-        previewMaterial.color = invalidColor;
+        SetPreviewColor(invalidColor);
         _validPreviewState = false;
     }
 
@@ -125,6 +126,7 @@ public class ObjectPlacer : MonoBehaviour
         _currentPlacementPitch = 0f;
         _currentPlacementYaw = playerCamera.transform.eulerAngles.y;
         _previewObject = Instantiate(previewObjectPrefab, _currentPlacementPosition, CurrentPlacementRotation(), transform);
+        ApplyPreviewMaterialInstance();
         _inPlacementMode = true;
     }
 
@@ -151,6 +153,36 @@ public class ObjectPlacer : MonoBehaviour
 
         Destroy(_previewObject);
         _previewObject = null;
+        Destroy(_previewMaterialInstance);
+        _previewMaterialInstance = null;
         _inPlacementMode = false;
+    }
+
+    private void ApplyPreviewMaterialInstance()
+    {
+        if (_previewObject == null || previewMaterial == null)
+            return;
+
+        _previewMaterialInstance = new Material(previewMaterial);
+        foreach (Renderer renderer in _previewObject.GetComponentsInChildren<Renderer>())
+        {
+            Material[] materials = new Material[renderer.sharedMaterials.Length];
+            for (int i = 0; i < materials.Length; i++)
+                materials[i] = _previewMaterialInstance;
+            renderer.sharedMaterials = materials;
+        }
+    }
+
+    private void SetPreviewColor(Color color)
+    {
+        Material material = _previewMaterialInstance != null ? _previewMaterialInstance : previewMaterial;
+        if (material == null)
+            return;
+
+        material.color = color;
+        if (material.HasProperty("_BaseColor"))
+            material.SetColor("_BaseColor", color);
+        if (material.HasProperty("_Color"))
+            material.SetColor("_Color", color);
     }
 }

@@ -20,6 +20,8 @@ public class LootItem : MonoBehaviour
     public float GroundCheckDist = 50f;      // Raycast distance to find ground
     public LayerMask GroundLayers = ~0;      // Which layers count as ground
 
+    [HideInInspector] public bool IsPlaced = false; // Set by ItemPlacer — skips hover/bob
+
     private Transform m_PlayerTransform;
     private bool m_IsBeingPickedUp;
     private bool m_IsGrounded;
@@ -46,6 +48,9 @@ public class LootItem : MonoBehaviour
             UpdatePickupMovement();
             return;
         }
+
+        // Placed items stay exactly where they were put — no hover/bob
+        if (IsPlaced) return;
 
         // If this is a heavy physics object, do not override its physical falling!
         if (Data != null && !Data.PickupsSpinAndBob) return;

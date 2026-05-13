@@ -14,7 +14,7 @@ public class ItemPlacer : MonoBehaviour
     public float PlaceDistance = 6f;
     public float PlaceHeightOffset = 0.05f;
     public LayerMask GroundLayers = ~0;
-    public LayerMask InvalidPlacementLayers = ~0;
+    public LayerMask InvalidPlacementLayers = 0;
     public KeyCode PlaceModeKey = KeyCode.B;
     public KeyCode RotateKey = KeyCode.R;
     public float RotationStep = 90f;
@@ -29,6 +29,12 @@ public class ItemPlacer : MonoBehaviour
     public Color ValidColor = new Color(0.2f, 1f, 0.2f, 0.45f);
     public Color InvalidColor = new Color(1f, 0.2f, 0.2f, 0.45f);
 
+    [Header("Terrain Fit")]
+    public bool RequireFullGroundSupport = false;
+    public float TerrainPenetrationTolerance = 0.15f;
+    public float TerrainSupportProbeHeight = 3f;
+    public float TerrainSupportProbeDepth = 1.5f;
+
     private Inventory _inventory;
     private PlayerController _player;
     private InventoryPanelUI _cachedPanel;
@@ -42,6 +48,9 @@ public class ItemPlacer : MonoBehaviour
     private float _currentRotationY;
     private bool _inPlacementMode;
     private bool _validPreviewState;
+    private RaycastHit _currentGroundHit;
+    private bool _hasCurrentGroundHit;
+    private bool _hitValidGround;
 
     private const string GhostLayerName = "Ignore Raycast";
 
@@ -144,13 +153,21 @@ public class ItemPlacer : MonoBehaviour
         Vector3 startPos = cam.transform.position + cameraForward * ObjectDistanceFromPlayer;
         startPos.y += RaycastStartVerticalOffset;
 
-        if (Physics.Raycast(startPos, Vector3.down, out RaycastHit hitInfo, RaycastDistance, GroundLayers, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(startPos, Vector3.down, out RaycastHit hitInfo, RaycastDistance, GetPlacementRayMask(), QueryTriggerInteraction.Ignore))
         {
-            _currentPlacementPosition = hitInfo.point + hitInfo.normal * PlaceHeightOffset;
+            _currentGroundHit = hitInfo;
+            _hasCurrentGroundHit = true;
+            _hitValidGround = IsPlacementGroundCollider(hitInfo.collider);
+
+            // Lift object so its bottom sits ON the terrain, not sinking through
+            float bottomOffset = GetPreviewBottomOffset();
+            _currentPlacementPosition = hitInfo.point + Vector3.up * (bottomOffset + PlaceHeightOffset);
             _previewObject.SetActive(true);
         }
         else
         {
+            _hasCurrentGroundHit = false;
+            _hitValidGround = false;
             _previewObject.SetActive(false);
             _validPreviewState = false;
             return;
@@ -159,6 +176,54 @@ public class ItemPlacer : MonoBehaviour
         float yaw = cam.transform.eulerAngles.y + _currentRotationY;
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f) * Quaternion.Euler(_currentRotationX, 0f, 0f);
         _previewObject.transform.SetPositionAndRotation(_currentPlacementPosition, rotation);
+    }
+
+    /// <summary>
+    /// Calculates how far below the preview object's pivot the bottom of its
+    /// visible bounds extends. Used to lift the ghost so it sits ON terrain.
+    /// </summary>
+    private float GetPreviewBottomOffset()
+    {
+        if (_previewObject == null)
+            return 0f;
+
+        Vector3 savedPos = _previewObject.transform.position;
+        Quaternion savedRot = _previewObject.transform.rotation;
+        _previewObject.transform.position = Vector3.zero;
+        _previewObject.transform.rotation = Quaternion.identity;
+
+        float lowestY = 0f;
+        bool found = false;
+
+        foreach (Renderer renderer in _previewObject.GetComponentsInChildren<Renderer>())
+        {
+            if (!renderer.enabled) continue;
+            float bottomY = renderer.bounds.min.y;
+            if (!found || bottomY < lowestY)
+            {
+                lowestY = bottomY;
+                found = true;
+            }
+        }
+
+        if (!found)
+        {
+            foreach (Collider col in _previewObject.GetComponentsInChildren<Collider>())
+            {
+                if (!col.enabled) continue;
+                float bottomY = col.bounds.min.y;
+                if (!found || bottomY < lowestY)
+                {
+                    lowestY = bottomY;
+                    found = true;
+                }
+            }
+        }
+
+        _previewObject.transform.position = savedPos;
+        _previewObject.transform.rotation = savedRot;
+
+        return found ? Mathf.Max(0f, -lowestY) : 0f;
     }
 
     private void RotatePreviewYaw(float degrees)
@@ -186,11 +251,24 @@ public class ItemPlacer : MonoBehaviour
         if (GetHorizontalDistance(GetPlacementOrigin(), _currentPlacementPosition) > PlaceDistance)
             return false;
 
-        PreviewObjectValidChecker checker = _previewObject.GetComponentInChildren<PreviewObjectValidChecker>();
-        return checker == null || checker.IsValid;
+        if (!_hasCurrentGroundHit || !_hitValidGround)
+            return false;
+
+        // Check for blocking overlaps (other objects in the way)
+        if (!TryGetPreviewBounds(out Bounds bounds))
+            return true; // No bounds info = allow placement
+
+        if (!HasNoBlockingOverlap(bounds))
+            return false;
+
+        // Only run strict terrain-fit if enabled
+        if (RequireFullGroundSupport)
+            return HasValidTerrainFit();
+
+        return true;
     }
 
-    private void PlaceObject()
+private void PlaceObject()
     {
         if (!_inPlacementMode || !_validPreviewState || _inventory == null)
             return;
@@ -199,25 +277,34 @@ public class ItemPlacer : MonoBehaviour
         if (item == null)
             return;
 
-        GameObject placedObject = ItemDropper.CreateWorldPickup(item, _currentPlacementPosition);
+        // Use the preview position which already accounts for the object's
+        // bottom-bounds offset, so it sits flush on the terrain.
+        Vector3 placePos = _currentPlacementPosition;
+
+        GameObject placedObject = ItemDropper.CreateWorldPickup(item, placePos);
         if (placedObject == null)
             return;
 
         placedObject.transform.rotation = _previewObject.transform.rotation;
 
+        // ALL placed items should stay exactly where put — freeze physics
         Rigidbody rb = placedObject.GetComponent<Rigidbody>();
         if (rb != null)
         {
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
-
-            if (!item.PickupsSpinAndBob)
-            {
-                rb.isKinematic = true;
-                rb.useGravity = false;
-                rb.constraints = RigidbodyConstraints.FreezeAll;
-            }
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            rb.constraints = RigidbodyConstraints.FreezeAll;
         }
+
+        // Disable hovering/bobbing so placed items don't float in the air
+        WorldItemSpin spin = placedObject.GetComponent<WorldItemSpin>();
+        if (spin != null) Object.Destroy(spin);
+
+        LootItem loot = placedObject.GetComponent<LootItem>();
+        if (loot != null)
+            loot.IsPlaced = true;
 
         _inventory.RemoveItem(_inventory.SelectedIndex, 1);
 
@@ -315,6 +402,124 @@ public class ItemPlacer : MonoBehaviour
         _previewObject.SetActive(false);
     }
 
+    private bool HasValidTerrainFit()
+    {
+        if (!_hasCurrentGroundHit || !_hitValidGround)
+            return false;
+
+        if (!TryGetPreviewBounds(out Bounds bounds))
+            return false;
+
+        if (!RequireFullGroundSupport)
+            return HasNoBlockingOverlap(bounds);
+
+        if (!HasNoBlockingOverlap(bounds))
+            return false;
+
+        Vector3 center = bounds.center;
+        Vector3 extents = bounds.extents;
+        extents.x *= 0.9f;
+        extents.z *= 0.9f;
+
+        Vector3[] probePoints =
+        {
+            new Vector3(center.x, bounds.min.y, center.z),
+            new Vector3(center.x - extents.x, bounds.min.y, center.z - extents.z),
+            new Vector3(center.x - extents.x, bounds.min.y, center.z + extents.z),
+            new Vector3(center.x + extents.x, bounds.min.y, center.z - extents.z),
+            new Vector3(center.x + extents.x, bounds.min.y, center.z + extents.z)
+        };
+
+        float maxProbeDistance = TerrainSupportProbeHeight + TerrainSupportProbeDepth;
+        foreach (Vector3 point in probePoints)
+        {
+            Vector3 origin = point + Vector3.up * TerrainSupportProbeHeight;
+            if (!Physics.Raycast(origin, Vector3.down, out RaycastHit hit, maxProbeDistance, GroundLayers, QueryTriggerInteraction.Ignore))
+                return false;
+
+            if (!IsPlacementGroundCollider(hit.collider))
+                return false;
+
+            if (hit.point.y > point.y + TerrainPenetrationTolerance)
+                return false;
+
+            if (point.y - hit.point.y > TerrainSupportProbeDepth)
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool HasNoBlockingOverlap(Bounds bounds)
+    {
+        Vector3 extents = bounds.extents;
+        extents.x = Mathf.Max(0.001f, extents.x - TerrainPenetrationTolerance);
+        extents.y = Mathf.Max(0.001f, extents.y - TerrainPenetrationTolerance);
+        extents.z = Mathf.Max(0.001f, extents.z - TerrainPenetrationTolerance);
+
+        Collider[] overlaps = Physics.OverlapBox(bounds.center, extents, Quaternion.identity, GetEffectiveBlockingLayers(), QueryTriggerInteraction.Ignore);
+        foreach (Collider overlap in overlaps)
+        {
+            if (overlap == null)
+                continue;
+
+            if (_previewObject != null && overlap.transform.root == _previewObject.transform.root)
+                continue;
+
+            if (IsPlacementGroundCollider(overlap))
+                continue;
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryGetPreviewBounds(out Bounds bounds)
+    {
+        bounds = new Bounds();
+        if (_previewObject == null)
+            return false;
+
+        bool hasBounds = false;
+        foreach (Collider collider in _previewObject.GetComponentsInChildren<Collider>())
+        {
+            if (!collider.enabled)
+                continue;
+
+            if (!hasBounds)
+            {
+                bounds = collider.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(collider.bounds);
+            }
+        }
+
+        if (hasBounds)
+            return true;
+
+        foreach (Renderer renderer in _previewObject.GetComponentsInChildren<Renderer>())
+        {
+            if (!renderer.enabled)
+                continue;
+
+            if (!hasBounds)
+            {
+                bounds = renderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(renderer.bounds);
+            }
+        }
+
+        return hasBounds;
+    }
+
     private bool IsInventoryPanelOpen()
     {
         if (_cachedPanel == null)
@@ -344,13 +549,61 @@ public class ItemPlacer : MonoBehaviour
 
     private LayerMask GetEffectiveInvalidPlacementLayers()
     {
-        int mask = InvalidPlacementLayers.value & ~GroundLayers.value;
+        int mask = InvalidPlacementLayers.value;
 
         int ghostLayer = LayerMask.NameToLayer(GhostLayerName);
         if (ghostLayer >= 0)
             mask &= ~(1 << ghostLayer);
 
+        int playerLayer = LayerMask.NameToLayer("Player");
+        if (playerLayer >= 0)
+            mask &= ~(1 << playerLayer);
+
+        // Exclude terrain/ground layers so the ghost touching terrain doesn't
+        // invalidate placement
+        int terrainLayer = LayerMask.NameToLayer("Terrain");
+        if (terrainLayer >= 0)
+            mask &= ~(1 << terrainLayer);
+
+        int groundLayer = LayerMask.NameToLayer("Ground");
+        if (groundLayer >= 0)
+            mask &= ~(1 << groundLayer);
+
+        int defaultLayer = 0; // Default layer (often used for terrain)
+        mask &= ~(1 << defaultLayer);
+
+        int waterLayer = LayerMask.NameToLayer("Water");
+        if (waterLayer >= 0)
+            mask &= ~(1 << waterLayer);
+
         return mask;
+    }
+
+    private LayerMask GetEffectiveBlockingLayers()
+    {
+        return GetEffectiveInvalidPlacementLayers();
+    }
+
+    private LayerMask GetPlacementRayMask()
+    {
+        int mask = GroundLayers.value | GetEffectiveBlockingLayers().value;
+
+        int uiLayer = LayerMask.NameToLayer("UI");
+        if (uiLayer >= 0)
+            mask &= ~(1 << uiLayer);
+
+        return mask;
+    }
+
+    private static bool IsPlacementGroundCollider(Collider collider)
+    {
+        if (collider == null)
+            return false;
+
+        return collider is TerrainCollider
+            || collider.GetComponentInParent<Terrain>() != null
+            || collider.GetComponentInParent<SandChunk>() != null
+            || collider.GetComponentInParent<PlacementSurface>() != null;
     }
 
     private static float GetHorizontalDistance(Vector3 a, Vector3 b)
@@ -375,10 +628,24 @@ public class ItemPlacer : MonoBehaviour
             _previewMaterial.SetInt("_ZWrite", 0);
             _previewMaterial.DisableKeyword("_ALPHATEST_ON");
             _previewMaterial.EnableKeyword("_ALPHABLEND_ON");
+            _previewMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            _previewMaterial.SetOverrideTag("RenderType", "Transparent");
+            _previewMaterial.renderQueue = 3000;
+        }
+        else
+        {
+            // Standard shader transparency
+            _previewMaterial.SetFloat("_Mode", 3f); // Transparent mode
+            _previewMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _previewMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _previewMaterial.SetInt("_ZWrite", 0);
+            _previewMaterial.DisableKeyword("_ALPHATEST_ON");
+            _previewMaterial.EnableKeyword("_ALPHABLEND_ON");
+            _previewMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             _previewMaterial.renderQueue = 3000;
         }
 
-        SetPreviewColor(InvalidColor);
+        SetPreviewColor(ValidColor);
     }
 
     private void SetPreviewColor(Color color)

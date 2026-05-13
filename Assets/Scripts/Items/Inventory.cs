@@ -253,6 +253,7 @@ public class Inventory : MonoBehaviour
         foreach (CraftingIngredient ingredient in ingredients)
         {
             if (ingredient == null || ingredient.Item == null || ingredient.Amount <= 0) continue;
+            if (ingredient.PreserveAfterCraft) continue;
             RemoveItem(ingredient.Item, ingredient.Amount);
         }
 
