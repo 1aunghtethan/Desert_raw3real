@@ -36,6 +36,7 @@ public class TerrainManager : MonoBehaviour
 
     private Dictionary<Vector2Int, SandChunk> _chunks = new Dictionary<Vector2Int, SandChunk>();
     private Vector2Int _currentChunkCoord;
+    private List<SandChunk> _pendingMeshRebuilds = new List<SandChunk>();
 
     // ── Oasis Management ──
     public struct OasisData
@@ -106,16 +107,32 @@ public class TerrainManager : MonoBehaviour
             chunk.UpdateLOD(dist2D, Config.ColliderLODDistance, Config.SimulationLODDistance);
         }
 
-        // 1b. Deferred Collider Baking (2 chunks per frame to spread the spike)
+        // 1b. Deferred Collider Baking (1 chunk per frame to spread the spike)
         int bakedThisFrame = 0;
         foreach (var chunk in _chunks.Values)
         {
-            if (bakedThisFrame >= 2) break;
+            if (bakedThisFrame >= 1) break;
             if (chunk.NeedsColliderBake)
             {
                 chunk.BakeCollider();
                 bakedThisFrame++;
             }
+        }
+
+        // 1c. Staggered Mesh Rebuilds (1 neighbor per frame to spread the transition spike)
+        int rebuiltThisFrame = 0;
+        for (int i = _pendingMeshRebuilds.Count - 1; i >= 0 && rebuiltThisFrame < 1; i--)
+        {
+            SandChunk chunk = _pendingMeshRebuilds[i];
+            if (chunk == null || !_chunks.ContainsKey(chunk.ChunkCoord))
+            {
+                _pendingMeshRebuilds.RemoveAt(i);
+                continue;
+            }
+            chunk.ScheduleMeshUpdate(default).Complete();
+            chunk.ApplyMeshUpdate();
+            _pendingMeshRebuilds.RemoveAt(i);
+            rebuiltThisFrame++;
         }
 
         // 2. Throttled Simulation (0.1s interval)
@@ -414,33 +431,41 @@ public class TerrainManager : MonoBehaviour
                 }
             }
 
-            // Sync edges for existing neighbors as well
-            HashSet<SandChunk> toRebuild = new HashSet<SandChunk>();
-            foreach (var coord in newlyCreated)
+            // Build new chunks immediately (they need to be visible)
+            if (newlyCreated.Count > 0)
             {
-                if (_chunks.TryGetValue(coord, out SandChunk c))
+                List<SandChunk> immediateRebuild = new List<SandChunk>();
+                foreach (var coord in newlyCreated)
                 {
-                    toRebuild.Add(c);
-                    for (int n = 0; n < 8; n++)
+                    if (_chunks.TryGetValue(coord, out SandChunk c))
+                        immediateRebuild.Add(c);
+                }
+
+                if (immediateRebuild.Count > 0)
+                {
+                    Unity.Collections.NativeArray<Unity.Jobs.JobHandle> handles =
+                        new Unity.Collections.NativeArray<Unity.Jobs.JobHandle>(immediateRebuild.Count, Unity.Collections.Allocator.Temp);
+                    for (int m = 0; m < immediateRebuild.Count; m++)
+                        handles[m] = immediateRebuild[m].ScheduleMeshUpdate(default);
+                    Unity.Jobs.JobHandle.CompleteAll(handles);
+                    handles.Dispose();
+                    for (int m = 0; m < immediateRebuild.Count; m++)
+                        immediateRebuild[m].ApplyMeshUpdate();
+                }
+
+                // Queue neighbors for staggered rebuild (2 per frame)
+                foreach (var coord in newlyCreated)
+                {
+                    if (_chunks.TryGetValue(coord, out SandChunk c))
                     {
-                        SandChunk nb = c.Neighbors[n];
-                        if (nb != null && nb.IsInitialized && !newlyCreated.Contains(nb.ChunkCoord))
+                        for (int n = 0; n < 8; n++)
                         {
-                            toRebuild.Add(nb);
+                            SandChunk nb = c.Neighbors[n];
+                            if (nb != null && nb.IsInitialized && !newlyCreated.Contains(nb.ChunkCoord))
+                                _pendingMeshRebuilds.Add(nb);
                         }
                     }
                 }
-            }
-
-            if (toRebuild.Count > 0)
-            {
-                List<SandChunk> chunkList = new List<SandChunk>(toRebuild);
-                Unity.Collections.NativeArray<Unity.Jobs.JobHandle> handles = 
-                    new Unity.Collections.NativeArray<Unity.Jobs.JobHandle>(chunkList.Count, Unity.Collections.Allocator.Temp);
-                for (int m = 0; m < chunkList.Count; m++) handles[m] = chunkList[m].ScheduleMeshUpdate(default);
-                Unity.Jobs.JobHandle.CompleteAll(handles);
-                handles.Dispose();
-                for (int m = 0; m < chunkList.Count; m++) chunkList[m].ApplyMeshUpdate();
             }
         }
 
