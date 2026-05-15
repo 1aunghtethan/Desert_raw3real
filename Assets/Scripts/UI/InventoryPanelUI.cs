@@ -29,6 +29,7 @@ public class InventoryPanelUI : MonoBehaviour
     // Drag and Drop
     private ItemData _heldItem;
     private int _heldCount;
+    private int _heldSourceSlot = -1;
     private GameObject _cursorIconObj;
     private Image _cursorIconImage;
     private Text _cursorIconText;
@@ -387,6 +388,12 @@ public class InventoryPanelUI : MonoBehaviour
         {
             _cursorIconObj.transform.position = Input.mousePosition;
         }
+
+        // Right-click outside UI while holding → drop item on ground
+        if (_isOpen && _heldItem != null && Input.GetMouseButtonDown(1) && !EventSystem.current.IsPointerOverGameObject())
+        {
+            DropHeldItemOnGround();
+        }
     }
 
     private void CreateCursorIcon()
@@ -485,6 +492,7 @@ public class InventoryPanelUI : MonoBehaviour
                 
                 _heldItem = null;
                 _heldCount = 0;
+                _heldSourceSlot = -1;
                 UpdateCursorIcon();
                 _inventory.BroadcastInventoryChange();
             }
@@ -530,6 +538,20 @@ public class InventoryPanelUI : MonoBehaviour
         return true;
     }
 
+    public bool TryRemoveHeldAmount(int amount)
+    {
+        if (_heldItem == null || _heldCount < amount) return false;
+        _heldCount -= amount;
+        if (_heldCount <= 0)
+        {
+            _heldItem = null;
+            _heldCount = 0;
+            _heldSourceSlot = -1;
+        }
+        UpdateCursorIcon();
+        return true;
+    }
+
     public bool CanAcceptHeldItem(ItemData item, int amount)
     {
         if (item == null || amount <= 0) return false;
@@ -556,37 +578,60 @@ public class InventoryPanelUI : MonoBehaviour
         return true;
     }
 
-    public void OnSlotClicked(int index)
+    public void OnSlotClicked(int index, PointerEventData.InputButton button)
     {
         if (_inventory == null) return;
         if (index < 0 || index >= _inventory.Slots.Length) return;
+
+        bool isShift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        bool isRight = button == PointerEventData.InputButton.Right;
         
         ItemData clickedItem = _inventory.Slots[index];
         int clickedCount = _inventory.SlotCounts[index];
+
+        // Shift-click: quick-move between hotbar and bag
+        if (isShift && clickedItem != null)
+        {
+            ShiftMoveStack(index, clickedItem, clickedCount);
+            UpdateCursorIcon();
+            RefreshAll();
+            _inventory.BroadcastInventoryChange();
+            return;
+        }
 
         if (_heldItem == null)
         {
             // Hand is empty
             if (clickedItem != null)
             {
-                // Pick up item
-                _heldItem = clickedItem;
-                _heldCount = clickedCount;
-                
-                _inventory.Slots[index] = null;
-                _inventory.SlotCounts[index] = 0;
+                if (isRight && clickedCount > 1)
+                {
+                    // Pick up half stack
+                    int take = Mathf.CeilToInt(clickedCount / 2f);
+                    _heldItem = clickedItem;
+                    _heldCount = take;
+                    _heldSourceSlot = index;
+                    _inventory.SlotCounts[index] = clickedCount - take;
+                }
+                else
+                {
+                    // Pick up entire stack (or single item on right-click)
+                    _heldItem = clickedItem;
+                    _heldCount = clickedCount;
+                    _heldSourceSlot = index;
+                    _inventory.Slots[index] = null;
+                    _inventory.SlotCounts[index] = 0;
+                }
             }
             else
             {
                 // Clicked an empty slot with an empty hand
                 int hotbarSize = (_inventory != null) ? _inventory.HotbarSize : 9;
-                if (index < hotbarSize)
+                if (!isRight && index < hotbarSize)
                 {
-                    // Hotbar slot: close menu and equip this slot
                     _inventory.SelectSlot(index);
                     SetVisible(false);
                 }
-                // Backpack slot: do nothing (can't equip backpack slots directly)
                 return;
             }
         }
@@ -595,52 +640,177 @@ public class InventoryPanelUI : MonoBehaviour
             // Hand is holding an item
             if (clickedItem == null)
             {
-                // Drop into empty slot
-                _inventory.Slots[index] = _heldItem;
-                _inventory.SlotCounts[index] = _heldCount;
-                
-                _heldItem = null;
-                _heldCount = 0;
+                // Place into empty slot
+                if (isRight)
+                {
+                    // Place half of held stack
+                    int place = Mathf.CeilToInt(_heldCount / 2f);
+                    _inventory.Slots[index] = _heldItem;
+                    _inventory.SlotCounts[index] = place;
+                    _heldCount -= place;
+                    if (_heldCount <= 0) { _heldItem = null; _heldCount = 0; _heldSourceSlot = -1; }
+                }
+                else
+                {
+                    // Drop entire held stack
+                    _inventory.Slots[index] = _heldItem;
+                    _inventory.SlotCounts[index] = _heldCount;
+                    _heldItem = null;
+                    _heldCount = 0;
+                    _heldSourceSlot = -1;
+                }
             }
             else if (clickedItem.ItemName == _heldItem.ItemName && clickedCount < clickedItem.MaxStack)
             {
-                // Stack items
+                // Same item type — merge stacks
                 int space = clickedItem.MaxStack - clickedCount;
-                int transferAmount = Mathf.Min(space, _heldCount);
-                
-                _inventory.SlotCounts[index] += transferAmount;
-                _heldCount -= transferAmount;
-                
-                if (_heldCount <= 0)
+                if (isRight)
                 {
-                    _heldItem = null;
-                    _heldCount = 0;
+                    // Place 1 into the slot
+                    _inventory.SlotCounts[index]++;
+                    _heldCount--;
+                    if (_heldCount <= 0) { _heldItem = null; _heldCount = 0; _heldSourceSlot = -1; }
+                }
+                else
+                {
+                    // Place as many as fit
+                    int transfer = Mathf.Min(space, _heldCount);
+                    _inventory.SlotCounts[index] += transfer;
+                    _heldCount -= transfer;
+                    if (_heldCount <= 0) { _heldItem = null; _heldCount = 0; _heldSourceSlot = -1; }
                 }
             }
             else
             {
-                // Swap items
-                ItemData tempItem = clickedItem;
-                int tempCount = clickedCount;
-                
-                _inventory.Slots[index] = _heldItem;
-                _inventory.SlotCounts[index] = _heldCount;
-                
-                _heldItem = tempItem;
-                _heldCount = tempCount;
+                // Different item — swap (Minecraft-style)
+                if (_heldSourceSlot >= 0 && _heldSourceSlot != index)
+                {
+                    // Put clicked item back into source slot, held item into clicked slot, cursor clears
+                    _inventory.Slots[_heldSourceSlot] = clickedItem;
+                    _inventory.SlotCounts[_heldSourceSlot] = clickedCount;
+                    _inventory.Slots[index] = _heldItem;
+                    _inventory.SlotCounts[index] = _heldCount;
+                    _heldItem = null;
+                    _heldCount = 0;
+                    _heldSourceSlot = -1;
+                }
+                else
+                {
+                    _inventory.Slots[index] = _heldItem;
+                    _inventory.SlotCounts[index] = _heldCount;
+                    _heldItem = clickedItem;
+                    _heldCount = clickedCount;
+                    _heldSourceSlot = index;
+                }
             }
         }
 
         UpdateCursorIcon();
         RefreshAll();
         
-        // If we modified the slot that the player is currently holding, tell the system to refresh the physical weapon Model
         if (index == _inventory.SelectedIndex)
         {
-            _inventory.SelectSlot(index, true); // force re-equip to spawn new model
+            _inventory.SelectSlot(index, true);
         }
         
         _inventory.BroadcastInventoryChange();
+    }
+
+    private void ShiftMoveStack(int fromIndex, ItemData item, int count)
+    {
+        int hotbarSize = _inventory.HotbarSize;
+        bool fromHotbar = fromIndex < hotbarSize;
+
+        if (fromHotbar)
+        {
+            // Move from hotbar to first empty/stackage bag slot
+            for (int i = hotbarSize; i < _inventory.Slots.Length; i++)
+            {
+                if (_inventory.Slots[i] == null)
+                {
+                    _inventory.Slots[i] = item;
+                    _inventory.SlotCounts[i] = count;
+                    _inventory.Slots[fromIndex] = null;
+                    _inventory.SlotCounts[fromIndex] = 0;
+                    return;
+                }
+                if (_inventory.Slots[i].ItemName == item.ItemName && _inventory.SlotCounts[i] < _inventory.Slots[i].MaxStack)
+                {
+                    int space = _inventory.Slots[i].MaxStack - _inventory.SlotCounts[i];
+                    int transfer = Mathf.Min(space, count);
+                    _inventory.SlotCounts[i] += transfer;
+                    count -= transfer;
+                    if (count <= 0)
+                    {
+                        _inventory.Slots[fromIndex] = null;
+                        _inventory.SlotCounts[fromIndex] = 0;
+                        return;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Move from bag to first empty/stackage hotbar slot
+            for (int i = 0; i < hotbarSize; i++)
+            {
+                if (_inventory.Slots[i] == null)
+                {
+                    _inventory.Slots[i] = item;
+                    _inventory.SlotCounts[i] = count;
+                    _inventory.Slots[fromIndex] = null;
+                    _inventory.SlotCounts[fromIndex] = 0;
+                    return;
+                }
+                if (_inventory.Slots[i].ItemName == item.ItemName && _inventory.SlotCounts[i] < _inventory.Slots[i].MaxStack)
+                {
+                    int space = _inventory.Slots[i].MaxStack - _inventory.SlotCounts[i];
+                    int transfer = Mathf.Min(space, count);
+                    _inventory.SlotCounts[i] += transfer;
+                    count -= transfer;
+                    if (count <= 0)
+                    {
+                        _inventory.Slots[fromIndex] = null;
+                        _inventory.SlotCounts[fromIndex] = 0;
+                        return;
+                    }
+                }
+            }
+        }
+        
+        // If nothing fit, put back the remaining count
+        _inventory.SlotCounts[fromIndex] = count;
+    }
+
+    private void DropHeldItemOnGround()
+    {
+        if (_heldItem == null) return;
+
+        PlayerController player = FindFirstObjectByType<PlayerController>();
+        Vector3 pos = player != null ? player.transform.position + player.transform.forward * 2f + Vector3.up * 0.5f : Vector3.zero;
+        GameObject drop = ItemDropper.CreateWorldPickup(_heldItem, pos);
+        if (drop != null && _heldCount > 1)
+        {
+            LootItem loot = drop.GetComponent<LootItem>();
+            if (loot != null) loot.Data = _heldItem;
+            // Spawn additional pickups for stacks > 1
+            for (int i = 1; i < _heldCount; i++)
+            {
+                Vector3 offset = Random.insideUnitSphere * 0.3f;
+                offset.y = 0;
+                GameObject extra = ItemDropper.CreateWorldPickup(_heldItem, pos + offset);
+                if (extra != null)
+                {
+                    Rigidbody rb = extra.GetComponent<Rigidbody>();
+                    if (rb != null) rb.AddForce(Random.insideUnitSphere * 2f + Vector3.up * 3f, ForceMode.Impulse);
+                }
+            }
+        }
+
+        _heldItem = null;
+        _heldCount = 0;
+        _heldSourceSlot = -1;
+        UpdateCursorIcon();
     }
 
     private void UpdateCursorIcon()

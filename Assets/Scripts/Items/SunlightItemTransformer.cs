@@ -1,15 +1,17 @@
 using UnityEngine;
 
 /// <summary>
-/// Converts a placed world item into another item after it receives direct sunlight
-/// for a configured amount of time.
+/// Tracks cumulative sunlight exposure on a placed GrassrodevineWet item
+/// using cyclemanager.currentTime (game-time). After RequiredSunHours of
+/// continuous direct sunlight, marks the item as sun-exposed so pickup
+/// delivers SunExposedResultItem instead of the normal item.
 /// </summary>
 public class SunlightItemTransformer : MonoBehaviour
 {
     [Header("Transform Rule")]
     public ItemData RequiredItem;
-    public ItemData ResultItem;
-    [Min(0.1f)] public float RequiredSunSeconds = 2f;
+    public ItemData SunExposedResultItem;
+    [Min(0.1f)] public float RequiredSunHours = 2f;
 
     [Header("Sunlight Check")]
     public Light SunLight;
@@ -18,41 +20,62 @@ public class SunlightItemTransformer : MonoBehaviour
     public float RayDistance = 1000f;
 
     private LootItem _loot;
-    private float _sunTimer;
-    private bool _transformed;
+    private float _sunExposureStartTime = -1f;
+    private bool _sunExposed;
+    private cyclemanager _cycle;
 
     private void Awake()
     {
         _loot = GetComponent<LootItem>();
     }
 
+    private void Start()
+    {
+        _cycle = FindFirstObjectByType<cyclemanager>();
+    }
+
     private void Update()
     {
-        if (_transformed)
+        if (_sunExposed)
             return;
 
         if (_loot == null)
             _loot = GetComponent<LootItem>();
 
         if (_loot == null || !_loot.IsPlaced)
+        {
+            _sunExposureStartTime = -1f;
             return;
+        }
 
         if (RequiredItem != null && _loot.Data != RequiredItem)
             return;
 
-        if (ResultItem == null)
+        if (SunExposedResultItem == null)
             return;
 
         if (IsInDirectSunlight())
         {
-            _sunTimer += Time.deltaTime;
-            if (_sunTimer >= RequiredSunSeconds)
-                TransformItem();
+            if (_sunExposureStartTime < 0f)
+                _sunExposureStartTime = GetGameTime();
+
+            float elapsed = GetGameTime() - _sunExposureStartTime;
+            if (elapsed < 0f) elapsed += 24f;
+
+            if (elapsed >= RequiredSunHours)
+                MarkSunExposed();
         }
         else
         {
-            _sunTimer = 0f;
+            _sunExposureStartTime = -1f;
         }
+    }
+
+    private float GetGameTime()
+    {
+        if (_cycle != null)
+            return _cycle.currentTime;
+        return -1f;
     }
 
     private bool IsInDirectSunlight()
@@ -65,9 +88,7 @@ public class SunlightItemTransformer : MonoBehaviour
         Vector3 toSun;
 
         if (sun.type == LightType.Directional)
-        {
             toSun = -sun.transform.forward;
-        }
         else
         {
             toSun = sun.transform.position - samplePoint;
@@ -101,35 +122,10 @@ public class SunlightItemTransformer : MonoBehaviour
         return null;
     }
 
-    private void TransformItem()
+    private void MarkSunExposed()
     {
-        _transformed = true;
-
-        Vector3 position = transform.position;
-        Quaternion rotation = transform.rotation;
-        GameObject replacement = ItemDropper.CreateWorldPickup(ResultItem, position);
-        if (replacement != null)
-        {
-            replacement.transform.rotation = rotation;
-
-            Rigidbody rb = replacement.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-                rb.isKinematic = true;
-                rb.useGravity = false;
-                rb.constraints = RigidbodyConstraints.FreezeAll;
-            }
-
-            WorldItemSpin spin = replacement.GetComponent<WorldItemSpin>();
-            if (spin != null) Destroy(spin);
-
-            LootItem replacementLoot = replacement.GetComponent<LootItem>();
-            if (replacementLoot != null)
-                replacementLoot.IsPlaced = true;
-        }
-
-        Destroy(gameObject);
+        _sunExposed = true;
+        _loot.SunExposedOverride = SunExposedResultItem;
+        enabled = false;
     }
 }

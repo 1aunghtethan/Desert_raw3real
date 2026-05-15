@@ -19,6 +19,12 @@ public class PlantData : ScriptableObject
     [Tooltip("Number of items to spawn when the plant is destroyed.")]
     public int LootCount = 10;
 
+    [Tooltip("Rare loot prefab with a percentage chance to drop once on destruction.")]
+    public GameObject RareLootPrefab;
+    [Range(0f, 1f)]
+    [Tooltip("Chance (0-1) to spawn RareLootPrefab, e.g. 0.08 = 8%.")]
+    public float RareLootChance = 0f;
+
     [Tooltip("If true, the plant will majestically topple 90 degrees over 3 seconds when cut. Set to false for small logs/items.")]
     public bool TopplesOnDeath = true;
 

@@ -1,0 +1,108 @@
+using UnityEngine;
+
+public class AudioManager : MonoBehaviour
+{
+    private static AudioManager _instance;
+    public static AudioManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                GameObject go = new GameObject("AudioManager");
+                _instance = go.AddComponent<AudioManager>();
+                DontDestroyOnLoad(go);
+            }
+            return _instance;
+        }
+    }
+    public static AudioManager Current => _instance;
+
+    public AudioClip pickupStick;
+    public AudioClip pickupHay;
+    public AudioClip pickupStone;
+    public AudioClip footstepWalk;
+    public AudioClip footstepRun;
+    public AudioClip weaponSwing;
+    public AudioClip weaponHit;
+
+    private AudioSource _sfxSource;
+    private AudioSource _stepSource;
+    private float _nextStepTime;
+
+    void Awake()
+    {
+        if (_instance == null) _instance = this;
+
+        _sfxSource = gameObject.AddComponent<AudioSource>();
+        _sfxSource.playOnAwake = false;
+        _sfxSource.spatialBlend = 0f;
+        _sfxSource.volume = 1f;
+
+        _stepSource = gameObject.AddComponent<AudioSource>();
+        _stepSource.playOnAwake = false;
+        _stepSource.spatialBlend = 0f;
+        _stepSource.volume = 1f;
+
+        LoadClips();
+    }
+
+    private void LoadClips()
+    {
+        pickupStick = Resources.Load<AudioClip>("Sounds/Hand picking up a dry stick (mp3cut.net)");
+        pickupHay = Resources.Load<AudioClip>("Sounds/Hand picking up the set of hay (mp3cut.net)");
+        pickupStone = Resources.Load<AudioClip>("Sounds/Hand picking up a rough stone (mp3cut.net)");
+        footstepWalk = Resources.Load<AudioClip>("Sounds/normal walk footsteps on dry desert sand. (mp3cut.net) (1)");
+        footstepRun = Resources.Load<AudioClip>("Sounds/run footsteps on dry desert sand. (mp3cut.net) (1)");
+        weaponSwing = Resources.Load<AudioClip>("Sounds/Swift a dagger that made of stone whoosh through a (mp3cut.net)");
+        weaponHit = Resources.Load<AudioClip>("Sounds/Wet tearing, one sound of a rough stone dagger sli (mp3cut.net)");
+
+        if (pickupStick == null) Debug.LogWarning("[AudioManager] Missing: pickupStick");
+        if (pickupHay == null) Debug.LogWarning("[AudioManager] Missing: pickupHay");
+        if (pickupStone == null) Debug.LogWarning("[AudioManager] Missing: pickupStone");
+        if (footstepWalk == null) Debug.LogWarning("[AudioManager] Missing: footstepWalk");
+        if (footstepRun == null) Debug.LogWarning("[AudioManager] Missing: footstepRun");
+        if (weaponSwing == null) Debug.LogWarning("[AudioManager] Missing: weaponSwing");
+        if (weaponHit == null) Debug.LogWarning("[AudioManager] Missing: weaponHit");
+    }
+
+    public void PlaySFX(AudioClip clip, float volume = 1f)
+    {
+        if (clip == null) return;
+        _sfxSource.PlayOneShot(clip, volume);
+    }
+
+    public void PlayFootstep(bool isRunning)
+    {
+        AudioClip clip = isRunning ? footstepRun : footstepWalk;
+        if (clip == null) return;
+
+        float interval = isRunning ? 0.3f : 0.5f;
+        if (Time.time < _nextStepTime) return;
+
+        _stepSource.Stop();
+        _stepSource.clip = clip;
+        _stepSource.pitch = Random.Range(0.9f, 1.1f);
+        _stepSource.Play();
+
+        _nextStepTime = Time.time + interval;
+    }
+
+    public void StopFootsteps()
+    {
+        _nextStepTime = 0f;
+
+        if (_stepSource != null && _stepSource.isPlaying)
+            _stepSource.Stop();
+    }
+
+    public void PlayPickupSound(string itemName)
+    {
+        if (itemName == "Small Branch")
+            PlaySFX(pickupStick);
+        else if (itemName == "Stonemini")
+            PlaySFX(pickupStone);
+        else if (itemName == "Real Grass")
+            PlaySFX(pickupHay);
+    }
+}

@@ -21,6 +21,7 @@ public class LootItem : MonoBehaviour
     public LayerMask GroundLayers = ~0;      // Which layers count as ground
 
     [HideInInspector] public bool IsPlaced = false; // Set by ItemPlacer — skips hover/bob
+    [HideInInspector] public ItemData SunExposedOverride; // Set by SunlightItemTransformer — used on pickup instead of Data
 
     private Transform m_PlayerTransform;
     private bool m_IsBeingPickedUp;
@@ -189,9 +190,11 @@ public class LootItem : MonoBehaviour
             return;
         }
 
-        if (Inventory.Instance.AddItem(Data))
+        ItemData itemToCollect = SunExposedOverride != null ? SunExposedOverride : Data;
+
+        if (Inventory.Instance.AddItem(itemToCollect))
         {
-            Debug.Log($"[LootItem] SUCCESS: Collected {Data.ItemName}");
+            Debug.Log($"[LootItem] SUCCESS: Collected {itemToCollect.ItemName}");
             Destroy(gameObject);
         }
         else

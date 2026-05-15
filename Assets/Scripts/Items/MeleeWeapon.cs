@@ -65,6 +65,7 @@ public class MeleeWeapon : ItemBehaviour
 
         // Start swing animation
         _isSwinging = true;
+        if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponSwing);
         _swingTimer = 0f;
         _hasHitThisSwing = false;
         _swingStartRot = _restRotation;
@@ -94,11 +95,13 @@ public class MeleeWeapon : ItemBehaviour
             {
                 damageable.TakeDamage(Data.Damage, hit.point, ray.direction);
                 _hasHitThisSwing = true;
+                if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponHit);
                 Debug.Log($"[Melee] Hit {hit.collider.name} for {Data.Damage} damage!");
                 return;
             }
 
             // Visual feedback: hit the terrain or environment
+            if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponHit);
             Debug.Log($"[Melee] Struck {hit.collider.name} at {hit.point}");
             _hasHitThisSwing = true;
             return;

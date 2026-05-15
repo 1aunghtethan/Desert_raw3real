@@ -222,7 +222,11 @@ public class InteractionManager : MonoBehaviour
         yield return new WaitForSeconds(PickupActionDelay);
 
         if (target != null)
+        {
+            if (AudioManager.Instance != null && target.Data != null)
+                AudioManager.Instance.PlayPickupSound(target.Data.ItemName);
             target.RequestPickup();
+        }
 
         float remainingAnimationTime = Mathf.Max(0f, PickupGatherDuration - PickupActionDelay);
         if (remainingAnimationTime > 0f)

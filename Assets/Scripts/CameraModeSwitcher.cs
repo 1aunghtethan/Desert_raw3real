@@ -19,6 +19,9 @@ public class CameraModeSwitcher : MonoBehaviour
     [Header("Starting Mode")]
     public PlayerController.CameraMode StartMode = PlayerController.CameraMode.ThirdPerson;
 
+    private AudioListener _fpListener;
+    private AudioListener _tpListener;
+
     void Start()
     {
         // Auto-find references
@@ -36,6 +39,8 @@ public class CameraModeSwitcher : MonoBehaviour
         if (FPCamera == null) FPCamera = Player.FPCamera;
         if (TPCamera == null) TPCamera = Player.TPCamera;
         if (TPCameraController == null) TPCameraController = Player.TPCameraController;
+
+        CacheAudioListeners();
 
         // Apply starting mode
         ApplyMode(StartMode);
@@ -81,6 +86,7 @@ public class CameraModeSwitcher : MonoBehaviour
         // ── Toggle cameras ──
         if (FPCamera != null) FPCamera.gameObject.SetActive(isFP);
         if (TPCamera != null) TPCamera.gameObject.SetActive(!isFP);
+        SetActiveAudioListener(isFP);
 
         // ── Tell PlayerController ──
         if (Player != null) Player.SetMode(mode);
@@ -88,6 +94,32 @@ public class CameraModeSwitcher : MonoBehaviour
         // ── Cursor ──
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+    }
+
+    private void CacheAudioListeners()
+    {
+        if (FPCamera != null)
+        {
+            _fpListener = FPCamera.GetComponent<AudioListener>();
+            if (_fpListener == null)
+                _fpListener = FPCamera.gameObject.AddComponent<AudioListener>();
+        }
+
+        if (TPCamera != null)
+        {
+            _tpListener = TPCamera.GetComponent<AudioListener>();
+            if (_tpListener == null)
+                _tpListener = TPCamera.gameObject.AddComponent<AudioListener>();
+        }
+    }
+
+    private void SetActiveAudioListener(bool isFP)
+    {
+        if (_fpListener == null || _tpListener == null)
+            CacheAudioListeners();
+
+        if (_fpListener != null) _fpListener.enabled = isFP;
+        if (_tpListener != null) _tpListener.enabled = !isFP;
     }
 
 }

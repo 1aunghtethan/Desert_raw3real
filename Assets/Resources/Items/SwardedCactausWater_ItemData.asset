@@ -33,4 +33,4 @@ MonoBehaviour:
   HealthRestore: 0
   HungerRestore: 5
   SaturationRestore: 5
-  ThirstRestore: 0
+  ThirstRestore: 10

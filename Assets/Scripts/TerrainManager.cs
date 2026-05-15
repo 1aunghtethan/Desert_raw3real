@@ -106,6 +106,18 @@ public class TerrainManager : MonoBehaviour
             chunk.UpdateLOD(dist2D, Config.ColliderLODDistance, Config.SimulationLODDistance);
         }
 
+        // 1b. Deferred Collider Baking (2 chunks per frame to spread the spike)
+        int bakedThisFrame = 0;
+        foreach (var chunk in _chunks.Values)
+        {
+            if (bakedThisFrame >= 2) break;
+            if (chunk.NeedsColliderBake)
+            {
+                chunk.BakeCollider();
+                bakedThisFrame++;
+            }
+        }
+
         // 2. Throttled Simulation (0.1s interval)
         _simTimer += Time.deltaTime;
         if (_simTimer >= 0.1f)

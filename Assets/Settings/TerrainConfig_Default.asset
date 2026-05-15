@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 279823
+  Seed: 100000
   NoiseScale: 0.005
   HeightMultiplier: 30
   BaseHeight: 5
@@ -27,8 +27,8 @@ MonoBehaviour:
   ColliderLODDistance: 499.2
   SimulationLODDistance: 300
   VegetationLoadingRadius: 4
-  SandMaterial: {fileID: 2100000, guid: 1bad0c69a60bb714ba87c293802c7d57, type: 2}
-  SandColor: {r: 0.87169814, g: 0.6189, b: 0.34045565, a: 1}
+  SandMaterial: {fileID: 2100000, guid: 80b625abc94a0e64d990c5632f77a651, type: 2}
+  SandColor: {r: 0.9924528, g: 0.8428958, b: 0.6198148, a: 1}
   ApronSandMaterial: {fileID: 2100000, guid: 1bad0c69a60bb714ba87c293802c7d57, type: 2}
   ApronSandTexture: {fileID: 2800000, guid: cdd12ada9ff1ca94582f5e89adc45e37, type: 3}
   ApronSandColor: {r: 0.9547169, g: 0.89725983, b: 0.7259451, a: 1}
@@ -112,7 +112,7 @@ MonoBehaviour:
   JoshuaTreeGroundingOffset: 0.1
   SpawnSafeRadius: 100
   MountainSafeRadius: 100
-  PlayerSpawnPoint: {x: 50, y: 3, z: 50}
+  PlayerSpawnPoint: {x: 50, y: 40, z: 50}
   MountainFlatRadius: 150
   MountainInfluenceExtraRadius: 200
   MountainFlatteningFactor: 0.001

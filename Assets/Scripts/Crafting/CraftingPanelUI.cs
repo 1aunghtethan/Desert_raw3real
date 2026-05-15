@@ -67,14 +67,14 @@ public class CraftingPanelUI : MonoBehaviour
         }
     }
 
-    public void OnCraftingSlotClicked(int slotIndex)
+    public void OnCraftingSlotClicked(int slotIndex, PointerEventData.InputButton button = PointerEventData.InputButton.Left)
     {
         if (!_isOpen) return;
         if (_inventoryPanel == null) _inventoryPanel = FindFirstObjectByType<InventoryPanelUI>(FindObjectsInactive.Include);
 
         if (slotIndex >= 0 && slotIndex < IngredientSlotCount)
         {
-            HandleIngredientSlotClicked(slotIndex);
+            HandleIngredientSlotClicked(slotIndex, button);
             Refresh();
             return;
         }
@@ -103,24 +103,36 @@ public class CraftingPanelUI : MonoBehaviour
         Refresh();
     }
 
-    private void HandleIngredientSlotClicked(int slotIndex)
+    private void HandleIngredientSlotClicked(int slotIndex, PointerEventData.InputButton button)
     {
         if (_inventoryPanel == null) return;
+
+        bool isRight = button == PointerEventData.InputButton.Right;
 
         if (_inventoryPanel.HasHeldItem)
         {
             ItemData held = _inventoryPanel.HeldItem;
-            if (held == null) return;
+            int heldCount = _inventoryPanel.HeldCount;
+            if (held == null || heldCount <= 0) return;
 
             bool emptySlot = _items[slotIndex] == null;
             bool sameItem = _items[slotIndex] != null && _items[slotIndex].ItemName == held.ItemName;
             if (!emptySlot && !sameItem) return;
             if (!emptySlot && _counts[slotIndex] >= Mathf.Max(1, held.MaxStack)) return;
 
-            if (_inventoryPanel.TryRemoveOneHeldItem())
+            int placeAmount;
+            if (isRight)
+                placeAmount = Mathf.CeilToInt(heldCount / 2f);
+            else
+                placeAmount = heldCount;
+
+            int space = emptySlot ? held.MaxStack : (held.MaxStack - _counts[slotIndex]);
+            placeAmount = Mathf.Min(placeAmount, space);
+
+            if (_inventoryPanel.TryRemoveHeldAmount(placeAmount))
             {
                 _items[slotIndex] = held;
-                _counts[slotIndex]++;
+                _counts[slotIndex] += placeAmount;
             }
 
             return;
@@ -139,11 +151,67 @@ public class CraftingPanelUI : MonoBehaviour
     private void CraftCurrentRecipe()
     {
         if (_currentRecipe == null || _inventoryPanel == null) return;
-        if (!_inventoryPanel.CanAcceptHeldItem(_currentRecipe.Result, _currentRecipe.ResultAmount)) return;
         if (!HasIngredientsFor(_currentRecipe)) return;
 
-        ConsumeIngredients(_currentRecipe);
-        _inventoryPanel.AddToHeldItem(_currentRecipe.Result, _currentRecipe.ResultAmount);
+        // Single-ingredient transformation: replace in-slot instead of cursor
+        if (_currentRecipe.Ingredients.Count == 1 && !_currentRecipe.Ingredients[0].PreserveAfterCraft)
+        {
+            for (int i = 0; i < IngredientSlotCount; i++)
+            {
+                if (_items[i] != null && _items[i].ItemName == _currentRecipe.Ingredients[0].Item.ItemName)
+                {
+                    _items[i] = _currentRecipe.Result;
+                    _counts[i] = _currentRecipe.ResultAmount;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            if (!_inventoryPanel.CanAcceptHeldItem(_currentRecipe.Result, _currentRecipe.ResultAmount)) return;
+
+            foreach (CraftingIngredient ingredient in _currentRecipe.Ingredients)
+            {
+                if (ingredient.TransformAfterCraft != null)
+                    TransformIngredientSlot(ingredient, ingredient.TransformAfterCraft);
+                else if (!ingredient.PreserveAfterCraft)
+                    ConsumeIngredient(ingredient);
+            }
+
+            _inventoryPanel.AddToHeldItem(_currentRecipe.Result, _currentRecipe.ResultAmount);
+        }
+    }
+
+    private void TransformIngredientSlot(CraftingIngredient ingredient, ItemData newItem)
+    {
+        for (int i = 0; i < IngredientSlotCount; i++)
+        {
+            if (_items[i] != null && _items[i].ItemName == ingredient.Item.ItemName)
+            {
+                _items[i] = newItem;
+                _counts[i] = 1;
+                break;
+            }
+        }
+    }
+
+    private void ConsumeIngredient(CraftingIngredient ingredient)
+    {
+        int remaining = ingredient.Amount;
+        for (int i = 0; i < IngredientSlotCount && remaining > 0; i++)
+        {
+            if (_items[i] == null || _items[i].ItemName != ingredient.Item.ItemName) continue;
+
+            int removed = Mathf.Min(_counts[i], remaining);
+            _counts[i] -= removed;
+            remaining -= removed;
+
+            if (_counts[i] <= 0)
+            {
+                _items[i] = null;
+                _counts[i] = 0;
+            }
+        }
     }
 
     private void BuildSlots()

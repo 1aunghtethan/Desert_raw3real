@@ -525,9 +525,8 @@ public class PlantSpawner : MonoBehaviour
             rb.mass = 5f;
             rb.linearDamping = 0.5f;
             rb.angularDamping = 0.5f;
-            rb.isKinematic = true;
-            rb.useGravity = false;
-            rb.constraints = RigidbodyConstraints.FreezeAll;
+            rb.isKinematic = false;
+            rb.useGravity = true;
 
             if (!_activePlants.ContainsKey(coord))
                 _activePlants[coord] = new List<GameObject>();
@@ -604,9 +603,9 @@ public class PlantSpawner : MonoBehaviour
             rb.mass = 1f;
             rb.linearDamping = 0.5f;
             rb.angularDamping = 0.5f;
-            rb.isKinematic = true;
-            rb.useGravity = false;
-            rb.constraints = RigidbodyConstraints.FreezeAll;
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.constraints = RigidbodyConstraints.None;
 
             if (!_activePlants.ContainsKey(coord))
                 _activePlants[coord] = new List<GameObject>();

@@ -65,7 +65,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerClickHandler
     {
         if (ParentPanel != null && SlotIndex >= 0)
         {
-            ParentPanel.OnSlotClicked(SlotIndex);
+            ParentPanel.OnSlotClicked(SlotIndex, eventData.button);
         }
     }
 }

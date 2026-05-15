@@ -23,7 +23,7 @@ MonoBehaviour:
   Range: 2
   ProjectilePrefab: {fileID: 0}
   ProjectileSpeed: 30
-  DropPrefab: {fileID: 3921065000815773112, guid: fea37e5f8692b4d45936d254138a7363, type: 3}
+  DropPrefab: {fileID: 4227474900393818345, guid: fea37e5f8692b4d45936d254138a7363, type: 3}
   PickupsSpinAndBob: 0
   HoldPosition: {x: 0.3, y: -0.2, z: 0.6}
   HoldRotation: {x: 0, y: 90, z: 30}

@@ -157,7 +157,7 @@ public static class SandJobs
             
             // UV tiling factor — world-space UVs for seamless cross-chunk texturing
             // E.g. setting this to 0.25f means the texture repeats every 4 world units (meters).
-            float uvScale = 0.5f;
+            float uvScale = 2.0f;
             
             // 1. Surface with Persistent Stitching
             float overlap = 0.1f;

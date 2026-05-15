@@ -1960,8 +1960,8 @@ MonoBehaviour:
   MouseSmoothing: 1.5
   FPCameraLocalPos: {x: 0, y: 1.5, z: 0}
   FPFieldOfView: 60
-  JumpForce: 5
-  GroundCheckDistance: 0.15
+  JumpForce: 8
+  GroundCheckDistance: 0.3
   CrouchKey: 306
   CrouchSpeed: 2
   CrouchHeadHeight: 1
@@ -3657,6 +3657,57 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1530193748}
   m_CullTransparentMesh: 1
+--- !u!1 &1544811238
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1544811240}
+  - component: {fileID: 1544811239}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1544811239
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1544811238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9b00331a31a7ae45940ff5cc8414eda, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  pickupStick: {fileID: 8300000, guid: 6f343883e39eed84986c517f6fe83cab, type: 3}
+  pickupHay: {fileID: 8300000, guid: 9182681df78cb3c4e999b4d98ec6f8e8, type: 3}
+  pickupStone: {fileID: 8300000, guid: 9c737fec8ccfe264da47a46934634183, type: 3}
+  footstepWalk: {fileID: 8300000, guid: 5acbb485a0ab57b4998816c12eb55e40, type: 3}
+  footstepRun: {fileID: 8300000, guid: 41fb47820d146484bbc45e4e9dff4fb2, type: 3}
+  weaponSwing: {fileID: 8300000, guid: 01ac68c021ea52c45bab13328dd926d2, type: 3}
+  weaponHit: {fileID: 8300000, guid: 4432c66a6817a844ca0772b55f51b999, type: 3}
+--- !u!4 &1544811240
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1544811238}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1580114518
 GameObject:
   m_ObjectHideFlags: 0
@@ -4954,3 +5005,4 @@ SceneRoots:
   - {fileID: 47586516}
   - {fileID: 1081074440}
   - {fileID: 1302061580}
+  - {fileID: 1544811240}

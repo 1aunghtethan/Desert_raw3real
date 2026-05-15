@@ -228,6 +228,25 @@ public class PlantHealth : MonoBehaviour, IDamageable
             rb.AddTorque(Random.insideUnitSphere * 15f, ForceMode.Impulse);
         }
         
+        // Rare loot roll (e.g. 8% chance for cactusraw)
+        if (Data.RareLootPrefab != null && Random.value <= Data.RareLootChance)
+        {
+            float angle = Random.Range(0f, 360f);
+            Vector3 dir = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+            Vector3 spawnPos = transform.position + dir * Data.LootSpawnRadius;
+            if (TerrainManager.Instance != null)
+            {
+                float h = TerrainManager.Instance.SampleHeight(spawnPos);
+                if (!float.IsNaN(h)) spawnPos.y = h + Data.LootSpawnHeight;
+            }
+            GameObject loot = Instantiate(Data.RareLootPrefab, spawnPos, Quaternion.identity);
+            SetLayerRecursive(loot, itemLayer);
+            Rigidbody rb = loot.GetComponent<Rigidbody>();
+            if (rb == null) rb = loot.AddComponent<Rigidbody>();
+            rb.isKinematic = false;
+            rb.useGravity = true;
+        }
+        
         Debug.Log($"[PlantHealth] Grounded physical logs spawned for {gameObject.name}");
     }
 

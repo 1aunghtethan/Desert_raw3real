@@ -15,9 +15,10 @@ MonoBehaviour:
   Result: {fileID: 11400000, guid: b037557c49277e74a81d3d616b5e3338, type: 2}
   ResultAmount: 1
   Ingredients:
-  - Item: {fileID: 11400000, guid: df1d647b91fcbcf4eb66e94b240249b5, type: 2}
+  - Item: {fileID: 11400000, guid: a0ba5d0ce49d1c840b02b55f9062ac64, type: 2}
     Amount: 1
-    PreserveAfterCraft: 1
+    PreserveAfterCraft: 0
+    TransformAfterCraft: {fileID: 11400000, guid: 3505e047d63a47b280f70803600cc5f1, type: 2}
   - Item: {fileID: 11400000, guid: 343f0d90f795eb142baaeeb353b72616, type: 2}
     Amount: 1
     PreserveAfterCraft: 0

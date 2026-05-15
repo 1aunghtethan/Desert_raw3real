@@ -27,7 +27,9 @@ public class SandChunk : MonoBehaviour
     private MeshRenderer _mr;
     private MeshCollider _mc;
     private Mesh _mesh;
-    
+
+    [System.NonSerialized] public bool NeedsColliderBake;
+
     public bool IsInitialized { get; private set; }
     public bool IsSimulating { get; private set; } = true;
     public bool HasActiveFlow => _flowTimer > 0f;
@@ -551,20 +553,28 @@ public class SandChunk : MonoBehaviour
             _mc.enabled = shouldHaveCollider;
         }
 
-        // 2. Physics Baking
-        // Re-baking a MeshCollider is expensive. Only do it when the mesh changed,
-        // or when the collider is first enabled/has no mesh assigned.
+        // 2. Physics Baking (deferred — TerrainManager processes 2 per frame)
+        // Re-baking a MeshCollider is expensive. Flag it instead of baking immediately.
         if (shouldHaveCollider) {
             if (_needsBake || _mc.sharedMesh == null) {
-                // Re-assigning sharedMesh triggers Physics Bake.
-                _mc.sharedMesh = null; 
-                _mc.sharedMesh = _mesh;
+                NeedsColliderBake = true;
                 _needsBake = false;
             }
         }
 
         // 3. Simulation State
         IsSimulating = distanceToPlayer < simDist;
+    }
+
+    /// <summary>
+    /// Performs the deferred MeshCollider bake. Called by TerrainManager (2 per frame).
+    /// </summary>
+    public void BakeCollider()
+    {
+        if (!NeedsColliderBake) return;
+        _mc.sharedMesh = null;
+        _mc.sharedMesh = _mesh;
+        NeedsColliderBake = false;
     }
 
     /// <summary>

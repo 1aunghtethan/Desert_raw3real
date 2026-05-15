@@ -51,7 +51,7 @@ public class CraftingSlotUI : MonoBehaviour, IPointerClickHandler
     {
         if (ParentPanel != null)
         {
-            ParentPanel.OnCraftingSlotClicked(SlotIndex);
+            ParentPanel.OnCraftingSlotClicked(SlotIndex, eventData.button);
         }
     }
 }

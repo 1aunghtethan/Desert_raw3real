@@ -71,6 +71,13 @@ public class PlayerController : MonoBehaviour
     private CapsuleCollider _capsule;
     private bool _isRunning;
     private Vector2 _moveInput;
+    private bool _grounded;
+    private int _groundedFrameSkip;
+    private float _footstepTimer;
+    private float _footstepMuteUntil;
+    private float _groundedMuteUntil;
+    private const float FootstepMoveInputThreshold = 0.01f;
+    private const float JumpFootstepMuteSeconds = 0.2f;
 
     void Awake()
     {
@@ -134,6 +141,9 @@ public class PlayerController : MonoBehaviour
         HandleJump();
         HandleCrouch();
 
+        // Grounded check (throttled raycast — only 12 times/sec)
+        bool grounded = IsGrounded();
+
         // Update Animator speed and grounded state
         if (_animator != null)
         {
@@ -141,10 +151,10 @@ public class PlayerController : MonoBehaviour
             _animator.SetFloat(SpeedHash, horizontalVel);
             _animator.SetFloat(MoveXHash, _moveInput.x);
             _animator.SetFloat(MoveYHash, _moveInput.y);
-
-            bool grounded = IsGrounded();
             _animator.SetBool(GroundedHash, grounded);
         }
+
+        HandleFootstepAudio(grounded);
 
         // Apply FP FOV
         if (CurrentMode == CameraMode.FirstPerson && FPCamera != null)
@@ -161,6 +171,30 @@ public class PlayerController : MonoBehaviour
     // ═══════════════════════════════════════════════
     // MOVEMENT — works in both modes
     // ═══════════════════════════════════════════════
+    private void HandleFootstepAudio(bool grounded)
+    {
+        bool playerIsMoving = _moveInput.sqrMagnitude > FootstepMoveInputThreshold;
+        bool isJumping = _animator != null &&
+            (_animator.GetCurrentAnimatorStateInfo(0).IsName("Jump") ||
+             _animator.GetCurrentAnimatorStateInfo(0).IsName("RunningJump"));
+        bool canPlayFootsteps = playerIsMoving && grounded && Time.time >= _footstepMuteUntil && !isJumping;
+
+        if (canPlayFootsteps)
+        {
+            _footstepTimer -= Time.deltaTime;
+            if (_footstepTimer <= 0f)
+            {
+                AudioManager.Instance.PlayFootstep(_isRunning);
+                _footstepTimer = _isRunning ? 0.3f : 0.5f;
+            }
+        }
+        else
+        {
+            _footstepTimer = 0f;
+            AudioManager.Current?.StopFootsteps();
+        }
+    }
+
     void HandleMovement()
     {
         _isRunning = Input.GetKey(RunKey);
@@ -278,18 +312,35 @@ public class PlayerController : MonoBehaviour
         if (IsGrounded())
         {
             _rb.AddForce(Vector3.up * JumpForce);
+            _groundedMuteUntil = Time.time + 0.15f;
+            _footstepTimer = 0f;
+            _footstepMuteUntil = Time.time + JumpFootstepMuteSeconds;
+            AudioManager.Current?.StopFootsteps();
+
             if (_animator != null) _animator.SetTrigger(JumpHash);
         }
     }
 
     private bool IsGrounded()
     {
-        // Ground check via raycast
-        return Physics.Raycast(
-            transform.position + Vector3.up * 0.01f,
-            Vector3.down,
-            GroundCheckDistance * 2f
-        );
+        if (Time.time < _groundedMuteUntil)
+        {
+            _grounded = false;
+            _groundedFrameSkip = 5;
+            return false;
+        }
+
+        _groundedFrameSkip++;
+        if (_groundedFrameSkip >= 5)
+        {
+            _groundedFrameSkip = 0;
+            _grounded = Physics.Raycast(
+                transform.position + Vector3.up * 0.01f,
+                Vector3.down,
+                GroundCheckDistance * 2f
+            );
+        }
+        return _grounded;
     }
 
     // ═══════════════════════════════════════════════
