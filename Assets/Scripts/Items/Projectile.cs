@@ -10,11 +10,16 @@ public class Projectile : MonoBehaviour
     [Header("Settings")]
     public float Lifetime = 10f;
     public bool StickOnHit = true;
+    [Tooltip("If false, the projectile stays permanently when it sticks (stone throw).")]
+    public bool DestroyOnStick = true;
     public float GravityScale = 1.0f;
+    [Tooltip("Number of bounces on terrain before sticking. 0 = stick on first hit (arrows).")]
+    public int MaxBounces = 0;
 
     private float _damage;
     private float _maxRange;
     private Rigidbody _rb;
+    private int _bouncesLeft;
     private Vector3 _startPos;
     private Transform _owner;
     private bool _hasHit = false;
@@ -42,6 +47,9 @@ public class Projectile : MonoBehaviour
         _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         _rb.linearVelocity = direction.normalized * speed;
         _rb.mass = 0.1f;
+
+        _bouncesLeft = MaxBounces;
+        _hasHit = false;
 
         _collider = GetComponent<Collider>();
         if (_collider == null)
@@ -99,9 +107,7 @@ public class Projectile : MonoBehaviour
         if (_owner != null && (collision.transform == _owner || collision.transform.IsChildOf(_owner)))
             return;
 
-        _hasHit = true;
-
-        // Deal damage
+        // Deal damage to enemies — stone bounces off and keeps flying
         IDamageable damageable = collision.collider.GetComponentInParent<IDamageable>();
         if (damageable != null)
         {
@@ -109,24 +115,45 @@ public class Projectile : MonoBehaviour
             damageable.TakeDamage(_damage, hitPoint, _rb.linearVelocity.normalized);
             Debug.Log($"[Projectile] Hit {collision.collider.name} for {_damage} damage!");
         }
+
+        // Terrain / non-damageable hit — bounce or stick
+        _bouncesLeft--;
+        if (_bouncesLeft > 0)
+        {
+            // Bounce: keep some velocity, don't stick yet
+            Vector3 vel = _rb.linearVelocity;
+            float speed = vel.magnitude * 0.7f;
+            Vector3 dir = Vector3.Reflect(vel.normalized, collision.contacts[0].normal);
+            _rb.linearVelocity = dir * speed;
+            Debug.Log($"[Projectile] Bounced off {collision.collider.name} ({_bouncesLeft} bounces left)");
+        }
         else
         {
+            // No bounces left — stick permanently
             Debug.Log($"[Projectile] Stuck in {collision.collider.name}");
+            _hasHit = true;
+            StickToSurface(collision);
         }
+    }
 
-        if (StickOnHit)
+    private void StickToSurface(Collision collision)
+    {
+        _rb.linearVelocity = Vector3.zero;
+        _rb.isKinematic = true;
+
+        // Temporary projectiles can attach to the hit object, but persistent pickup
+        // projectiles must stay in world space. Terrain/chunk objects may unload when
+        // the player walks away, which would otherwise hide or destroy the pickup too.
+        if (DestroyOnStick)
         {
-            // Stick into the surface
-            _rb.linearVelocity = Vector3.zero;
-            _rb.isKinematic = true;
             transform.SetParent(collision.transform);
-
-            // Destroy after a while
-            Destroy(gameObject, 15f);
         }
         else
         {
-            Destroy(gameObject);
+            transform.SetParent(null, true);
         }
+
+        if (DestroyOnStick)
+            Destroy(gameObject, 15f);
     }
 }

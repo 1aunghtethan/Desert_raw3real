@@ -132,6 +132,13 @@ public class ItemDropper : MonoBehaviour
         }
 
         // Ensure it has a Rigidbody for physics
+        // Dynamic Rigidbody objects need convex mesh colliders. The ministone prefabs
+        // already have this; copied/generated drop prefabs may not.
+        foreach (MeshCollider meshCol in pickupObj.GetComponentsInChildren<MeshCollider>())
+        {
+            meshCol.convex = true;
+        }
+
         Rigidbody rb = pickupObj.GetComponent<Rigidbody>();
         if (rb == null) rb = pickupObj.AddComponent<Rigidbody>();
         rb.isKinematic = false;

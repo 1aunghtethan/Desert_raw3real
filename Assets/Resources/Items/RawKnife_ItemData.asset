@@ -20,11 +20,11 @@ MonoBehaviour:
   MaxStack: 1
   Damage: 18
   AttackSpeed: 1.8
-  Range: 3
+  Range: 80
   ProjectilePrefab: {fileID: 0}
   ProjectileSpeed: 30
   DropPrefab: {fileID: 3211316286816244972, guid: 38682556b19b1d84ab6c27e49d644da9, type: 3}
-  PickupsSpinAndBob: 1
+  PickupsSpinAndBob: 0
   HoldPosition: {x: 0.25, y: -0.2, z: 0.45}
   HoldRotation: {x: -80, y: 180, z: 0}
   HoldScale: 1

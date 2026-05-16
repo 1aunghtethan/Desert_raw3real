@@ -13,6 +13,32 @@ public class ItemBehaviour : MonoBehaviour
     protected float _lastUseTime = -999f;
 
     /// <summary>
+    /// Returns a working camera: tries OwnerCamera first, then refreshes from PlayerController,
+    /// then falls back to Camera.main. Refreshes OwnerCamera so subsequent calls also work.
+    /// </summary>
+    protected Camera GetCurrentCamera()
+    {
+        if (OwnerCamera != null && OwnerCamera.isActiveAndEnabled)
+            return OwnerCamera;
+        if (OwnerTransform != null)
+        {
+            PlayerController pc = OwnerTransform.GetComponent<PlayerController>();
+            if (pc != null)
+            {
+                Camera cam = pc.GetActiveCamera();
+                if (cam != null && cam.isActiveAndEnabled)
+                {
+                    OwnerCamera = cam;
+                    return cam;
+                }
+            }
+        }
+        Camera fallback = Camera.main;
+        if (fallback != null) OwnerCamera = fallback;
+        return fallback;
+    }
+
+    /// <summary>
     /// Called when the item is equipped (spawned in hand).
     /// </summary>
     public virtual void OnEquip(ItemData data, Transform owner, Camera cam)

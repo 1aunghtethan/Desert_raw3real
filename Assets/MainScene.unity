@@ -1983,7 +1983,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ac07510969c88284eadec9e01b3316aa, type: 2}
   - {fileID: 11400000, guid: 343f0d90f795eb142baaeeb353b72616, type: 2}
   - {fileID: 11400000, guid: b037557c49277e74a81d3d616b5e3338, type: 2}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 3ce9389a1b7181f4f8454e648e0c85cf, type: 2}
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
@@ -2003,6 +2003,7 @@ MonoBehaviour:
   HandAnchor: {fileID: 0}
   FPHandOffset: {x: 1, y: -0.4, z: 0.9}
   TPHandOffset: {x: 0.5, y: 1.2, z: 0.5}
+  ToolVisualizerPrefab: {fileID: 635361771592068906, guid: a2ac1c4d0877efd42bccfc76f5d839fa, type: 3}
   SwayAmount: 2
   SwaySmoothness: 10
   BobSpeed: 12

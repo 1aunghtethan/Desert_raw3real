@@ -55,6 +55,7 @@ public class ItemPlacer : MonoBehaviour
     private const string GhostLayerName = "Ignore Raycast";
 
     public bool IsPlacementModeActive => _inPlacementMode;
+    public bool JustPlaced { get; set; }
 
     private void Start()
     {
@@ -85,6 +86,7 @@ public class ItemPlacer : MonoBehaviour
 
     private void Update()
     {
+        if (JustPlaced) JustPlaced = false;
         UpdateInput();
 
         if (!_inPlacementMode)
@@ -153,27 +155,65 @@ public class ItemPlacer : MonoBehaviour
         Vector3 startPos = cam.transform.position + cameraForward * ObjectDistanceFromPlayer;
         startPos.y += RaycastStartVerticalOffset;
 
+        float bottomOffset = GetPreviewBottomOffset();
+
         if (Physics.Raycast(startPos, Vector3.down, out RaycastHit hitInfo, RaycastDistance, GetPlacementRayMask(), QueryTriggerInteraction.Ignore))
         {
             _currentGroundHit = hitInfo;
             _hasCurrentGroundHit = true;
             _hitValidGround = IsPlacementGroundCollider(hitInfo.collider);
 
-            // Lift object so its bottom sits ON the terrain, not sinking through
-            float bottomOffset = GetPreviewBottomOffset();
             _currentPlacementPosition = hitInfo.point + Vector3.up * (bottomOffset + PlaceHeightOffset);
             _previewObject.SetActive(true);
         }
         else
         {
-            _hasCurrentGroundHit = false;
-            _hitValidGround = false;
-            _previewObject.SetActive(false);
-            _validPreviewState = false;
-            return;
+            // Auto-snap fallback: search for ground near the player
+            Vector3 playerPos = transform.position;
+            Vector3 fwd = transform.forward;
+            Vector3 right = transform.right;
+            LayerMask mask = GetPlacementRayMask();
+
+            Vector3[] probes = new Vector3[] {
+                playerPos + fwd * 3f,
+                playerPos + fwd * 3f + right * 1.5f,
+                playerPos + fwd * 3f - right * 1.5f,
+                playerPos + right * 2f,
+                playerPos - right * 2f,
+                playerPos - fwd * 1f
+            };
+
+            bool found = false;
+            foreach (Vector3 probe in probes)
+            {
+                Vector3 probeStart = probe + Vector3.up * RaycastStartVerticalOffset;
+                if (Physics.Raycast(probeStart, Vector3.down, out hitInfo, RaycastDistance, mask, QueryTriggerInteraction.Ignore))
+                {
+                    if (IsPlacementGroundCollider(hitInfo.collider))
+                    {
+                        _currentGroundHit = hitInfo;
+                        _hasCurrentGroundHit = true;
+                        _hitValidGround = true;
+                        _currentPlacementPosition = hitInfo.point + Vector3.up * (bottomOffset + PlaceHeightOffset);
+                        _previewObject.SetActive(true);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!found)
+            {
+                _hasCurrentGroundHit = false;
+                _hitValidGround = false;
+                _previewObject.SetActive(false);
+                _validPreviewState = false;
+                return;
+            }
         }
 
-        float yaw = cam.transform.eulerAngles.y + _currentRotationY;
+        float yaw = (Quaternion.LookRotation(Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up)).eulerAngles.y
+                    + _currentRotationY) % 360f;
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f) * Quaternion.Euler(_currentRotationX, 0f, 0f);
         _previewObject.transform.SetPositionAndRotation(_currentPlacementPosition, rotation);
     }
@@ -307,6 +347,7 @@ private void PlaceObject()
             loot.IsPlaced = true;
 
         _inventory.RemoveItem(_inventory.SelectedIndex, 1);
+        JustPlaced = true;
 
         if (_inventory.SelectedItem == null)
             ExitPlacementMode();

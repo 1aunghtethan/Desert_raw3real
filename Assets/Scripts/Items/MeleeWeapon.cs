@@ -23,7 +23,7 @@ public class MeleeWeapon : ItemBehaviour
         _restRotation = transform.localRotation;
     }
 
-    void Update()
+    protected virtual void Update()
     {
         if (_isSwinging)
         {
@@ -76,11 +76,17 @@ public class MeleeWeapon : ItemBehaviour
 
     private void PerformHitDetection()
     {
-        if (OwnerCamera == null) return;
+        Camera cam = GetCurrentCamera();
+        if (cam == null)
+        {
+            Debug.LogWarning("[Melee] No camera available for hit detection!");
+            return;
+        }
 
         // Raycast from camera center
-        Ray ray = new Ray(OwnerCamera.transform.position, OwnerCamera.transform.forward);
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
         RaycastHit[] hits = Physics.RaycastAll(ray, Data.Range, ~0, QueryTriggerInteraction.Collide);
+        System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
         foreach (var hit in hits)
         {

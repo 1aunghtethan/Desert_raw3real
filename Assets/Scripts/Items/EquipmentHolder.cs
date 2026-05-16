@@ -10,8 +10,17 @@ public class EquipmentHolder : MonoBehaviour
     public static EquipmentHolder Instance { get; private set; }
 
     [Header("References")]
-    [Tooltip("Empty child GameObject where weapons are attached. Created automatically if null.")]
+    [Tooltip("Active hold point where the selected hotbar item is shown. Created automatically if null.")]
     public Transform HandAnchor;
+
+    [Tooltip("Animator that receives holding/throw parameters. Auto-found in children if empty.")]
+    public Animator PlayerAnimator;
+
+    [Tooltip("Public first-person hold point. Assign a child under the camera to control held item placement.")]
+    public Transform FirstPersonHoldPoint;
+
+    [Tooltip("Public third-person hold point. Assign a child under the player body to control held item placement.")]
+    public Transform ThirdPersonHoldPoint;
 
     [Tooltip("Offset from the camera for first-person weapon positioning (Right, Up, Forward).")]
     public Vector3 FPHandOffset = new Vector3(0.7f, -0.5f, 0.9f);
@@ -19,11 +28,28 @@ public class EquipmentHolder : MonoBehaviour
     [Tooltip("Offset from the player body for third-person positioning.")]
     public Vector3 TPHandOffset = new Vector3(0.5f, 1.2f, 0.5f);
 
+    [Tooltip("When enabled, assigned hold point transforms keep their Inspector position/rotation instead of being moved by FP/TP offsets.")]
+    public bool UseAssignedHoldPointTransform = true;
+
+    [Header("Tool/Throwable")]
+    [Tooltip("ProjectileCurveVisualizer prefab for throwable item trajectory preview.")]
+    public GameObject ToolVisualizerPrefab;
+
+    [Header("Melee Throwable")]
+    [Tooltip("ProjectileCurveVisualizer prefab for melee throwable trajectory preview.")]
+    public GameObject MeleeVisualizerPrefab;
+
     [Header("Minecraft Style Animation")]
     public float SwayAmount = 2f;
     public float SwaySmoothness = 10f;
     public float BobSpeed = 12f;
     public float BobAmount = 0.05f;
+
+    [Header("Throw Animation")]
+    [Tooltip("Blend time used when forcing the player into the Throw animation.")]
+    public float ThrowAnimationBlendTime = 0.05f;
+    [Tooltip("Delay before the held stone/knife actually leaves the hand after throw starts.")]
+    public float ThrowReleaseDelay = 0.25f;
 
     private float _bobTimer;
 
@@ -31,10 +57,20 @@ public class EquipmentHolder : MonoBehaviour
     private PlayerController _player;
     private GameObject _currentWeaponObj;
     private ItemBehaviour _currentBehaviour;
+    private bool _usingAutoCreatedHoldPoint;
+    private static readonly int IsHoldingHash = Animator.StringToHash("IsHolding");
+    private static readonly int ThrowHash = Animator.StringToHash("Throw");
+    private static readonly int ThrowStateHash = Animator.StringToHash("Throw");
 
     /// <summary>The currently equipped item behaviour (null if empty hand).</summary>
     public ItemBehaviour CurrentBehaviour => _currentBehaviour;
     public ItemData CurrentItem => _inventory != null ? _inventory.SelectedItem : null;
+
+    public void ReleaseCurrentWeapon()
+    {
+        _currentWeaponObj = null;
+        _currentBehaviour = null;
+    }
 
     void Awake()
     {
@@ -45,6 +81,7 @@ public class EquipmentHolder : MonoBehaviour
     {
         _inventory = GetComponent<Inventory>();
         _player = GetComponent<PlayerController>();
+        EnsurePlayerAnimator();
 
         if (_inventory == null)
         {
@@ -52,14 +89,7 @@ public class EquipmentHolder : MonoBehaviour
             return;
         }
 
-        // Create hand anchor if not assigned
-        if (HandAnchor == null)
-        {
-            GameObject anchor = new GameObject("HandAnchor");
-            anchor.transform.SetParent(transform);
-            anchor.transform.localPosition = new Vector3(0.5f, 1.2f, 0.5f);
-            HandAnchor = anchor.transform;
-        }
+        EnsureHoldPoints();
 
         // Subscribe to inventory changes
         _inventory.OnSelectedItemChanged += OnSlotChanged;
@@ -101,17 +131,31 @@ public class EquipmentHolder : MonoBehaviour
 
     private void UpdateHandPosition()
     {
-        if (HandAnchor == null || _player == null) return;
+        if (_player == null) return;
+        EnsureHoldPoints();
+        if (HandAnchor == null) return;
 
         Camera cam = _player.GetActiveCamera();
         if (cam == null) return;
 
         if (_player.CurrentMode == PlayerController.CameraMode.FirstPerson)
         {
-            // FP mode: parent to camera so it stays exactly with us
-            if (HandAnchor.parent != cam.transform)
+            if (FirstPersonHoldPoint == null)
             {
-                HandAnchor.SetParent(cam.transform, false);
+                FirstPersonHoldPoint = HandAnchor;
+            }
+
+            if (UseAssignedHoldPointTransform && !_usingAutoCreatedHoldPoint)
+            {
+                SetActiveHoldPoint(FirstPersonHoldPoint);
+                ApplyCurrentItemHoldSettings();
+                return;
+            }
+
+            // FP mode: parent to camera so it stays exactly with us
+            if (FirstPersonHoldPoint.parent != cam.transform)
+            {
+                FirstPersonHoldPoint.SetParent(cam.transform, false);
             }
 
             Vector3 targetPos = FPHandOffset;
@@ -139,21 +183,40 @@ public class EquipmentHolder : MonoBehaviour
             targetRot = Quaternion.Euler(mouseY, mouseX, 0); // Local rotation lag
 
             // Apply smoothing
-            HandAnchor.localPosition = Vector3.Lerp(HandAnchor.localPosition, targetPos, Time.deltaTime * 15f);
-            HandAnchor.localRotation = Quaternion.Slerp(HandAnchor.localRotation, targetRot, Time.deltaTime * SwaySmoothness);
+            FirstPersonHoldPoint.localPosition = Vector3.Lerp(FirstPersonHoldPoint.localPosition, targetPos, Time.deltaTime * 15f);
+            FirstPersonHoldPoint.localRotation = Quaternion.Slerp(FirstPersonHoldPoint.localRotation, targetRot, Time.deltaTime * SwaySmoothness);
+            SetActiveHoldPoint(FirstPersonHoldPoint);
         }
         else
         {
-            // TP mode: parent to player body
-            if (HandAnchor.parent != transform)
+            if (ThirdPersonHoldPoint == null)
             {
-                HandAnchor.SetParent(transform, false);
+            ThirdPersonHoldPoint = HandAnchor;
+            }
+
+            if (UseAssignedHoldPointTransform && !_usingAutoCreatedHoldPoint)
+            {
+                SetActiveHoldPoint(ThirdPersonHoldPoint);
+                ApplyCurrentItemHoldSettings();
+                return;
+            }
+
+            // TP mode: parent to player body
+            if (ThirdPersonHoldPoint.parent != transform)
+            {
+                ThirdPersonHoldPoint.SetParent(transform, false);
             }
             
-            HandAnchor.localPosition = TPHandOffset;
-            HandAnchor.localRotation = Quaternion.identity;
+            ThirdPersonHoldPoint.localPosition = TPHandOffset;
+            ThirdPersonHoldPoint.localRotation = Quaternion.identity;
+            SetActiveHoldPoint(ThirdPersonHoldPoint);
         }
 
+        ApplyCurrentItemHoldSettings();
+    }
+
+    private void ApplyCurrentItemHoldSettings()
+    {
         // Apply item's hold settings dynamically so they can be tweaked in the Inspector live
         if (_currentWeaponObj != null && CurrentItem != null)
         {
@@ -179,6 +242,8 @@ public class EquipmentHolder : MonoBehaviour
 
     private void EquipItem(ItemData item)
     {
+        EnsureHoldPoints();
+
         // Cleanup old weapon
         if (_currentBehaviour != null)
         {
@@ -191,7 +256,11 @@ public class EquipmentHolder : MonoBehaviour
             _currentBehaviour = null;
         }
 
-        if (item == null || item.Prefab == null) return;
+        if (item == null || item.Prefab == null)
+        {
+            SetHoldingAnimation(false);
+            return;
+        }
 
         // Spawn weapon
         try
@@ -216,10 +285,22 @@ public class EquipmentHolder : MonoBehaviour
             switch (item.Type)
             {
                 case ItemType.Melee:
-                    _currentBehaviour = _currentWeaponObj.AddComponent<MeleeWeapon>();
+                    if (item.ItemName == "Raw Knife")
+                    {
+                        var tk = _currentWeaponObj.AddComponent<ThrowableMeleeWeapon>();
+                        tk.VisualizerPrefab = MeleeVisualizerPrefab;
+                        _currentBehaviour = tk;
+                    }
+                    else
+                        _currentBehaviour = _currentWeaponObj.AddComponent<MeleeWeapon>();
                     break;
                 case ItemType.Ranged:
                     _currentBehaviour = _currentWeaponObj.AddComponent<RangedWeapon>();
+                    break;
+                case ItemType.Tool:
+                    var throwable = _currentWeaponObj.AddComponent<ThrowableItem>();
+                    throwable.VisualizerPrefab = ToolVisualizerPrefab;
+                    _currentBehaviour = throwable;
                     break;
                 case ItemType.Consumable:
                     _currentBehaviour = _currentWeaponObj.AddComponent<ConsumableItem>();
@@ -260,5 +341,109 @@ public class EquipmentHolder : MonoBehaviour
         if (wSpin != null) Destroy(wSpin);
 
         Debug.Log($"[Equipment] Equipped: {item.ItemName}");
+        SetHoldingAnimation(true);
+    }
+
+    public void TriggerThrowAnimation()
+    {
+        EnsurePlayerAnimator();
+        if (PlayerAnimator != null)
+        {
+            PlayerAnimator.ResetTrigger(ThrowHash);
+            PlayerAnimator.CrossFadeInFixedTime(ThrowStateHash, ThrowAnimationBlendTime, 0, 0f);
+            PlayerAnimator.ResetTrigger(ThrowHash);
+        }
+    }
+
+    public float GetThrowReleaseDelay()
+    {
+        return Mathf.Max(0f, ThrowReleaseDelay);
+    }
+
+    private void EnsureHoldPoints()
+    {
+        if (HandAnchor != null)
+        {
+            if (FirstPersonHoldPoint == null) FirstPersonHoldPoint = HandAnchor;
+            if (ThirdPersonHoldPoint == null) ThirdPersonHoldPoint = HandAnchor;
+            return;
+        }
+
+        Camera cam = _player != null ? _player.GetActiveCamera() : Camera.main;
+        bool useFirstPerson = cam != null && (_player == null || _player.CurrentMode == PlayerController.CameraMode.FirstPerson);
+        Transform assignedHoldPoint = useFirstPerson ? FirstPersonHoldPoint : ThirdPersonHoldPoint;
+        if (assignedHoldPoint == null)
+        {
+            assignedHoldPoint = FirstPersonHoldPoint != null ? FirstPersonHoldPoint : ThirdPersonHoldPoint;
+        }
+
+        if (assignedHoldPoint != null)
+        {
+            HandAnchor = assignedHoldPoint;
+            if (FirstPersonHoldPoint == null) FirstPersonHoldPoint = HandAnchor;
+            if (ThirdPersonHoldPoint == null) ThirdPersonHoldPoint = HandAnchor;
+            return;
+        }
+
+        Transform parent = transform;
+        if (useFirstPerson)
+        {
+            parent = cam.transform;
+        }
+
+        GameObject anchor = new GameObject("HoldPoint");
+        anchor.transform.SetParent(parent, false);
+        anchor.transform.localPosition = parent == transform ? TPHandOffset : FPHandOffset;
+        HandAnchor = anchor.transform;
+        _usingAutoCreatedHoldPoint = true;
+
+        if (FirstPersonHoldPoint == null) FirstPersonHoldPoint = HandAnchor;
+        if (ThirdPersonHoldPoint == null) ThirdPersonHoldPoint = HandAnchor;
+    }
+
+    private void SetActiveHoldPoint(Transform holdPoint)
+    {
+        if (holdPoint == null || HandAnchor == holdPoint) return;
+
+        HandAnchor = holdPoint;
+        if (_currentWeaponObj != null && _currentWeaponObj.transform.parent != HandAnchor)
+        {
+            _currentWeaponObj.transform.SetParent(HandAnchor, false);
+        }
+    }
+
+    private void SetHoldingAnimation(bool isHolding)
+    {
+        EnsurePlayerAnimator();
+        if (PlayerAnimator != null) PlayerAnimator.SetBool(IsHoldingHash, isHolding);
+    }
+
+    private void EnsurePlayerAnimator()
+    {
+        if (HasAnimatorParameter(PlayerAnimator, ThrowHash) || HasAnimatorParameter(PlayerAnimator, IsHoldingHash))
+            return;
+
+        PlayerAnimator = null;
+        foreach (Animator animator in GetComponentsInChildren<Animator>(true))
+        {
+            if (HasAnimatorParameter(animator, ThrowHash))
+            {
+                PlayerAnimator = animator;
+                return;
+            }
+        }
+    }
+
+    private static bool HasAnimatorParameter(Animator animator, int parameterHash)
+    {
+        if (animator == null) return false;
+
+        foreach (AnimatorControllerParameter parameter in animator.parameters)
+        {
+            if (parameter.nameHash == parameterHash)
+                return true;
+        }
+
+        return false;
     }
 }

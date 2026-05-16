@@ -85,9 +85,41 @@ public class TerrainManager : MonoBehaviour
         {
             TestMountainChunk = new Vector2Int(0, 5);
         }
+
+        PlacePlayerOnInitialTerrain();
     }
 
     private float _simTimer = 0f;
+
+    private void PlacePlayerOnInitialTerrain()
+    {
+        if (Player == null) return;
+
+        Vector3 spawnPoint = Config.PlayerSpawnPoint;
+        float surfaceY = SampleHeight(spawnPoint);
+        float clearance = GetPlayerGroundClearance();
+
+        Player.position = new Vector3(spawnPoint.x, surfaceY + clearance + 0.25f, spawnPoint.z);
+
+        Rigidbody playerBody = Player.GetComponent<Rigidbody>();
+        if (playerBody != null)
+        {
+            playerBody.linearVelocity = Vector3.zero;
+            playerBody.angularVelocity = Vector3.zero;
+        }
+
+        UpdateChunks();
+    }
+
+    private float GetPlayerGroundClearance()
+    {
+        CapsuleCollider capsule = Player.GetComponent<CapsuleCollider>();
+        if (capsule == null) return 1f;
+
+        float scaledCenterY = capsule.center.y * Player.lossyScale.y;
+        float scaledHalfHeight = capsule.height * 0.5f * Player.lossyScale.y;
+        return Mathf.Max(0f, scaledHalfHeight - scaledCenterY);
+    }
 
     void Update()
     {

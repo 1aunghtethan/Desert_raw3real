@@ -72,6 +72,8 @@ public class Inventory : MonoBehaviour
         // Scroll wheel cycling (hotbar only, slots 0 to HotbarSize-1)
         if (_itemPlacer != null && _itemPlacer.IsPlacementModeActive)
             return;
+        if (ThrowableItem.IsAiming)
+            return;
 
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (Mathf.Abs(scroll) > 0.01f)

@@ -6,6 +6,7 @@ public class SandInteraction : MonoBehaviour
     public float BrushRadius = 1.0f;
     
     private PlayerController _player;
+    private float _blockDigUntil;
 
     void Start()
     {
@@ -15,6 +16,18 @@ public class SandInteraction : MonoBehaviour
 
     void Update()
     {
+        // Block dig for 1s after holding/using a throwable (covers throw frame + held-click frames)
+        if (Time.time < _blockDigUntil) return;
+        _blockDigUntil = 0f;
+
+        if (EquipmentHolder.Instance != null &&
+            (EquipmentHolder.Instance.CurrentBehaviour is ThrowableItem ||
+             EquipmentHolder.Instance.CurrentBehaviour is ThrowableMeleeWeapon))
+        {
+            _blockDigUntil = Time.time + 1f;
+            return;
+        }
+
         // Check if a weapon is equipped — if so, EquipmentHolder handles the click
         EquipmentHolder equipment = EquipmentHolder.Instance;
         bool hasWeaponEquipped = equipment != null 
@@ -26,7 +39,7 @@ public class SandInteraction : MonoBehaviour
 
         // If explicitly in placement mode, do not process sand interactions
         ItemPlacer placer = _player != null ? _player.GetComponent<ItemPlacer>() : null;
-        if (placer != null && placer.IsPlacementModeActive) return;
+        if (placer != null && (placer.IsPlacementModeActive || placer.JustPlaced)) return;
 
         // If a consumable/tool is equipped and right-click is pressed, let ItemPlacer handle it
         bool hasNonDigItem = equipment != null 

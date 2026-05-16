@@ -22,17 +22,17 @@ MonoBehaviour:
   - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
   - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
   MaxStack: 4
-  Damage: 10
-  AttackSpeed: 1
-  Range: 2
+  Damage: 15
+  AttackSpeed: 0.8
+  Range: 80
   ProjectilePrefab: {fileID: 0}
-  ProjectileSpeed: 30
-  DropPrefab: {fileID: 0}
+  ProjectileSpeed: 20
+  DropPrefab: {fileID: 5758057825070733952, guid: df31d0d4726e7954c9a5bdf35497688b, type: 3}
   PickupsSpinAndBob: 0
-  HoldPosition: {x: 0, y: 0, z: 0}
+  HoldPosition: {x: 0.3, y: -0.2, z: 0.4}
   HoldRotation: {x: 0, y: 0, z: 0}
-  HoldScale: 1
-  DigMultiplier: 1.5
+  HoldScale: 0.5
+  DigMultiplier: 0
   RadiusMultiplier: 1
   HealthRestore: 0
   HungerRestore: 0

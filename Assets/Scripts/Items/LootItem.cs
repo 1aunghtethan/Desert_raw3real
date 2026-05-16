@@ -115,8 +115,11 @@ public class LootItem : MonoBehaviour
         // Kill physics — item is now settled
         if (m_Rb != null)
         {
-            m_Rb.linearVelocity = Vector3.zero;
-            m_Rb.angularVelocity = Vector3.zero;
+            if (!m_Rb.isKinematic)
+            {
+                m_Rb.linearVelocity = Vector3.zero;
+                m_Rb.angularVelocity = Vector3.zero;
+            }
             m_Rb.isKinematic = true;
             m_Rb.useGravity = false;
         }
@@ -131,6 +134,7 @@ public class LootItem : MonoBehaviour
     {
         if (m_IsGrounded || m_IsBeingPickedUp) return;
         if (Data != null && !Data.PickupsSpinAndBob) return; // Heavy physics objects stay dynamic
+        if (GetComponent<Projectile>() != null) return; // Projectile-managed (thrown stones/knives) handled by Projectile
 
         // Check if we hit something below us (ground-like)
         foreach (var contact in collision.contacts)

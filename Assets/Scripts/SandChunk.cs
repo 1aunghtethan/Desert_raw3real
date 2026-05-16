@@ -150,6 +150,8 @@ public class SandChunk : MonoBehaviour
         // Initial Mesh Creation
         ScheduleMeshUpdate(default).Complete();
         ApplyMeshUpdate();
+        NeedsColliderBake = true;
+        BakeCollider();
         
         IsInitialized = true;
     }
