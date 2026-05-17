@@ -23,8 +23,15 @@ public class AudioManager : MonoBehaviour
     public AudioClip pickupStone;
     public AudioClip footstepWalk;
     public AudioClip footstepRun;
+    public AudioClip landingImpact;
+    public AudioClip rawKnifeThrow;
+    public AudioClip spearThrow;
+    public AudioClip stoneThrow;
+    public AudioClip afterCraft;
+    public AudioClip inventoryOpen;
     public AudioClip weaponSwing;
     public AudioClip weaponHit;
+    public AudioClip reduceHeart;
 
     private AudioSource _sfxSource;
     private AudioSource _stepSource;
@@ -50,20 +57,34 @@ public class AudioManager : MonoBehaviour
     private void LoadClips()
     {
         pickupStick = Resources.Load<AudioClip>("Sounds/Hand picking up a dry stick (mp3cut.net)");
-        pickupHay = Resources.Load<AudioClip>("Sounds/Hand picking up the set of hay (mp3cut.net)");
-        pickupStone = Resources.Load<AudioClip>("Sounds/Hand picking up a rough stone (mp3cut.net)");
+        pickupHay = Resources.Load<AudioClip>("Sounds/dry_grass,_with_asmr_#2-1779002734108 (mp3cut.net)");
+        pickupStone = Resources.Load<AudioClip>("Sounds/stone pickup");
         footstepWalk = Resources.Load<AudioClip>("Sounds/normal walk footsteps on dry desert sand. (mp3cut.net) (1)");
         footstepRun = Resources.Load<AudioClip>("Sounds/run footsteps on dry desert sand. (mp3cut.net) (1)");
+        landingImpact = Resources.Load<AudioClip>("Sounds/Impactful_landing_th_#3-1779001422784");
+        rawKnifeThrow = Resources.Load<AudioClip>("Sounds/rawKnifeThrow");
+        spearThrow = Resources.Load<AudioClip>("Sounds/spear thrown");
+        stoneThrow = Resources.Load<AudioClip>("Sounds/stoneThrow");
+        afterCraft = Resources.Load<AudioClip>("Sounds/after craft");
+        inventoryOpen = Resources.Load<AudioClip>("Sounds/inventory_opening_wi_#1-1779001860254(1) (mp3cut.net) (1)");
         weaponSwing = Resources.Load<AudioClip>("Sounds/Swift a dagger that made of stone whoosh through a (mp3cut.net)");
         weaponHit = Resources.Load<AudioClip>("Sounds/Wet tearing, one sound of a rough stone dagger sli (mp3cut.net)");
+        reduceHeart = Resources.Load<AudioClip>("Sounds/reduce heart");
 
         if (pickupStick == null) Debug.LogWarning("[AudioManager] Missing: pickupStick");
         if (pickupHay == null) Debug.LogWarning("[AudioManager] Missing: pickupHay");
         if (pickupStone == null) Debug.LogWarning("[AudioManager] Missing: pickupStone");
         if (footstepWalk == null) Debug.LogWarning("[AudioManager] Missing: footstepWalk");
         if (footstepRun == null) Debug.LogWarning("[AudioManager] Missing: footstepRun");
+        if (landingImpact == null) Debug.LogWarning("[AudioManager] Missing: landingImpact");
+        if (rawKnifeThrow == null) Debug.LogWarning("[AudioManager] Missing: rawKnifeThrow");
+        if (spearThrow == null) Debug.LogWarning("[AudioManager] Missing: spearThrow");
+        if (stoneThrow == null) Debug.LogWarning("[AudioManager] Missing: stoneThrow");
+        if (afterCraft == null) Debug.LogWarning("[AudioManager] Missing: afterCraft");
+        if (inventoryOpen == null) Debug.LogWarning("[AudioManager] Missing: inventoryOpen");
         if (weaponSwing == null) Debug.LogWarning("[AudioManager] Missing: weaponSwing");
         if (weaponHit == null) Debug.LogWarning("[AudioManager] Missing: weaponHit");
+        if (reduceHeart == null) Debug.LogWarning("[AudioManager] Missing: reduceHeart");
     }
 
     public void PlaySFX(AudioClip clip, float volume = 1f)
@@ -104,5 +125,30 @@ public class AudioManager : MonoBehaviour
             PlaySFX(pickupStone);
         else if (itemName == "Real Grass")
             PlaySFX(pickupHay);
+    }
+
+    public void PlayThrowSound(string itemName)
+    {
+        if (itemName == "Raw Knife")
+            PlaySFX(rawKnifeThrow);
+        else if (itemName == "Stone Spear")
+            PlaySFX(spearThrow);
+        else if (itemName == "Stonemini")
+            PlaySFX(stoneThrow);
+    }
+
+    public void PlayCraftSound()
+    {
+        PlaySFX(afterCraft);
+    }
+
+    public void PlayInventoryOpenSound()
+    {
+        PlaySFX(inventoryOpen);
+    }
+
+    public void PlayReduceHeartSound()
+    {
+        PlaySFX(reduceHeart);
     }
 }

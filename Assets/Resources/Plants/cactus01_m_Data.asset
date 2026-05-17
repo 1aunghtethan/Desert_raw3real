@@ -22,4 +22,4 @@ MonoBehaviour:
   TopplesOnDeath: 1
   LootSpawnRadius: 0.2
   LootSpawnHeight: 0.5
-  HitParticles: {fileID: 0}
+  HitParticles: {fileID: 5343095419256106131, guid: 119d0d02b4e2dd5458046e903c7c4c24, type: 3}

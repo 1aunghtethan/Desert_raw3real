@@ -88,8 +88,16 @@ public class ThrowableItem : ItemBehaviour
     private IEnumerator ReleaseAfterThrowDelay(Camera cam, float throwPower)
     {
         float delay = EquipmentHolder.Instance != null ? EquipmentHolder.Instance.GetThrowReleaseDelay() : 0f;
-        if (delay > 0f)
-            yield return new WaitForSeconds(delay);
+        float soundDelay = Mathf.Max(0f, delay - 0.15f);
+        if (soundDelay > 0f)
+            yield return new WaitForSeconds(soundDelay);
+
+        if (Data != null)
+            AudioManager.Instance.PlayThrowSound(Data.ItemName);
+
+        float remainingDelay = delay - soundDelay;
+        if (remainingDelay > 0f)
+            yield return new WaitForSeconds(remainingDelay);
 
         if (cam == null) cam = Camera.main;
         if (cam == null || OwnerTransform == null || Data == null)
@@ -121,6 +129,8 @@ public class ThrowableItem : ItemBehaviour
             yield break;
         }
         proj.DestroyOnStick = false;
+        proj.DestroyOnLifetime = false;
+        proj.DestroyOnMaxRange = false;
         proj.GravityScale = 2.5f;
         proj.MaxBounces = 3;
         proj.Initialize(velocity.normalized, velocity.magnitude, Data.Damage, Data.Range, OwnerTransform);

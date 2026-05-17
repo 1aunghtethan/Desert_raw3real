@@ -72,6 +72,7 @@ public class CraftingSystem : MonoBehaviour
         if (_inventory.AddItem(recipe.Result, recipe.ResultAmount))
         {
             Debug.Log($"[CraftingSystem] Crafted {recipe.ResultAmount}x {recipe.Result.ItemName}.");
+            AudioManager.Instance.PlayCraftSound();
             OnCraftingChanged?.Invoke();
             return true;
         }

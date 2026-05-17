@@ -9,6 +9,8 @@ public class ThrowableMeleeWeapon : MeleeWeapon
 {
     [Tooltip("Assign the ProjectileCurveVisualizer prefab for trajectory preview.")]
     public GameObject VisualizerPrefab;
+    [Tooltip("Only used by Stone Spear. Adjust this to tune the spear's visible rotation while flying.")]
+    public Vector3 StoneSpearAirRotationOffset = new Vector3(46.146f, 147.333f, 44.851f);
 
     private ProjectileCurveVisualizerSystem.ProjectileCurveVisualizer _visualizer;
     private bool _isAiming;
@@ -112,8 +114,16 @@ public class ThrowableMeleeWeapon : MeleeWeapon
     private IEnumerator ReleaseAfterThrowDelay(Camera cam, float throwPower)
     {
         float delay = EquipmentHolder.Instance != null ? EquipmentHolder.Instance.GetThrowReleaseDelay() : 0f;
-        if (delay > 0f)
-            yield return new WaitForSeconds(delay);
+        float soundDelay = Mathf.Max(0f, delay - 0.15f);
+        if (soundDelay > 0f)
+            yield return new WaitForSeconds(soundDelay);
+
+        if (Data != null)
+            AudioManager.Instance.PlayThrowSound(Data.ItemName);
+
+        float remainingDelay = delay - soundDelay;
+        if (remainingDelay > 0f)
+            yield return new WaitForSeconds(remainingDelay);
 
         if (cam == null) cam = GetCurrentCamera();
         if (cam == null || OwnerTransform == null || Data == null)
@@ -149,12 +159,20 @@ public class ThrowableMeleeWeapon : MeleeWeapon
             yield break;
         }
         proj.DestroyOnStick = false;
+        proj.DestroyOnLifetime = false;
+        proj.DestroyOnMaxRange = false;
+        if (Data.ItemName == "Stone Spear")
+        {
+            proj.AirRotationOffset = StoneSpearAirRotationOffset;
+            proj.StickToDamageableThenDrop = true;
+            proj.DamageableDropDelay = 1f;
+        }
         proj.GravityScale = 2.5f;
-        proj.MaxBounces = 3;
+        proj.MaxBounces = Data.ItemName == "Stone Spear" ? 0 : 3;
         proj.Initialize(velocity.normalized, velocity.magnitude, Data.Damage, Data.Range, OwnerTransform);
 
         Collider col = GetComponent<Collider>();
-        if (col != null)
+        if (col != null && Data.ItemName != "Stone Spear")
         {
             PhysicsMaterial bouncy = new PhysicsMaterial("KnifeBounce");
             bouncy.bounciness = 0.5f;

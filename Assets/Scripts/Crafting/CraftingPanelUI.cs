@@ -162,6 +162,7 @@ public class CraftingPanelUI : MonoBehaviour
                 {
                     _items[i] = _currentRecipe.Result;
                     _counts[i] = _currentRecipe.ResultAmount;
+                    AudioManager.Instance.PlayCraftSound();
                     break;
                 }
             }
@@ -179,6 +180,7 @@ public class CraftingPanelUI : MonoBehaviour
             }
 
             _inventoryPanel.AddToHeldItem(_currentRecipe.Result, _currentRecipe.ResultAmount);
+            AudioManager.Instance.PlayCraftSound();
         }
     }
 

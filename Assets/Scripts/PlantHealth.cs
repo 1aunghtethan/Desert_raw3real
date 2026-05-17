@@ -48,7 +48,8 @@ public class PlantHealth : MonoBehaviour, IDamageable
 
         if (Data != null && Data.HitParticles != null)
         {
-            Instantiate(Data.HitParticles, hitPoint, Quaternion.LookRotation(hitDirection));
+            Vector3 effectDirection = hitDirection.sqrMagnitude > 0.0001f ? hitDirection.normalized : transform.forward;
+            Instantiate(Data.HitParticles, hitPoint, Quaternion.LookRotation(effectDirection));
         }
 
         if (m_CurrentHealth <= 0)

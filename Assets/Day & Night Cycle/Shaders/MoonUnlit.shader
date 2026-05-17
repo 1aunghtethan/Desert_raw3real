@@ -8,6 +8,8 @@ Shader "Custom/MoonUnlit"
         _GlowIntensity ("Glow Intensity", Range(0, 5)) = 1.5
         _Phase ("Phase", Range(-1, 1)) = 0
         _Visibility ("Visibility", Range(0, 1)) = 1
+        _MainTex ("Moon Texture", 2D) = "white" {}
+        _BaseMap ("Moon Texture", 2D) = "white" {}
     }
 
     SubShader
@@ -33,6 +35,7 @@ Shader "Custom/MoonUnlit"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
             };
 
             struct Varyings
@@ -40,7 +43,11 @@ Shader "Custom/MoonUnlit"
                 float4 positionCS : SV_POSITION;
                 float3 normalWS : TEXCOORD0;
                 float3 viewDirWS : TEXCOORD1;
+                float2 uv : TEXCOORD2;
             };
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _Color;
@@ -49,6 +56,7 @@ Shader "Custom/MoonUnlit"
                 half _GlowIntensity;
                 half _Phase;
                 half _Visibility;
+                float4 _MainTex_ST;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -58,6 +66,7 @@ Shader "Custom/MoonUnlit"
                 output.positionCS = vertexInput.positionCS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 output.viewDirWS = GetWorldSpaceNormalizeViewDir(vertexInput.positionWS);
+                output.uv = TRANSFORM_TEX(input.uv, _MainTex);
                 return output;
             }
 
@@ -65,18 +74,15 @@ Shader "Custom/MoonUnlit"
             {
                 half3 normal = normalize(input.normalWS);
                 half3 viewDir = normalize(input.viewDirWS);
+                half4 moonTex = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
 
                 // Simple fresnel rim for a soft moon glow
                 half rim = 1.0 - saturate(dot(viewDir, normal));
                 half rimGlow = pow(rim, 2.0) * _GlowIntensity;
 
-                // Phase-based shading (simulate crescent)
-                half phaseMask = saturate(dot(normal, float3(_Phase, 0, sqrt(1 - _Phase * _Phase))));
-
-                half3 baseCol = _BaseColor.rgb * phaseMask;
+                half3 baseCol = moonTex.rgb * _BaseColor.rgb;
                 half3 glow = _GlowColor.rgb * rimGlow * 0.5;
                 half3 finalColor = (baseCol + glow) * _Visibility;
-
                 return half4(finalColor, 1.0);
             }
             ENDHLSL
@@ -123,8 +129,8 @@ Shader "Custom/MoonUnlit"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
-            struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; };
-            struct v2f { float4 pos : SV_POSITION; float3 normalW : TEXCOORD0; float3 viewW : TEXCOORD1; };
+            struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
+            struct v2f { float4 pos : SV_POSITION; float3 normalW : TEXCOORD0; float3 viewW : TEXCOORD1; float2 uv : TEXCOORD2; };
 
             fixed4 _Color;
             fixed4 _BaseColor;
@@ -132,6 +138,8 @@ Shader "Custom/MoonUnlit"
             half _GlowIntensity;
             half _Phase;
             half _Visibility;
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
 
             v2f vert(appdata v)
             {
@@ -139,6 +147,7 @@ Shader "Custom/MoonUnlit"
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.normalW = UnityObjectToWorldNormal(v.normal);
                 o.viewW = normalize(WorldSpaceViewDir(v.vertex));
+                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
 
@@ -146,10 +155,10 @@ Shader "Custom/MoonUnlit"
             {
                 float3 n = normalize(i.normalW);
                 float3 v = normalize(i.viewW);
+                fixed4 moonTex = tex2D(_MainTex, i.uv);
                 half rim = 1.0 - saturate(dot(v, n));
                 half rimGlow = pow(rim, 2.0) * _GlowIntensity;
-                half phaseMask = saturate(dot(n, float3(_Phase, 0, sqrt(1 - _Phase * _Phase))));
-                half3 baseCol = _BaseColor.rgb * phaseMask;
+                half3 baseCol = moonTex.rgb * _BaseColor.rgb;
                 half3 glow = _GlowColor.rgb * rimGlow * 0.5;
                 half3 finalColor = (baseCol + glow) * _Visibility;
                 return fixed4(finalColor, 1.0);

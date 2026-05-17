@@ -4,6 +4,8 @@ public class SandInteraction : MonoBehaviour
 {
     public float BrushStrength = 20.0f;
     public float BrushRadius = 1.0f;
+    public KeyCode DigKey = KeyCode.L;
+    public KeyCode PlaceKey = KeyCode.K;
     
     private PlayerController _player;
     private float _blockDigUntil;
@@ -47,8 +49,9 @@ public class SandInteraction : MonoBehaviour
             && equipment.CurrentItem.Type == ItemType.Consumable;
         if (hasNonDigItem && Input.GetMouseButtonDown(1)) return;
 
-        bool bDig = Input.GetMouseButton(0) && !Input.GetKey(KeyCode.LeftShift);
-        bool bPlace = (Input.GetMouseButton(0) && Input.GetKey(KeyCode.LeftShift)) || Input.GetMouseButton(1);
+        bool shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        bool bDig = shiftHeld && Input.GetKey(DigKey);
+        bool bPlace = shiftHeld && Input.GetKey(PlaceKey);
         
         if (bDig || bPlace)
         {

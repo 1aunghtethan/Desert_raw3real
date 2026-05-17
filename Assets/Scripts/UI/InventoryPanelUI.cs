@@ -437,6 +437,8 @@ public class InventoryPanelUI : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
+        bool wasOpen = _isOpen;
+
         CraftingPanelUI craftingPanel = FindFirstObjectByType<CraftingPanelUI>(FindObjectsInactive.Include);
         if (craftingPanel != null)
         {
@@ -454,6 +456,9 @@ public class InventoryPanelUI : MonoBehaviour
 
         if (visible)
         {
+            if (!wasOpen)
+                AudioManager.Instance.PlayInventoryOpenSound();
+
             RefreshAll();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;

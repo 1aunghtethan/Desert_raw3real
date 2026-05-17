@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -12,9 +13,18 @@ public class Projectile : MonoBehaviour
     public bool StickOnHit = true;
     [Tooltip("If false, the projectile stays permanently when it sticks (stone throw).")]
     public bool DestroyOnStick = true;
+    [Tooltip("If false, the projectile is not destroyed after Lifetime expires.")]
+    public bool DestroyOnLifetime = true;
+    [Tooltip("If false, the projectile is not destroyed when it flies beyond max range.")]
+    public bool DestroyOnMaxRange = true;
     public float GravityScale = 1.0f;
     [Tooltip("Number of bounces on terrain before sticking. 0 = stick on first hit (arrows).")]
     public int MaxBounces = 0;
+    [Tooltip("Visual rotation offset applied after the projectile faces its velocity.")]
+    public Vector3 AirRotationOffset;
+    [Tooltip("For persistent thrown weapons: briefly hold on damageable hit, then fall as pickup.")]
+    public bool StickToDamageableThenDrop;
+    public float DamageableDropDelay = 1f;
 
     private float _damage;
     private float _maxRange;
@@ -75,7 +85,8 @@ public class Projectile : MonoBehaviour
             Physics.IgnoreCollision(_collider, oc, true);
         }
 
-        Destroy(gameObject, Lifetime);
+        if (DestroyOnLifetime)
+            Destroy(gameObject, Lifetime);
     }
 
     void FixedUpdate()
@@ -88,12 +99,12 @@ public class Projectile : MonoBehaviour
         // Orient arrow in flight direction
         if (_rb.linearVelocity.sqrMagnitude > 0.1f)
         {
-            transform.rotation = Quaternion.LookRotation(_rb.linearVelocity.normalized);
+            transform.rotation = Quaternion.LookRotation(_rb.linearVelocity.normalized) * Quaternion.Euler(AirRotationOffset);
         }
 
         // Max range check
         float dist = Vector3.Distance(_startPos, transform.position);
-        if (dist > _maxRange)
+        if (DestroyOnMaxRange && dist > _maxRange)
         {
             Destroy(gameObject);
         }
@@ -114,6 +125,13 @@ public class Projectile : MonoBehaviour
             Vector3 hitPoint = collision.contacts.Length > 0 ? collision.contacts[0].point : transform.position;
             damageable.TakeDamage(_damage, hitPoint, _rb.linearVelocity.normalized);
             Debug.Log($"[Projectile] Hit {collision.collider.name} for {_damage} damage!");
+
+            if (StickToDamageableThenDrop)
+            {
+                _hasHit = true;
+                StartCoroutine(DropAfterDamageableHit());
+                return;
+            }
         }
 
         // Terrain / non-damageable hit — bounce or stick
@@ -155,5 +173,22 @@ public class Projectile : MonoBehaviour
 
         if (DestroyOnStick)
             Destroy(gameObject, 15f);
+    }
+
+    private IEnumerator DropAfterDamageableHit()
+    {
+        transform.SetParent(null, true);
+        _rb.linearVelocity = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
+        _rb.isKinematic = true;
+        _rb.useGravity = false;
+
+        float delay = Mathf.Max(0f, DamageableDropDelay);
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        _rb.isKinematic = false;
+        _rb.useGravity = true;
+        _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
     }
 }

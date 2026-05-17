@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -31,6 +32,9 @@ public class EquipmentHolder : MonoBehaviour
     [Tooltip("When enabled, assigned hold point transforms keep their Inspector position/rotation instead of being moved by FP/TP offsets.")]
     public bool UseAssignedHoldPointTransform = true;
 
+    [Tooltip("When enabled, held items keep the prefab root's local position, rotation, and scale instead of ItemData hold offsets.")]
+    public bool UsePrefabTransformWhenHeld = true;
+
     [Header("Tool/Throwable")]
     [Tooltip("ProjectileCurveVisualizer prefab for throwable item trajectory preview.")]
     public GameObject ToolVisualizerPrefab;
@@ -50,6 +54,8 @@ public class EquipmentHolder : MonoBehaviour
     public float ThrowAnimationBlendTime = 0.05f;
     [Tooltip("Delay before the held stone/knife actually leaves the hand after throw starts.")]
     public float ThrowReleaseDelay = 0.25f;
+    [Tooltip("How long movement and locomotion animation stay locked after throw starts.")]
+    public float ThrowAnimationLockDuration = 0.7f;
 
     private float _bobTimer;
 
@@ -58,6 +64,7 @@ public class EquipmentHolder : MonoBehaviour
     private GameObject _currentWeaponObj;
     private ItemBehaviour _currentBehaviour;
     private bool _usingAutoCreatedHoldPoint;
+    private Coroutine _throwLockRoutine;
     private static readonly int IsHoldingHash = Animator.StringToHash("IsHolding");
     private static readonly int ThrowHash = Animator.StringToHash("Throw");
     private static readonly int ThrowStateHash = Animator.StringToHash("Throw");
@@ -65,6 +72,17 @@ public class EquipmentHolder : MonoBehaviour
     /// <summary>The currently equipped item behaviour (null if empty hand).</summary>
     public ItemBehaviour CurrentBehaviour => _currentBehaviour;
     public ItemData CurrentItem => _inventory != null ? _inventory.SelectedItem : null;
+    public bool IsThrowAnimationLocked { get; private set; }
+
+    private static bool IsThrowableStone(ItemData item)
+    {
+        return item != null && item.ItemName == "Stonemini";
+    }
+
+    private static bool IsThrowableMelee(ItemData item)
+    {
+        return item != null && (item.ItemName == "Raw Knife" || item.ItemName == "Stone Spear");
+    }
 
     public void ReleaseCurrentWeapon()
     {
@@ -217,6 +235,9 @@ public class EquipmentHolder : MonoBehaviour
 
     private void ApplyCurrentItemHoldSettings()
     {
+        if (UsePrefabTransformWhenHeld)
+            return;
+
         // Apply item's hold settings dynamically so they can be tweaked in the Inspector live
         if (_currentWeaponObj != null && CurrentItem != null)
         {
@@ -265,7 +286,7 @@ public class EquipmentHolder : MonoBehaviour
         // Spawn weapon
         try
         {
-            _currentWeaponObj = Instantiate(item.Prefab, HandAnchor);
+            _currentWeaponObj = Instantiate(item.Prefab, HandAnchor, false);
         }
         catch (System.InvalidCastException)
         {
@@ -273,9 +294,12 @@ public class EquipmentHolder : MonoBehaviour
             return;
         }
 
-        _currentWeaponObj.transform.localPosition = item.HoldPosition;
-        _currentWeaponObj.transform.localRotation = Quaternion.Euler(item.HoldRotation);
-        _currentWeaponObj.transform.localScale = Vector3.one * item.HoldScale;
+        if (!UsePrefabTransformWhenHeld)
+        {
+            _currentWeaponObj.transform.localPosition = item.HoldPosition;
+            _currentWeaponObj.transform.localRotation = Quaternion.Euler(item.HoldRotation);
+            _currentWeaponObj.transform.localScale = Vector3.one * item.HoldScale;
+        }
 
         // Get or add appropriate behaviour
         _currentBehaviour = _currentWeaponObj.GetComponent<ItemBehaviour>();
@@ -285,7 +309,7 @@ public class EquipmentHolder : MonoBehaviour
             switch (item.Type)
             {
                 case ItemType.Melee:
-                    if (item.ItemName == "Raw Knife")
+                    if (IsThrowableMelee(item))
                     {
                         var tk = _currentWeaponObj.AddComponent<ThrowableMeleeWeapon>();
                         tk.VisualizerPrefab = MeleeVisualizerPrefab;
@@ -298,9 +322,16 @@ public class EquipmentHolder : MonoBehaviour
                     _currentBehaviour = _currentWeaponObj.AddComponent<RangedWeapon>();
                     break;
                 case ItemType.Tool:
-                    var throwable = _currentWeaponObj.AddComponent<ThrowableItem>();
-                    throwable.VisualizerPrefab = ToolVisualizerPrefab;
-                    _currentBehaviour = throwable;
+                    if (IsThrowableStone(item))
+                    {
+                        var throwable = _currentWeaponObj.AddComponent<ThrowableItem>();
+                        throwable.VisualizerPrefab = ToolVisualizerPrefab;
+                        _currentBehaviour = throwable;
+                    }
+                    else
+                    {
+                        _currentBehaviour = _currentWeaponObj.AddComponent<ItemBehaviour>();
+                    }
                     break;
                 case ItemType.Consumable:
                     _currentBehaviour = _currentWeaponObj.AddComponent<ConsumableItem>();
@@ -347,6 +378,8 @@ public class EquipmentHolder : MonoBehaviour
     public void TriggerThrowAnimation()
     {
         EnsurePlayerAnimator();
+        StartThrowLock();
+
         if (PlayerAnimator != null)
         {
             PlayerAnimator.ResetTrigger(ThrowHash);
@@ -358,6 +391,38 @@ public class EquipmentHolder : MonoBehaviour
     public float GetThrowReleaseDelay()
     {
         return Mathf.Max(0f, ThrowReleaseDelay);
+    }
+
+    public bool SaveCurrentHoldTransformToItemData()
+    {
+        if (_currentWeaponObj == null || CurrentItem == null)
+            return false;
+
+        Transform heldTransform = _currentWeaponObj.transform;
+        CurrentItem.HoldPosition = heldTransform.localPosition;
+        CurrentItem.HoldRotation = heldTransform.localEulerAngles;
+        CurrentItem.HoldScale = heldTransform.localScale.x;
+        return true;
+    }
+
+    private void StartThrowLock()
+    {
+        if (_throwLockRoutine != null)
+            StopCoroutine(_throwLockRoutine);
+
+        _throwLockRoutine = StartCoroutine(ThrowLockRoutine());
+    }
+
+    private IEnumerator ThrowLockRoutine()
+    {
+        IsThrowAnimationLocked = true;
+
+        float duration = Mathf.Max(ThrowReleaseDelay, ThrowAnimationLockDuration);
+        if (duration > 0f)
+            yield return new WaitForSeconds(duration);
+
+        IsThrowAnimationLocked = false;
+        _throwLockRoutine = null;
     }
 
     private void EnsureHoldPoints()

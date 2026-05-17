@@ -72,12 +72,15 @@ public class PlayerController : MonoBehaviour
     private bool _isRunning;
     private Vector2 _moveInput;
     private bool _grounded;
+    private bool _waitingForLandingSound;
+    private float _landingSoundReadyTime;
     private int _groundedFrameSkip;
     private float _footstepTimer;
     private float _footstepMuteUntil;
     private float _groundedMuteUntil;
     private const float FootstepMoveInputThreshold = 0.01f;
     private const float JumpFootstepMuteSeconds = 0.2f;
+    private bool IsThrowLocked => EquipmentHolder.Instance != null && EquipmentHolder.Instance.IsThrowAnimationLocked;
 
     void Awake()
     {
@@ -138,8 +141,11 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         HandleMouseLook();
-        HandleJump();
-        HandleCrouch();
+        if (!IsThrowLocked)
+        {
+            HandleJump();
+            HandleCrouch();
+        }
 
         // Grounded check (throttled raycast — only 12 times/sec)
         bool grounded = IsGrounded();
@@ -148,9 +154,10 @@ public class PlayerController : MonoBehaviour
         if (_animator != null)
         {
             float horizontalVel = new Vector3(_rb.linearVelocity.x, 0, _rb.linearVelocity.z).magnitude;
-            _animator.SetFloat(SpeedHash, horizontalVel);
-            _animator.SetFloat(MoveXHash, _moveInput.x);
-            _animator.SetFloat(MoveYHash, _moveInput.y);
+            bool throwLocked = IsThrowLocked;
+            _animator.SetFloat(SpeedHash, throwLocked ? 0f : horizontalVel);
+            _animator.SetFloat(MoveXHash, throwLocked ? 0f : _moveInput.x);
+            _animator.SetFloat(MoveYHash, throwLocked ? 0f : _moveInput.y);
             _animator.SetBool(GroundedHash, grounded);
         }
 
@@ -197,6 +204,18 @@ public class PlayerController : MonoBehaviour
 
     void HandleMovement()
     {
+        if (IsThrowLocked)
+        {
+            _isRunning = false;
+            _moveInput = Vector2.zero;
+
+            Vector3 lockedVelocity = _rb.linearVelocity;
+            lockedVelocity.x = 0f;
+            lockedVelocity.z = 0f;
+            _rb.linearVelocity = lockedVelocity;
+            return;
+        }
+
         _isRunning = Input.GetKey(RunKey);
         float speed = _isRunning ? RunSpeed : WalkSpeed;
         if (_isCrouched) speed = CrouchSpeed;
@@ -315,9 +334,38 @@ public class PlayerController : MonoBehaviour
             _groundedMuteUntil = Time.time + 0.15f;
             _footstepTimer = 0f;
             _footstepMuteUntil = Time.time + JumpFootstepMuteSeconds;
+            _waitingForLandingSound = true;
+            _landingSoundReadyTime = Time.time + 0.9f;
             AudioManager.Current?.StopFootsteps();
 
             if (_animator != null) _animator.SetTrigger(JumpHash);
+        }
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        TryPlayLandingSound(collision);
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        TryPlayLandingSound(collision);
+    }
+
+    private void TryPlayLandingSound(Collision collision)
+    {
+        if (!_waitingForLandingSound || Time.time < _landingSoundReadyTime)
+            return;
+
+        for (int i = 0; i < collision.contactCount; i++)
+        {
+            if (collision.GetContact(i).normal.y < 0.5f)
+                continue;
+
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.landingImpact);
+            _waitingForLandingSound = false;
+            _footstepMuteUntil = Time.time + JumpFootstepMuteSeconds;
+            return;
         }
     }
 

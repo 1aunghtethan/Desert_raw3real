@@ -219,8 +219,14 @@ public class PlayerStats : MonoBehaviour, IDamageable
 
     public void TakeDamage(float damage, Vector3 hitPoint, Vector3 hitDirection)
     {
+        float previousHealth = CurrentHealth;
         CurrentHealth = Mathf.Max(0, CurrentHealth - damage);
         Debug.Log($"[PlayerStats] Took {damage} damage. HP: {CurrentHealth}/{MaxHealth}");
+
+        if (CurrentHealth < previousHealth && AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayReduceHeartSound();
+        }
 
         if (CurrentHealth <= 0)
         {
