@@ -30,14 +30,17 @@ public class ThrowableItem : ItemBehaviour
                 GameObject obj = Instantiate(VisualizerPrefab);
                 _visualizer = obj.GetComponent<ProjectileCurveVisualizerSystem.ProjectileCurveVisualizer>();
                 if (_visualizer != null)
+                {
                     _visualizer.gravity = 9.81f * 2.5f;
+                    ConfigurePreviewIgnoredLayers(_visualizer);
+                }
             }
 
             if (_visualizer != null && OwnerCamera != null)
             {
-                Vector3 spawnPos = OwnerCamera.transform.position + OwnerCamera.transform.forward * 3f;
+                Vector3 spawnPos = transform.position;
                 Vector3 velocity = (OwnerCamera.transform.forward * 20f + Vector3.up * 5f) * _throwPower;
-                _visualizer.VisualizeProjectileCurve(spawnPos, 0f, velocity, 0.05f, 0.01f, false, out _, out _);
+                _visualizer.VisualizeProjectileCurve(spawnPos, 0.6f, velocity, 0.05f, 0.01f, false, out _, out _);
             }
         }
     }
@@ -46,6 +49,7 @@ public class ThrowableItem : ItemBehaviour
     {
         _isAiming = !_isAiming;
         IsAiming = _isAiming;
+        EquipmentHolder.Instance?.SetAimMode(_isAiming && EquipmentHolder.SupportsAimMode(Data), Data);
         if (!_isAiming && _visualizer != null)
             _visualizer.HideProjectileCurve();
         return true;
@@ -53,7 +57,9 @@ public class ThrowableItem : ItemBehaviour
 
     public override void OnUnequip()
     {
+        _isAiming = false;
         IsAiming = false;
+        EquipmentHolder.Instance?.SetAimMode(false, null);
         if (_visualizer != null)
             Destroy(_visualizer.gameObject);
     }
@@ -63,6 +69,7 @@ public class ThrowableItem : ItemBehaviour
         if (_throwInProgress || IsOnCooldown()) return false;
         _isAiming = false;
         IsAiming = false;
+        EquipmentHolder.Instance?.SetAimMode(false, null);
         if (_visualizer != null)
         {
             _visualizer.HideProjectileCurve();

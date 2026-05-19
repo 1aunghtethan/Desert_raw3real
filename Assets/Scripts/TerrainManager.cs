@@ -33,10 +33,24 @@ public class TerrainManager : MonoBehaviour
     public int LoadingRadius = 3;
     public float ColliderLODDistance = 500f;
     public float SimulationLODDistance = 400f;
+    public int MaxChunkCreatesPerFrame = 1;
+    public int MaxSceneryLoadsPerFrame = 1;
+    public int MaxVegetationLoadsPerFrame = 1;
+    public int MaxColliderBakesPerFrame = 1;
+    public int MaxMeshRebuildsPerFrame = 1;
 
     private Dictionary<Vector2Int, SandChunk> _chunks = new Dictionary<Vector2Int, SandChunk>();
     private Vector2Int _currentChunkCoord;
     private List<SandChunk> _pendingMeshRebuilds = new List<SandChunk>();
+    private Queue<Vector2Int> _pendingChunkCreates = new Queue<Vector2Int>();
+    private HashSet<Vector2Int> _pendingChunkCreateSet = new HashSet<Vector2Int>();
+    private Queue<Vector2Int> _pendingSceneryLoads = new Queue<Vector2Int>();
+    private HashSet<Vector2Int> _pendingSceneryLoadSet = new HashSet<Vector2Int>();
+    private Queue<Vector2Int> _pendingVegetationLoads = new Queue<Vector2Int>();
+    private HashSet<Vector2Int> _pendingVegetationLoadSet = new HashSet<Vector2Int>();
+    private HashSet<Vector2Int> _desiredTerrainCoords = new HashSet<Vector2Int>();
+    private HashSet<Vector2Int> _desiredSceneryCoords = new HashSet<Vector2Int>();
+    private HashSet<Vector2Int> _desiredVegetationCoords = new HashSet<Vector2Int>();
 
     // ── Oasis Management ──
     public struct OasisData
@@ -109,6 +123,7 @@ public class TerrainManager : MonoBehaviour
         }
 
         UpdateChunks();
+        ProcessStreamingQueues();
     }
 
     private float GetPlayerGroundClearance()
@@ -126,6 +141,7 @@ public class TerrainManager : MonoBehaviour
         if (Player == null) return;
 
         UpdateChunks();
+        ProcessStreamingQueues();
 
         // 1. Every-Frame LOD Updates (Distance check must be fast)
         float chunkSizeWorld = (Config.ChunkSize - 1) * Config.CellSize;
@@ -143,7 +159,7 @@ public class TerrainManager : MonoBehaviour
         int bakedThisFrame = 0;
         foreach (var chunk in _chunks.Values)
         {
-            if (bakedThisFrame >= 1) break;
+            if (bakedThisFrame >= Mathf.Max(0, MaxColliderBakesPerFrame)) break;
             if (chunk.NeedsColliderBake)
             {
                 chunk.BakeCollider();
@@ -153,7 +169,8 @@ public class TerrainManager : MonoBehaviour
 
         // 1c. Staggered Mesh Rebuilds (1 neighbor per frame to spread the transition spike)
         int rebuiltThisFrame = 0;
-        for (int i = _pendingMeshRebuilds.Count - 1; i >= 0 && rebuiltThisFrame < 1; i--)
+        int meshBudget = Mathf.Max(0, MaxMeshRebuildsPerFrame);
+        for (int i = _pendingMeshRebuilds.Count - 1; i >= 0 && rebuiltThisFrame < meshBudget; i--)
         {
             SandChunk chunk = _pendingMeshRebuilds[i];
             if (chunk == null || !_chunks.ContainsKey(chunk.ChunkCoord))
@@ -403,41 +420,18 @@ public class TerrainManager : MonoBehaviour
             }
         }
 
-        // 4. Load/Unload Assets (Mountains and Oases can load early as they don't depend on prewarmed sand)
-        if (MountainSpawner.Instance != null)
-        {
-            foreach (var coord in mountainCoords)
-            {
-                MountainSpawner.Instance.LoadMountainsForChunk(coord);
-                LoadOasisAssetsForChunk(coord);
-            }
-            MountainSpawner.Instance.UnloadDistantMountains(mountainCoords);
-            UnloadDistantOases(mountainCoords);
-        }
-        else
-        {
-            foreach (var coord in mountainCoords)
-            {
-                LoadOasisAssetsForChunk(coord);
-            }
-            UnloadDistantOases(mountainCoords);
-        }
+        _desiredTerrainCoords = activeCoords;
+        _desiredSceneryCoords = mountainCoords;
+        _desiredVegetationCoords = vegetationCoords;
 
-        // 5. Cleanup old terrain chunks
-        List<Vector2Int> newlyCreated = new List<Vector2Int>();
-        foreach (var coord in activeCoords)
-        {
-            if (!_chunks.ContainsKey(coord))
-            {
-                CreateChunk(coord);
-                newlyCreated.Add(coord);
-            }
-        }
+        QueueMissingCoordsByDistance(_desiredSceneryCoords, _pendingSceneryLoads, _pendingSceneryLoadSet, coord => true);
+        QueueMissingCoordsByDistance(_desiredTerrainCoords, _pendingChunkCreates, _pendingChunkCreateSet, coord => !_chunks.ContainsKey(coord));
+        QueueMissingCoordsByDistance(_desiredVegetationCoords, _pendingVegetationLoads, _pendingVegetationLoadSet, coord => true);
 
         List<Vector2Int> toRemove = new List<Vector2Int>();
         foreach (var kvp in _chunks)
         {
-            if (!activeCoords.Contains(kvp.Key))
+            if (!_desiredTerrainCoords.Contains(kvp.Key))
             {
                 toRemove.Add(kvp.Key);
             }
@@ -448,68 +442,145 @@ public class TerrainManager : MonoBehaviour
             DestroyChunk(coord);
         }
 
-        // 6. Neighbor cache, Edge Syncing, and Mesh Rebuilding
-        if (newlyCreated.Count > 0 || toRemove.Count > 0)
+        if (toRemove.Count > 0)
         {
-            foreach (var chunk in _chunks.Values) {
-                RefreshNeighbors(chunk);
-            }
-            
-            foreach (var coord in newlyCreated)
-            {
-                if (_chunks.TryGetValue(coord, out SandChunk chunk))
-                {
-                    chunk.SyncEdgesFromNeighbors();
-                }
-            }
-
-            // Build new chunks immediately (they need to be visible)
-            if (newlyCreated.Count > 0)
-            {
-                List<SandChunk> immediateRebuild = new List<SandChunk>();
-                foreach (var coord in newlyCreated)
-                {
-                    if (_chunks.TryGetValue(coord, out SandChunk c))
-                        immediateRebuild.Add(c);
-                }
-
-                if (immediateRebuild.Count > 0)
-                {
-                    Unity.Collections.NativeArray<Unity.Jobs.JobHandle> handles =
-                        new Unity.Collections.NativeArray<Unity.Jobs.JobHandle>(immediateRebuild.Count, Unity.Collections.Allocator.Temp);
-                    for (int m = 0; m < immediateRebuild.Count; m++)
-                        handles[m] = immediateRebuild[m].ScheduleMeshUpdate(default);
-                    Unity.Jobs.JobHandle.CompleteAll(handles);
-                    handles.Dispose();
-                    for (int m = 0; m < immediateRebuild.Count; m++)
-                        immediateRebuild[m].ApplyMeshUpdate();
-                }
-
-                // Queue neighbors for staggered rebuild (2 per frame)
-                foreach (var coord in newlyCreated)
-                {
-                    if (_chunks.TryGetValue(coord, out SandChunk c))
-                    {
-                        for (int n = 0; n < 8; n++)
-                        {
-                            SandChunk nb = c.Neighbors[n];
-                            if (nb != null && nb.IsInitialized && !newlyCreated.Contains(nb.ChunkCoord))
-                                _pendingMeshRebuilds.Add(nb);
-                        }
-                    }
-                }
-            }
+            RefreshAllNeighbors();
         }
 
-        // 7. Load/Unload Vegetation (LAST: ensures chunks exist and are prewarmed for grounding)
-        foreach (var coord in vegetationCoords)
-        {
-            if (PlantSpawner.Instance != null) PlantSpawner.Instance.LoadPlantsForChunk(coord);
-            if (ApronBushSpawner.Instance != null) ApronBushSpawner.Instance.LoadBushesForChunk(coord);
-        }
+        if (MountainSpawner.Instance != null) MountainSpawner.Instance.UnloadDistantMountains(_desiredSceneryCoords);
+        UnloadDistantOases(_desiredSceneryCoords);
+        if (PlantSpawner.Instance != null) PlantSpawner.Instance.UnloadDistantPlants(_desiredVegetationCoords);
+        if (ApronBushSpawner.Instance != null) ApronBushSpawner.Instance.UnloadDistantBushes(_desiredVegetationCoords);
+    }
 
-        if (PlantSpawner.Instance != null) PlantSpawner.Instance.UnloadDistantPlants(vegetationCoords);
-        if (ApronBushSpawner.Instance != null) ApronBushSpawner.Instance.UnloadDistantBushes(vegetationCoords);
+    private void ProcessStreamingQueues()
+    {
+        ProcessPendingSceneryLoads();
+        ProcessPendingChunkCreates();
+        ProcessPendingVegetationLoads();
+    }
+
+    private void ProcessPendingSceneryLoads()
+    {
+        int budget = Mathf.Max(0, MaxSceneryLoadsPerFrame);
+        int processed = 0;
+
+        while (_pendingSceneryLoads.Count > 0 && processed < budget)
+        {
+            Vector2Int coord = _pendingSceneryLoads.Dequeue();
+            _pendingSceneryLoadSet.Remove(coord);
+
+            if (!_desiredSceneryCoords.Contains(coord))
+                continue;
+
+            if (MountainSpawner.Instance != null)
+                MountainSpawner.Instance.LoadMountainsForChunk(coord);
+
+            LoadOasisAssetsForChunk(coord);
+            processed++;
+        }
+    }
+
+    private void ProcessPendingChunkCreates()
+    {
+        int budget = Mathf.Max(0, MaxChunkCreatesPerFrame);
+        int processed = 0;
+
+        while (_pendingChunkCreates.Count > 0 && processed < budget)
+        {
+            Vector2Int coord = _pendingChunkCreates.Dequeue();
+            _pendingChunkCreateSet.Remove(coord);
+
+            if (!_desiredTerrainCoords.Contains(coord) || _chunks.ContainsKey(coord))
+                continue;
+
+            CreateChunk(coord);
+            RefreshAllNeighbors();
+
+            if (_chunks.TryGetValue(coord, out SandChunk chunk))
+            {
+                chunk.SyncEdgesFromNeighbors();
+                AddPendingMeshRebuild(chunk);
+                QueueNeighborMeshRebuilds(chunk);
+            }
+
+            processed++;
+        }
+    }
+
+    private void ProcessPendingVegetationLoads()
+    {
+        int budget = Mathf.Max(0, MaxVegetationLoadsPerFrame);
+        int processed = 0;
+
+        while (_pendingVegetationLoads.Count > 0 && processed < budget)
+        {
+            Vector2Int coord = _pendingVegetationLoads.Dequeue();
+            _pendingVegetationLoadSet.Remove(coord);
+
+            if (!_desiredVegetationCoords.Contains(coord))
+                continue;
+
+            if (PlantSpawner.Instance != null)
+                PlantSpawner.Instance.LoadPlantsForChunk(coord);
+
+            if (ApronBushSpawner.Instance != null)
+                ApronBushSpawner.Instance.LoadBushesForChunk(coord);
+
+            processed++;
+        }
+    }
+
+    private void QueueMissingCoordsByDistance(
+        HashSet<Vector2Int> desiredCoords,
+        Queue<Vector2Int> pendingQueue,
+        HashSet<Vector2Int> pendingSet,
+        System.Func<Vector2Int, bool> shouldQueue)
+    {
+        List<Vector2Int> coords = new List<Vector2Int>(desiredCoords);
+        coords.Sort((a, b) => GetChunkCoordDistanceScore(a).CompareTo(GetChunkCoordDistanceScore(b)));
+
+        foreach (var coord in coords)
+        {
+            if (!shouldQueue(coord) || pendingSet.Contains(coord))
+                continue;
+
+            pendingQueue.Enqueue(coord);
+            pendingSet.Add(coord);
+        }
+    }
+
+    private int GetChunkCoordDistanceScore(Vector2Int coord)
+    {
+        int dx = coord.x - _currentChunkCoord.x;
+        int dy = coord.y - _currentChunkCoord.y;
+        return dx * dx + dy * dy;
+    }
+
+    private void RefreshAllNeighbors()
+    {
+        foreach (var chunk in _chunks.Values)
+        {
+            RefreshNeighbors(chunk);
+        }
+    }
+
+    private void QueueNeighborMeshRebuilds(SandChunk chunk)
+    {
+        for (int n = 0; n < chunk.Neighbors.Length; n++)
+        {
+            SandChunk neighbor = chunk.Neighbors[n];
+            if (neighbor != null && neighbor.IsInitialized)
+                AddPendingMeshRebuild(neighbor);
+        }
+    }
+
+    private void AddPendingMeshRebuild(SandChunk chunk)
+    {
+        if (chunk == null || _pendingMeshRebuilds.Contains(chunk))
+            return;
+
+        _pendingMeshRebuilds.Add(chunk);
     }
 
     void RefreshNeighbors(SandChunk chunk)
@@ -1037,8 +1108,6 @@ public class TerrainManager : MonoBehaviour
         }
 
         int count = Config.OasisFishCountPerOasis;
-        Debug.Log($"[OasisFish] Spawning {count} fish for oasis at {center}");
-
         for (int i = 0; i < count; i++)
         {
             // Spawn closer to surface and spread out in radius
@@ -1121,7 +1190,6 @@ public class TerrainManager : MonoBehaviour
             fish.transform.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
             
             assets.Add(fish);
-            Debug.Log($"[OasisFish] Spawned massive {fish.name} at {spawnPos} (Scale 10)");
         }
     }
 

@@ -15,7 +15,7 @@ MonoBehaviour:
   ItemName: Real Grass
   Icon: {fileID: 21300000, guid: 53a4c3322de44df4daad676e9107f6cb, type: 3}
   Type: 2
-  Prefab: {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
+  Prefab: {fileID: 5980154359073222182, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
   PrefabVariants: []
   MaxStack: 25
   Damage: 0
@@ -23,8 +23,7 @@ MonoBehaviour:
   Range: 2
   ProjectilePrefab: {fileID: 0}
   ProjectileSpeed: 30
-  DropPrefab: {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2,
-    type: 3}
+  DropPrefab: {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
   PickupsSpinAndBob: 0
   HoldPosition: {x: 0, y: 0, z: 0}
   HoldRotation: {x: 0, y: 0, z: 0}

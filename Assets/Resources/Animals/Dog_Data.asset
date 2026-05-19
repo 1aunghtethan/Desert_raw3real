@@ -19,3 +19,4 @@ MonoBehaviour:
   WanderIntervalMin: 2
   WanderIntervalMax: 5
   LootPrefab: {fileID: 0}
+  CanEatGrass: 0

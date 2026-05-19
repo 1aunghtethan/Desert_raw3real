@@ -19,3 +19,13 @@ MonoBehaviour:
   WanderIntervalMin: 2
   WanderIntervalMax: 5
   LootPrefab: {fileID: 0}
+  CanEatGrass: 0
+  UsePlayerAvoidance: 1
+  PlayerDangerRadius: 10
+  PlayerAwarenessRadius: 40
+  GrassWanderRadius: 15
+  WalkSpeed: 3
+  RunSpeed: 6
+  DamageFleeDuration: 4
+  FleeDistanceMin: 15
+  FleeDistanceMax: 25

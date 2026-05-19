@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -16,11 +17,34 @@ public class MeleeWeapon : ItemBehaviour
     private Quaternion _swingEndRot;
     private Quaternion _restRotation;
     private bool _hasHitThisSwing = false;
+    private Coroutine _rawKnifeSwingSoundRoutine;
+    private Coroutine _rawKnifeHitRoutine;
+    private Coroutine _stoneSpearHitRoutine;
+
+    private const float RawKnifeSwingSoundDelay = 0.1f;
+    private const float RawKnifeHitDelay = 0.2f;
+    private const float StoneSpearHitDelay = 0.1f;
 
     public override void OnEquip(ItemData data, Transform owner, Camera cam)
     {
         base.OnEquip(data, owner, cam);
         _restRotation = transform.localRotation;
+    }
+
+    public override void OnUnequip()
+    {
+        base.OnUnequip();
+
+        if (_rawKnifeSwingSoundRoutine != null)
+            StopCoroutine(_rawKnifeSwingSoundRoutine);
+        if (_rawKnifeHitRoutine != null)
+            StopCoroutine(_rawKnifeHitRoutine);
+        if (_stoneSpearHitRoutine != null)
+            StopCoroutine(_stoneSpearHitRoutine);
+
+        _rawKnifeSwingSoundRoutine = null;
+        _rawKnifeHitRoutine = null;
+        _stoneSpearHitRoutine = null;
     }
 
     protected virtual void Update()
@@ -45,7 +69,7 @@ public class MeleeWeapon : ItemBehaviour
             }
 
             // Hit detection during the forward swing
-            if (t > 0.1f && t < 0.5f && !_hasHitThisSwing)
+            if (!UsesDelayedMeleeHit() && t > 0.1f && t < 0.5f && !_hasHitThisSwing)
             {
                 PerformHitDetection();
             }
@@ -65,13 +89,101 @@ public class MeleeWeapon : ItemBehaviour
 
         // Start swing animation
         _isSwinging = true;
-        if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponSwing);
+        if (IsRawKnife())
+        {
+            EquipmentHolder.Instance?.TriggerRawKnifeMeleeAnimation();
+            StartRawKnifeSwingSound();
+            StartRawKnifeDelayedHit();
+        }
+        else if (IsStoneSpear())
+        {
+            EquipmentHolder.Instance?.TriggerStoneSpearMeleeAnimation();
+            PlaySwingSound();
+            StartStoneSpearDelayedHit();
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponSwing);
+        }
         _swingTimer = 0f;
         _hasHitThisSwing = false;
         _swingStartRot = _restRotation;
         _swingEndRot = _restRotation * Quaternion.Euler(-SwingAngle, 0, 0);
 
         return true;
+    }
+
+    private bool IsRawKnife()
+    {
+        return Data != null && Data.ItemName == "Raw Knife";
+    }
+
+    private bool IsStoneSpear()
+    {
+        return Data != null && Data.ItemName == "Stone Spear";
+    }
+
+    private bool UsesDelayedMeleeHit()
+    {
+        return IsRawKnife() || IsStoneSpear();
+    }
+
+    private void StartRawKnifeSwingSound()
+    {
+        if (_rawKnifeSwingSoundRoutine != null)
+            StopCoroutine(_rawKnifeSwingSoundRoutine);
+
+        _rawKnifeSwingSoundRoutine = StartCoroutine(RawKnifeSwingSoundRoutine());
+    }
+
+    private void StartRawKnifeDelayedHit()
+    {
+        if (_rawKnifeHitRoutine != null)
+            StopCoroutine(_rawKnifeHitRoutine);
+
+        _rawKnifeHitRoutine = StartCoroutine(RawKnifeHitRoutine());
+    }
+
+    private void StartStoneSpearDelayedHit()
+    {
+        if (_stoneSpearHitRoutine != null)
+            StopCoroutine(_stoneSpearHitRoutine);
+
+        _stoneSpearHitRoutine = StartCoroutine(StoneSpearHitRoutine());
+    }
+
+    private IEnumerator RawKnifeSwingSoundRoutine()
+    {
+        yield return new WaitForSeconds(RawKnifeSwingSoundDelay);
+        PlaySwingSound();
+
+        _rawKnifeSwingSoundRoutine = null;
+    }
+
+    private IEnumerator RawKnifeHitRoutine()
+    {
+        yield return new WaitForSeconds(RawKnifeHitDelay);
+
+        if (!_hasHitThisSwing)
+            PerformHitDetection();
+
+        _rawKnifeHitRoutine = null;
+    }
+
+    private IEnumerator StoneSpearHitRoutine()
+    {
+        yield return new WaitForSeconds(StoneSpearHitDelay);
+
+        if (!_hasHitThisSwing)
+            PerformHitDetection();
+
+        _stoneSpearHitRoutine = null;
+    }
+
+    private static void PlaySwingSound()
+    {
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponSwing);
     }
 
     private void PerformHitDetection()

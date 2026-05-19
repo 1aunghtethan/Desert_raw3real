@@ -10,6 +10,9 @@ Shader "Custom/SandBlend"
         _Metallic ("Metallic", Range(0,1)) = 0.0
         _Tiling ("Main Tiling", Float) = 0.5
         _SecondaryTiling ("Apron Tiling", Float) = 0.3
+        _FarTextureFadeStart ("Far Texture Fade Start", Float) = 180
+        _FarTextureFadeEnd ("Far Texture Fade End", Float) = 420
+        _FarTextureFadeStrength ("Far Texture Fade Strength", Range(0,1)) = 0.45
     }
     SubShader
     {
@@ -28,6 +31,9 @@ Shader "Custom/SandBlend"
         float _Metallic;
         float _Tiling;
         float _SecondaryTiling;
+        float _FarTextureFadeStart;
+        float _FarTextureFadeEnd;
+        float _FarTextureFadeStrength;
 
         struct Input
         {
@@ -59,6 +65,10 @@ Shader "Custom/SandBlend"
 
             // Smooth hermite interpolation for natural transition
             float4 finalColor = lerp(desertTex, apronTex, blend);
+            float3 baseTint = lerp(_Color.rgb, _SecondaryColor.rgb, blend);
+            float farRange = max(0.001, _FarTextureFadeEnd - _FarTextureFadeStart);
+            float farFade = saturate((distance(IN.worldPos, _WorldSpaceCameraPos) - _FarTextureFadeStart) / farRange) * _FarTextureFadeStrength;
+            finalColor.rgb = lerp(finalColor.rgb, baseTint, farFade);
 
             o.Albedo = finalColor.rgb;
             o.Metallic = _Metallic;

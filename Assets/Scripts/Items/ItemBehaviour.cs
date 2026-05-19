@@ -38,6 +38,29 @@ public class ItemBehaviour : MonoBehaviour
         return fallback;
     }
 
+    protected void ConfigurePreviewIgnoredLayers(ProjectileCurveVisualizerSystem.ProjectileCurveVisualizer visualizer)
+    {
+        if (visualizer == null)
+            return;
+
+        int ignoredLayers = visualizer.ignoredLayers.value;
+        AddLayerToMask(ref ignoredLayers, LayerMask.NameToLayer("Player"));
+
+        visualizer.ignoredLayers = ignoredLayers;
+
+        if (OwnerTransform != null)
+        {
+            Transform ownerRoot = OwnerTransform.root != null ? OwnerTransform.root : OwnerTransform;
+            visualizer.SetIgnoredCollisionRoot(ownerRoot);
+        }
+    }
+
+    private static void AddLayerToMask(ref int mask, int layer)
+    {
+        if (layer >= 0 && layer < 32)
+            mask |= 1 << layer;
+    }
+
     /// <summary>
     /// Called when the item is equipped (spawned in hand).
     /// </summary>

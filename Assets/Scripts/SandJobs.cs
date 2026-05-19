@@ -153,7 +153,6 @@ public static class SandJobs
             int w = Size;
             int h = Size;
             
-            float minSkirtY = Origin.y - BottomDepth; 
             
             // UV tiling factor — world-space UVs for seamless cross-chunk texturing
             // E.g. setting this to 0.25f means the texture repeats every 4 world units (meters).
@@ -260,53 +259,117 @@ public static class SandJobs
 
             // Top (Along X, at Z = max)
             for (int x = 0; x < w; x++) {
+                int surfaceIndex = x + (h - 1) * w;
+                Vector3 surfaceVertex = Verts[surfaceIndex];
+                Color edgeColor = Colors[surfaceIndex];
+
+                if (HasN) {
+                    Verts[vIdx + x] = surfaceVertex;
+                    Verts[vIdx + w + x] = surfaceVertex;
+                    Normals[vIdx + x] = Normals[surfaceIndex];
+                    Normals[vIdx + w + x] = Normals[surfaceIndex];
+                    UVs[vIdx + x] = UVs[surfaceIndex];
+                    UVs[vIdx + w + x] = UVs[surfaceIndex];
+                    Colors[vIdx + x] = edgeColor;
+                    Colors[vIdx + w + x] = edgeColor;
+                    continue;
+                }
+
                 float vx = x * CellSize;
                 if (x == 0) vx -= overlap; if (x == w - 1) vx += overlap;
-                float stitchedY = Verts[x + (h-1)*w].y; // Use stitched surface height
+                float stitchedY = surfaceVertex.y; // Use stitched surface height
                 Verts[vIdx + x] = new Vector3(vx, stitchedY, (h-1)*CellSize + overlap);
                 Verts[vIdx + w + x] = new Vector3(vx, -BottomDepth, (h-1)*CellSize + overlap);
                 Normals[vIdx + x] = Vector3.forward; Normals[vIdx + w + x] = Vector3.forward;
-                UVs[vIdx + x] = Vector2.zero; UVs[vIdx+w+x] = Vector2.zero;
-                Colors[vIdx + x] = new Color(1f,1f,1f,0f); Colors[vIdx+w+x] = new Color(1f,1f,1f,0f);
+                UVs[vIdx + x] = UVs[surfaceIndex]; UVs[vIdx+w+x] = UVs[surfaceIndex];
+                Colors[vIdx + x] = edgeColor; Colors[vIdx+w+x] = edgeColor;
             }
             vIdx += 2 * w;
 
             // Bottom (Along X, at Z = 0)
             for (int x = 0; x < w; x++) {
+                int surfaceIndex = x;
+                Vector3 surfaceVertex = Verts[surfaceIndex];
+                Color edgeColor = Colors[surfaceIndex];
+
+                if (HasS) {
+                    Verts[vIdx + x] = surfaceVertex;
+                    Verts[vIdx + w + x] = surfaceVertex;
+                    Normals[vIdx + x] = Normals[surfaceIndex];
+                    Normals[vIdx + w + x] = Normals[surfaceIndex];
+                    UVs[vIdx + x] = UVs[surfaceIndex];
+                    UVs[vIdx + w + x] = UVs[surfaceIndex];
+                    Colors[vIdx + x] = edgeColor;
+                    Colors[vIdx + w + x] = edgeColor;
+                    continue;
+                }
+
                 float vx = x * CellSize;
                 if (x == 0) vx -= overlap; if (x == w - 1) vx += overlap;
-                float stitchedY = Verts[x].y; // Use stitched surface height
+                float stitchedY = surfaceVertex.y; // Use stitched surface height
                 Verts[vIdx + x] = new Vector3(vx, stitchedY, -overlap);
                 Verts[vIdx + w + x] = new Vector3(vx, -BottomDepth, -overlap);
                 Normals[vIdx + x] = Vector3.back; Normals[vIdx + w + x] = Vector3.back;
-                UVs[vIdx + x] = Vector2.zero; UVs[vIdx+w+x] = Vector2.zero;
-                Colors[vIdx + x] = new Color(1f,1f,1f,0f); Colors[vIdx+w+x] = new Color(1f,1f,1f,0f);
+                UVs[vIdx + x] = UVs[surfaceIndex]; UVs[vIdx+w+x] = UVs[surfaceIndex];
+                Colors[vIdx + x] = edgeColor; Colors[vIdx+w+x] = edgeColor;
             }
             vIdx += 2 * w;
 
             // Right (Along Z, at X = max)
             for (int y = 0; y < h; y++) {
+                int surfaceIndex = (w - 1) + y * w;
+                Vector3 surfaceVertex = Verts[surfaceIndex];
+                Color edgeColor = Colors[surfaceIndex];
+
+                if (HasE) {
+                    Verts[vIdx + y] = surfaceVertex;
+                    Verts[vIdx+h+y] = surfaceVertex;
+                    Normals[vIdx + y] = Normals[surfaceIndex];
+                    Normals[vIdx+h+y] = Normals[surfaceIndex];
+                    UVs[vIdx + y] = UVs[surfaceIndex];
+                    UVs[vIdx+h+y] = UVs[surfaceIndex];
+                    Colors[vIdx + y] = edgeColor;
+                    Colors[vIdx+h+y] = edgeColor;
+                    continue;
+                }
+
                 float vz = y * CellSize;
                 if (y == 0) vz -= overlap; if (y == h - 1) vz += overlap;
-                float stitchedY = Verts[(w-1) + y*w].y; // Use stitched surface height
+                float stitchedY = surfaceVertex.y; // Use stitched surface height
                 Verts[vIdx + y] = new Vector3((w-1)*CellSize + overlap, stitchedY, vz);
                 Verts[vIdx+h+y] = new Vector3((w-1)*CellSize + overlap, -BottomDepth, vz);
                 Normals[vIdx + y] = Vector3.right; Normals[vIdx+h+y] = Vector3.right;
-                UVs[vIdx + y] = Vector2.zero; UVs[vIdx+h+y] = Vector2.zero;
-                Colors[vIdx + y] = new Color(1f,1f,1f,0f); Colors[vIdx+h+y] = new Color(1f,1f,1f,0f);
+                UVs[vIdx + y] = UVs[surfaceIndex]; UVs[vIdx+h+y] = UVs[surfaceIndex];
+                Colors[vIdx + y] = edgeColor; Colors[vIdx+h+y] = edgeColor;
             }
             vIdx += 2 * h;
 
             // Left (Along Z, at X = 0)
             for (int y = 0; y < h; y++) {
+                int surfaceIndex = y * w;
+                Vector3 surfaceVertex = Verts[surfaceIndex];
+                Color edgeColor = Colors[surfaceIndex];
+
+                if (HasW) {
+                    Verts[vIdx + y] = surfaceVertex;
+                    Verts[vIdx+h+y] = surfaceVertex;
+                    Normals[vIdx + y] = Normals[surfaceIndex];
+                    Normals[vIdx+h+y] = Normals[surfaceIndex];
+                    UVs[vIdx + y] = UVs[surfaceIndex];
+                    UVs[vIdx+h+y] = UVs[surfaceIndex];
+                    Colors[vIdx + y] = edgeColor;
+                    Colors[vIdx+h+y] = edgeColor;
+                    continue;
+                }
+
                 float vz = y * CellSize;
                 if (y == 0) vz -= overlap; if (y == h - 1) vz += overlap;
-                float stitchedY = Verts[y*w].y; // Use stitched surface height
+                float stitchedY = surfaceVertex.y; // Use stitched surface height
                 Verts[vIdx + y] = new Vector3(-overlap, stitchedY, vz);
                 Verts[vIdx+h+y] = new Vector3(-overlap, -BottomDepth, vz);
                 Normals[vIdx + y] = Vector3.left; Normals[vIdx+h+y] = Vector3.left;
-                UVs[vIdx + y] = Vector2.zero; UVs[vIdx+h+y] = Vector2.zero;
-                Colors[vIdx + y] = new Color(1f,1f,1f,0f); Colors[vIdx+h+y] = new Color(1f,1f,1f,0f);
+                UVs[vIdx + y] = UVs[surfaceIndex]; UVs[vIdx+h+y] = UVs[surfaceIndex];
+                Colors[vIdx + y] = edgeColor; Colors[vIdx+h+y] = edgeColor;
             }
             vIdx += 2 * h;
 

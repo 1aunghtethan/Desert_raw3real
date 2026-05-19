@@ -11,6 +11,8 @@ namespace ProjectileCurveVisualizerSystem
         private MeshRenderer projectileTargetPlaneMeshRenderer;
 
         public LayerMask ignoredLayers;
+        private Transform ignoredCollisionRoot;
+        private readonly HashSet<Collider> ignoredColliders = new HashSet<Collider>();
 
         public int curveSubdivision = 32;
         public float maximumInAirTime = 6.0f;
@@ -36,7 +38,7 @@ namespace ProjectileCurveVisualizerSystem
         private Vector3 nextDetectionPosition = Vector3.zero;
         private float t;
         public List<Vector3> detectionPositionList = new List<Vector3>();
-        private Collider[] hitColliderArray = new Collider[1];
+        private Collider[] hitColliderArray = new Collider[16];
         private bool notHit = true;
         private RaycastHit defaultRaycastHit;
         private Vector3 rayDirection;
@@ -75,8 +77,6 @@ namespace ProjectileCurveVisualizerSystem
             {
                 projectileTargetPlaneMeshRenderer.material.color = hitMarkerColor;
             }
-
-            Collider[] hitColliderArray = new Collider[1];
 
             defaultRaycastHit = new RaycastHit();
         }
@@ -121,7 +121,7 @@ namespace ProjectileCurveVisualizerSystem
                 if (debugMode)
                     Debug.DrawLine(previousDetectionPosition, previousDetectionPosition + rayDirection * rayLength, Color.green);
 
-                if (Physics.Raycast(previousDetectionPosition, rayDirection, out hit, rayLength, ~ignoredLayers, QueryTriggerInteraction.Ignore))
+                if (TryRaycastNonIgnored(previousDetectionPosition, rayDirection, rayLength, out hit))
                 {
                     notHit = false;
 
@@ -148,11 +148,10 @@ namespace ProjectileCurveVisualizerSystem
                 else
                 {
                     // Perform sphere physics detection at current position, check whether there is obstacle on either side of the curve
-                    if (Physics.OverlapSphereNonAlloc(nextDetectionPosition, projectileRadius, hitColliderArray, ~ignoredLayers, QueryTriggerInteraction.Ignore) > 0)
+                    if (TryOverlapSphereNonIgnored(nextDetectionPosition, projectileRadius, out Collider col))
                     {
                         notHit = false;
 
-                        Collider col = hitColliderArray[0];
                         if (col is BoxCollider || col is SphereCollider || col is CapsuleCollider || (col is MeshCollider mc && mc.convex))
                         {
                             hitPosition = col.ClosestPoint(nextDetectionPosition);
@@ -162,6 +161,8 @@ namespace ProjectileCurveVisualizerSystem
                             hitPosition = col.bounds.ClosestPoint(nextDetectionPosition);
                         }
                         hitNormal = Vector3.Normalize(nextDetectionPosition - hitPosition);
+                        if (hitNormal.sqrMagnitude <= 0.0001f)
+                            hitNormal = Vector3.up;
 
                         break;
                     }
@@ -267,7 +268,7 @@ namespace ProjectileCurveVisualizerSystem
                 if (debugMode)
                     Debug.DrawLine(previousDetectionPosition, previousDetectionPosition + rayDirection * rayLength, Color.green);
 
-                if (Physics.Raycast(previousDetectionPosition, rayDirection, out hit, rayLength, ~ignoredLayers, QueryTriggerInteraction.Ignore))
+                if (TryRaycastNonIgnored(previousDetectionPosition, rayDirection, rayLength, out hit))
                 {
                     notHit = false;
 
@@ -282,11 +283,10 @@ namespace ProjectileCurveVisualizerSystem
                 else
                 {
                     // Perform sphere physics detection at current position, check whether there is obstacle on either side of the curve
-                    if (Physics.OverlapSphereNonAlloc(nextDetectionPosition, projectileRadius, hitColliderArray, ~ignoredLayers, QueryTriggerInteraction.Ignore) > 0)
+                    if (TryOverlapSphereNonIgnored(nextDetectionPosition, projectileRadius, out Collider col))
                     {
                         notHit = false;
 
-                        Collider col = hitColliderArray[0];
                         if (col is BoxCollider || col is SphereCollider || col is CapsuleCollider || (col is MeshCollider mc && mc.convex))
                         {
                             hitPosition = col.ClosestPoint(nextDetectionPosition);
@@ -296,6 +296,8 @@ namespace ProjectileCurveVisualizerSystem
                             hitPosition = col.bounds.ClosestPoint(nextDetectionPosition);
                         }
                         hitNormal = Vector3.Normalize(nextDetectionPosition - hitPosition);
+                        if (hitNormal.sqrMagnitude <= 0.0001f)
+                            hitNormal = Vector3.up;
 
                         break;
                     }
@@ -344,6 +346,72 @@ namespace ProjectileCurveVisualizerSystem
                 lineRenderer.enabled = false;
                 projectileTargetPlaneMeshRenderer.enabled = false;
             }
+        }
+
+        public void SetIgnoredCollisionRoot(Transform root)
+        {
+            ignoredCollisionRoot = root;
+            ignoredColliders.Clear();
+
+            if (ignoredCollisionRoot == null)
+                return;
+
+            foreach (Collider col in ignoredCollisionRoot.GetComponentsInChildren<Collider>(true))
+            {
+                if (col != null)
+                    ignoredColliders.Add(col);
+            }
+        }
+
+        private bool TryRaycastNonIgnored(Vector3 origin, Vector3 direction, float distance, out RaycastHit hit)
+        {
+            hit = defaultRaycastHit;
+
+            RaycastHit[] hits = Physics.RaycastAll(origin, direction, distance, ~ignoredLayers, QueryTriggerInteraction.Ignore);
+            if (hits.Length == 0)
+                return false;
+
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+
+            foreach (RaycastHit candidate in hits)
+            {
+                if (IsColliderIgnored(candidate.collider))
+                    continue;
+
+                hit = candidate;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryOverlapSphereNonIgnored(Vector3 position, float radius, out Collider hitCollider)
+        {
+            hitCollider = null;
+
+            int hitCount = Physics.OverlapSphereNonAlloc(position, radius, hitColliderArray, ~ignoredLayers, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hitCount; i++)
+            {
+                Collider candidate = hitColliderArray[i];
+                if (IsColliderIgnored(candidate))
+                    continue;
+
+                hitCollider = candidate;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsColliderIgnored(Collider col)
+        {
+            if (col == null)
+                return false;
+
+            if (ignoredColliders.Contains(col))
+                return true;
+
+            return ignoredCollisionRoot != null && col.transform.IsChildOf(ignoredCollisionRoot);
         }
     }
 }

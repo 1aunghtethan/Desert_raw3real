@@ -667,8 +667,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2652519870797283578}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.0000000022921263, y: -0.000000011386918, z: -0.19733639,
-    w: 0.98033583}
+  m_LocalRotation: {x: -0.0000000022921263, y: -0.000000011386918, z: -0.19733639, w: 0.98033583}
   m_LocalPosition: {x: -0.058099296, y: -8.4154904e-16, z: 3.8763118e-10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -766,8 +765,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 1.83, y: 1.83, z: 1.83}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 4085409289779720742}
   - {fileID: 2510908466372733018}
@@ -1755,8 +1754,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5012116305497778309}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.0000000025169968, y: -0.000000011339333, z: -0.17789929,
-    w: 0.9840487}
+  m_LocalRotation: {x: -0.0000000025169968, y: -0.000000011339333, z: -0.17789929, w: 0.9840487}
   m_LocalPosition: {x: 0.058099296, y: -7.283063e-16, z: 5.739812e-11}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3299,7 +3297,7 @@ Transform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 3889190941935167343}
   - {fileID: 8814250875314498859}
@@ -3404,3 +3402,4 @@ MonoBehaviour:
   Data: {fileID: 0}
   HeartFeedbackPrefab: {fileID: 0}
   FeedbackOffset: {x: 0, y: 1.5, z: 0}
+  LootPrefabOverride: {fileID: 0}

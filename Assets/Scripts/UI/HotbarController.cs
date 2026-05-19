@@ -105,6 +105,7 @@ public class HotbarController : MonoBehaviour
             slot.Background = slotTransform.gameObject.AddComponent<Image>();
             slot.Background.color = NormalColor;
         }
+        ClearSlotSourceImage(slot.Background);
 
         // Find or create icon Image child
         Transform iconChild = slotTransform.Find("Icon");
@@ -190,6 +191,16 @@ public class HotbarController : MonoBehaviour
         return slot;
     }
 
+    private void ClearSlotSourceImage(Image slotImage)
+    {
+        if (slotImage == null)
+            return;
+
+        slotImage.sprite = null;
+        slotImage.overrideSprite = null;
+        slotImage.type = Image.Type.Simple;
+    }
+
     private void OnSelectionChanged(int index, ItemData item)
     {
         RefreshAll();
@@ -208,23 +219,28 @@ public class HotbarController : MonoBehaviour
             ItemData item = _inventory.Slots[idx];
             int count = _inventory.SlotCounts[idx];
 
+            ClearSlotSourceImage(slot.Background);
+
             // Update icon
             if (item != null && item.Icon != null)
             {
                 slot.Icon.sprite = item.Icon;
                 slot.Icon.color = Color.white;
+                slot.Icon.gameObject.SetActive(true);
                 if (slot.NameText != null) slot.NameText.text = "";
             }
             else if (item != null)
             {
                 slot.Icon.sprite = null;
                 slot.Icon.color = new Color(1f, 1f, 1f, 0f);
+                slot.Icon.gameObject.SetActive(false);
                 if (slot.NameText != null) slot.NameText.text = item.ItemName;
             }
             else
             {
                 slot.Icon.sprite = null;
                 slot.Icon.color = new Color(1f, 1f, 1f, 0f);
+                slot.Icon.gameObject.SetActive(false);
                 if (slot.NameText != null) slot.NameText.text = "";
             }
 

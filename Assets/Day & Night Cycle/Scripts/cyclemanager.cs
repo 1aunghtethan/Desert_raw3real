@@ -31,7 +31,7 @@ public class cyclemanager : MonoBehaviour
     [Space]
     [Header("Fade Settings")]
     [Tooltip("Real seconds used to fade the sun light and moon visual in or out.")]
-    [Min(0.01f)] public float fadeDurationSeconds = 4f;
+    [Min(0.01f)] public float fadeDurationSeconds = 10f;
 
     [Space]
     [Header("☀️ Sun Configuration")]

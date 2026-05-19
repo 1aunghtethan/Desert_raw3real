@@ -199,11 +199,6 @@ public class SandChunk : MonoBehaviour
             ? TerrainManager.Instance.GetNearbyOases(ChunkCoord)
             : new System.Collections.Generic.List<TerrainManager.OasisData>();
 
-        if (nearbyMountains.Count > 0)
-        {
-            Debug.Log($"[SandChunk] Chunk {ChunkCoord} found {nearbyMountains.Count} nearby mountains. First at ({nearbyMountains[0].position.x:F0},{nearbyMountains[0].position.y:F0}) radius={nearbyMountains[0].radius:F0}");
-        }
-
         for (int z = 0; z < Config.ChunkSize; z++)
         {
             for (int x = 0; x < Config.ChunkSize; x++)
@@ -298,13 +293,6 @@ public class SandChunk : MonoBehaviour
                 }
                 
                 float fHeight = TerrainManager.Instance.GetSurfaceHeight(wx, wz, maxInf, flatness, oasisInf, oasisFlatInf, oasisRimInf, oasisShoreRidgeInf);
-                
-                if (maxInf > 0f) 
-                {
-                    // Only log rarely so we don't spam the console too much
-                    if (x == 32 && z == 32)
-                        Debug.Log($"Mountain Influence applied at {wx},{wz}: maxInf={maxInf}, flatness={flatness}");
-                }
                 
                 int idx = x + z * Config.ChunkSize;
                 HeightsRead[idx] = fHeight;

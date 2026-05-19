@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SwardedCactausWater_ItemData
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   ItemName: Swarded Cactaus Water
-  Icon: {fileID: 21300000, guid: 16cdf36a777e6e34d8c6a6a4a4e7a923, type: 3}
+  Icon: {fileID: 21300000, guid: c9b7f13bebf420449a71093b7a87dd3c, type: 3}
   Type: 2
   Prefab: {fileID: 1960136721168894779, guid: b2f93c813b59b80419b8535316101684, type: 3}
   PrefabVariants: []

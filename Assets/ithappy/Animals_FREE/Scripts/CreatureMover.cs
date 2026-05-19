@@ -80,6 +80,13 @@ namespace ithappy.Animals_FREE
                 m_Animation.AnimateIK(in m_Target, m_LookWeight);
         }
 
+        public void SetMovementSpeeds(float walkSpeed, float runSpeed)
+        {
+            m_WalkSpeed = Mathf.Max(0f, walkSpeed);
+            m_RunSpeed = Mathf.Max(m_WalkSpeed, runSpeed);
+            m_Movement?.SetStats(m_WalkSpeed, m_RunSpeed, m_RotateSpeed, m_JumpHeight, m_Space);
+        }
+
         public void SetInput(in Vector2 axis, in Vector3 target, in bool isRun, in bool isJump)
         {
             m_Axis = axis;

@@ -18,7 +18,7 @@ MonoBehaviour:
   Prefab: {fileID: 8191564400290573261, guid: 933bcc346bf9e9649a35eb4a512219a3, type: 3}
   PrefabVariants: []
   MaxStack: 1
-  Damage: 32
+  Damage: 80
   AttackSpeed: 1
   Range: 80
   ProjectilePrefab: {fileID: 0}

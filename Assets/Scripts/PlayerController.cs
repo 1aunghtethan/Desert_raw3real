@@ -60,6 +60,7 @@ public class PlayerController : MonoBehaviour
 
     // ─── Animation ───
     private Animator _animator;
+    private InteractionManager _interactionManager;
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int MoveXHash = Animator.StringToHash("MoveX");
     private static readonly int MoveYHash = Animator.StringToHash("MoveY");
@@ -87,6 +88,7 @@ public class PlayerController : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
         _capsule = GetComponent<CapsuleCollider>();
         _animator = GetComponentInChildren<Animator>();
+        _interactionManager = GetComponent<InteractionManager>();
     }
 
     void Start()
@@ -216,9 +218,21 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        _isRunning = Input.GetKey(RunKey);
+        bool runLocked = EquipmentHolder.Instance != null &&
+            (EquipmentHolder.Instance.IsAimModeActive || EquipmentHolder.Instance.IsStoneSpearAttackActive);
+        _isRunning = !runLocked && Input.GetKey(RunKey);
         float speed = _isRunning ? RunSpeed : WalkSpeed;
         if (_isCrouched) speed = CrouchSpeed;
+
+        if (EquipmentHolder.Instance != null)
+        {
+            speed *= EquipmentHolder.Instance.MovementSpeedMultiplier;
+        }
+
+        if (_interactionManager != null)
+        {
+            speed *= _interactionManager.MovementSpeedMultiplier;
+        }
 
         if (MountainSpawner.Instance != null && TerrainManager.Instance != null && TerrainManager.Instance.Config != null)
         {

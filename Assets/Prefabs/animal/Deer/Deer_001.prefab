@@ -1139,9 +1139,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a45586618ce4c88488604434a4dc7ce3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AnimalAI
-  m_WanderRadius: 10
-  m_WanderIntervalMin: 2
-  m_WanderIntervalMax: 5
+  Data: {fileID: 0}
 --- !u!114 &4763017340500790645
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1154,9 +1152,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a663d8a3fd3e7a04eb337aaeb7015c8f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AnimalHealth
-  MaxHealth: 30
+  Data: {fileID: 0}
   HeartFeedbackPrefab: {fileID: 0}
   FeedbackOffset: {x: 0, y: 1.5, z: 0}
+  LootPrefabOverride: {fileID: 0}
 --- !u!1 &7500468941402322376
 GameObject:
   m_ObjectHideFlags: 0

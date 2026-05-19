@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SwardedCactaus_ItemData
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   ItemName: Swarded Cactaus
-  Icon: {fileID: 21300000, guid: 3f62e7e930164f7478a81dfccf95ea97, type: 3}
+  Icon: {fileID: 21300000, guid: 6f4f6d7dbbafeec4eb7abd2d34716cbc, type: 3}
   Type: 2
   Prefab: {fileID: 3421749175523005159, guid: 82543278f2d90e649914170d6f2e4ca6, type: 3}
   PrefabVariants: []

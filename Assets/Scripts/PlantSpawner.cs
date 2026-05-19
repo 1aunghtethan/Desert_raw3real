@@ -51,6 +51,68 @@ public class PlantSpawner : MonoBehaviour
 
         if (TerrainGrassPrefabs.Count > 0) LoadedTerrainGrassPrefabs = TerrainGrassPrefabs;
         else if (_tm.Config.TerrainGrassPrefabs != null) LoadedTerrainGrassPrefabs = _tm.Config.TerrainGrassPrefabs;
+
+        RemoveMissingPrefabs(LoadedPlantPrefabs);
+        RemoveMissingPrefabs(LoadedJoshuaTreePrefabs);
+        EnsureTerrainGrassPrefabs();
+    }
+
+    public bool TryGetRandomTerrainGrassNear(Vector3 center, float radius, out Vector3 grassPosition)
+    {
+        grassPosition = center;
+
+        if (!TryGetRandomTerrainGrassNear(center, radius, out GameObject selected))
+            return false;
+
+        grassPosition = selected.transform.position;
+        return true;
+    }
+
+    public bool TryGetRandomTerrainGrassNear(Vector3 center, float radius, out GameObject selected)
+    {
+        selected = null;
+
+        float sqrRadius = radius * radius;
+        int matchedCount = 0;
+
+        foreach (List<GameObject> plants in _activePlants.Values)
+        {
+            for (int i = plants.Count - 1; i >= 0; i--)
+            {
+                GameObject plant = plants[i];
+                if (plant == null)
+                {
+                    plants.RemoveAt(i);
+                    continue;
+                }
+
+                if (!IsTerrainGrassObject(plant))
+                    continue;
+
+                Vector3 offset = plant.transform.position - center;
+                offset.y = 0f;
+                if (offset.sqrMagnitude > sqrRadius)
+                    continue;
+
+                matchedCount++;
+                if (Random.Range(0, matchedCount) == 0)
+                    selected = plant;
+            }
+        }
+
+        if (selected == null)
+            return false;
+
+        return true;
+    }
+
+    private static bool IsTerrainGrassObject(GameObject plant)
+    {
+        LootItem loot = plant.GetComponent<LootItem>();
+        if (loot == null || loot.Data == null)
+            return false;
+
+        return loot.Data.name == "RealGrass_ItemData" || loot.Data.ItemName == "Real Grass";
     }
 
     /// <summary>
@@ -145,12 +207,12 @@ public class PlantSpawner : MonoBehaviour
 
     private void SpawnTerrainGrass(Vector2Int coord)
     {
+        EnsureTerrainGrassPrefabs();
         if (LoadedTerrainGrassPrefabs == null || LoadedTerrainGrassPrefabs.Count == 0) return;
 
         int targetCount = Random.Range(_tm.Config.TerrainGrassCountPerChunk.x, _tm.Config.TerrainGrassCountPerChunk.y + 1);
         int attempts = targetCount * 8;
         int spawnedFormations = 0;
-        int spawnedBlades = 0;
 
         for (int i = 0; i < attempts && spawnedFormations < targetCount; i++)
         {
@@ -158,12 +220,6 @@ public class PlantSpawner : MonoBehaviour
             if (blades <= 0) continue;
 
             spawnedFormations++;
-            spawnedBlades += blades;
-        }
-
-        if (spawnedBlades > 0)
-        {
-            Debug.Log($"[PlantSpawner] Chunk {coord}: Terrain grass formations={spawnedFormations}/{targetCount}, blades={spawnedBlades}");
         }
     }
 
@@ -234,14 +290,12 @@ public class PlantSpawner : MonoBehaviour
 
     private void InstantiateTerrainGrassAtPos(Vector3 position, Vector2Int coord)
     {
+        EnsureTerrainGrassPrefabs();
+        if (LoadedTerrainGrassPrefabs == null || LoadedTerrainGrassPrefabs.Count == 0) return;
+
         float yPos = _tm.SampleHeight(position) - _tm.Config.TerrainGrassGroundingOffset;
         Vector3 pos = new Vector3(position.x, yPos, position.z);
         GameObject prefab = LoadedTerrainGrassPrefabs[Random.Range(0, LoadedTerrainGrassPrefabs.Count)];
-        if (prefab == null)
-        {
-            Debug.LogWarning("[PlantSpawner] Terrain grass prefab entry is missing or is not a GameObject. Check TerrainConfig_Default > Terrain Grass Prefabs.");
-            return;
-        }
 
         GameObject obj = Instantiate(prefab, pos, Quaternion.identity, transform);
         obj.transform.localScale = Vector3.one * _tm.Config.TerrainGrassScale;
@@ -315,6 +369,23 @@ public class PlantSpawner : MonoBehaviour
         obj.layer = layer;
         foreach (Transform child in obj.transform)
             SetLayerRecursive(child.gameObject, layer);
+    }
+
+    private static void RemoveMissingPrefabs(List<GameObject> prefabs)
+    {
+        if (prefabs == null)
+            return;
+
+        for (int i = prefabs.Count - 1; i >= 0; i--)
+        {
+            if (prefabs[i] == null)
+                prefabs.RemoveAt(i);
+        }
+    }
+
+    private void EnsureTerrainGrassPrefabs()
+    {
+        RemoveMissingPrefabs(LoadedTerrainGrassPrefabs);
     }
 
     /// <summary>

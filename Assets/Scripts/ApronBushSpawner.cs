@@ -47,14 +47,16 @@ public class ApronBushSpawner : MonoBehaviour
 
         // If manual overrides are provided on THIS component, use them; 
         // otherwise, use the GameObject lists from TerrainConfig (Manual Drag & Drop)
-        if (JoshuaTreePrefabs.Count > 0) LoadedJoshuaTreePrefabs = JoshuaTreePrefabs;
+        if (HasValidPrefabs(JoshuaTreePrefabs)) LoadedJoshuaTreePrefabs = JoshuaTreePrefabs;
         else LoadedJoshuaTreePrefabs = _tm.Config.JoshuaTreePrefabs;
 
-        if (BushPrefabs.Count > 0) LoadedMountainBushPrefabs = BushPrefabs;
+        if (HasValidPrefabs(BushPrefabs)) LoadedMountainBushPrefabs = BushPrefabs;
         else LoadedMountainBushPrefabs = _tm.Config.MountainBushPrefabs;
 
-        if (GrassPrefabs.Count > 0) LoadedMountainGrassPrefabs = GrassPrefabs;
+        if (HasValidPrefabs(GrassPrefabs)) LoadedMountainGrassPrefabs = GrassPrefabs;
         else LoadedMountainGrassPrefabs = _tm.Config.MountainGrassPrefabs;
+
+        EnsurePrefabLists();
     }
 
     /// <summary>
@@ -62,7 +64,6 @@ public class ApronBushSpawner : MonoBehaviour
     /// </summary>
     public void LoadBushesForChunk(Vector2Int coord)
     {
-        Debug.Log($"[ApronBushSpawner] LoadBushesForChunk({coord}) entered.");
         if (_tm == null || _tm.Config == null) {
             _tm = TerrainManager.Instance;
             if (_tm == null) return;
@@ -71,6 +72,8 @@ public class ApronBushSpawner : MonoBehaviour
         if (_activeApronVegetation.ContainsKey(coord)) return;
 
         if (MountainSpawner.Instance == null) return;
+
+        EnsurePrefabLists();
 
         var nearbyMountains = MountainSpawner.Instance.GetNearbyMountains(coord);
         if (nearbyMountains.Count == 0) return;
@@ -86,7 +89,7 @@ public class ApronBushSpawner : MonoBehaviour
             Random.InitState(mountainSeed);
 
             // 1. Spawning Joshua Trees (Per Mountain logic - kept for rarity)
-            if (LoadedJoshuaTreePrefabs.Count > 0)
+            if (LoadedJoshuaTreePrefabs != null && LoadedJoshuaTreePrefabs.Count > 0)
             {
                 int treeCount = Random.Range(2, 6);
                 for (int i = 0; i < treeCount; i++)
@@ -103,7 +106,7 @@ public class ApronBushSpawner : MonoBehaviour
         Random.InitState(_tm.Config.Seed + coord.x * 777 + coord.y * 888 + 99);
 
         // 2. Spawning Mountain Bushes (Search-based Density)
-        if (LoadedMountainBushPrefabs.Count > 0)
+        if (LoadedMountainBushPrefabs != null && LoadedMountainBushPrefabs.Count > 0)
         {
             int targetCount = Random.Range(_tm.Config.MountainBushCountPerChunk.x, _tm.Config.MountainBushCountPerChunk.y + 1);
             // Increase attempts to compensate for noise-based thinning
@@ -114,7 +117,6 @@ public class ApronBushSpawner : MonoBehaviour
                 if (TrySpawnInChunkArea(coord, LoadedMountainBushPrefabs, false, chunkObjects, false))
                     spawned++;
             }
-            Debug.Log($"[ApronBushSpawner] Chunk {coord}: Bush attempts={attempts}, spawned={spawned}/{targetCount}");
         }
         else
         {
@@ -122,7 +124,7 @@ public class ApronBushSpawner : MonoBehaviour
         }
 
         // 3. Spawning Mountain Grass (Search-based Density)
-        if (LoadedMountainGrassPrefabs.Count > 0)
+        if (LoadedMountainGrassPrefabs != null && LoadedMountainGrassPrefabs.Count > 0)
         {
             int targetCount = Random.Range(_tm.Config.MountainGrassCountPerChunk.x, _tm.Config.MountainGrassCountPerChunk.y + 1);
             // Increase attempts to compensate for noise-based thinning
@@ -133,13 +135,7 @@ public class ApronBushSpawner : MonoBehaviour
                 if (TrySpawnInChunkArea(coord, LoadedMountainGrassPrefabs, false, chunkObjects, true))
                     spawned++;
             }
-            Debug.Log($"[ApronBushSpawner] Chunk {coord}: Grass attempts={attempts}, spawned={spawned}/{targetCount}");
         }
-        else
-        {
-            Debug.LogWarning($"[ApronBushSpawner] No Mountain Grass prefabs loaded!");
-        }
-
 
         Random.state = globalOldState;
     }
@@ -233,6 +229,10 @@ public class ApronBushSpawner : MonoBehaviour
 
     private GameObject InstantiateVegetation(Vector3 position, List<GameObject> prefabs, bool isJoshuaTree, bool isGrass)
     {
+        RemoveMissingPrefabs(prefabs);
+        if (prefabs == null || prefabs.Count == 0)
+            return null;
+
         float scale;
         if (isJoshuaTree)
         {
@@ -255,6 +255,9 @@ public class ApronBushSpawner : MonoBehaviour
         Vector3 pos = new Vector3(position.x, yPos, position.z);
         
         GameObject prefab = prefabs[Random.Range(0, prefabs.Count)];
+        if (prefab == null)
+            return null;
+
         GameObject obj = Instantiate(prefab, pos, Quaternion.identity, transform);
         obj.transform.localScale = Vector3.one * scale;
         obj.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
@@ -299,6 +302,51 @@ public class ApronBushSpawner : MonoBehaviour
         }
 
         return obj;
+    }
+
+    private void EnsurePrefabLists()
+    {
+        RemoveMissingPrefabs(LoadedJoshuaTreePrefabs);
+        RemoveMissingPrefabs(LoadedMountainBushPrefabs);
+        EnsureMountainGrassPrefabs();
+    }
+
+    private void EnsureMountainGrassPrefabs()
+    {
+        RemoveMissingPrefabs(LoadedMountainGrassPrefabs);
+        if (LoadedMountainGrassPrefabs != null && LoadedMountainGrassPrefabs.Count > 0)
+            return;
+
+        GameObject realGrassPrefab = GetRealGrassPrefab();
+        if (realGrassPrefab != null)
+            LoadedMountainGrassPrefabs = new List<GameObject> { realGrassPrefab };
+    }
+
+    private static void RemoveMissingPrefabs(List<GameObject> prefabs)
+    {
+        if (prefabs == null)
+            return;
+
+        for (int i = prefabs.Count - 1; i >= 0; i--)
+        {
+            if (prefabs[i] == null)
+                prefabs.RemoveAt(i);
+        }
+    }
+
+    private static bool HasValidPrefabs(List<GameObject> prefabs)
+    {
+        RemoveMissingPrefabs(prefabs);
+        return prefabs != null && prefabs.Count > 0;
+    }
+
+    private static GameObject GetRealGrassPrefab()
+    {
+        ItemData grassData = Resources.Load<ItemData>("Items/RealGrass_ItemData");
+        if (grassData == null)
+            return null;
+
+        return grassData.GetPlacementPrefab();
     }
 
     private void SetupJoshuaTree(GameObject obj)

@@ -57,6 +57,22 @@ public class EquipmentHolder : MonoBehaviour
     [Tooltip("How long movement and locomotion animation stay locked after throw starts.")]
     public float ThrowAnimationLockDuration = 0.7f;
 
+    [Header("Raw Knife Attack")]
+    [Tooltip("Movement speed multiplier while the Raw Knife upper-body attack plays.")]
+    public float RawKnifeAttackMovementMultiplier = 0.6f;
+    [Tooltip("How long the Raw Knife melee attack slows movement.")]
+    public float RawKnifeAttackSlowDuration = 1.25f;
+
+    [Header("Stone Spear Attack")]
+    [Tooltip("Movement speed multiplier while the Stone Spear upper-body attack plays.")]
+    public float StoneSpearAttackMovementMultiplier = 0.75f;
+    [Tooltip("How long the Stone Spear melee attack slows movement.")]
+    public float StoneSpearAttackSlowDuration = 0.45f;
+
+    [Header("Aim Mode")]
+    [Tooltip("Movement speed multiplier while aiming throwable stone or Raw Knife.")]
+    public float AimMovementMultiplier = 0.15f;
+
     private float _bobTimer;
 
     private Inventory _inventory;
@@ -65,14 +81,39 @@ public class EquipmentHolder : MonoBehaviour
     private ItemBehaviour _currentBehaviour;
     private bool _usingAutoCreatedHoldPoint;
     private Coroutine _throwLockRoutine;
+    private Coroutine _rawKnifeAttackRoutine;
+    private Coroutine _stoneSpearAttackRoutine;
+    private bool _rawKnifeAttackSlowed;
+    private bool _stoneSpearAttackSlowed;
+    private bool _isAimModeActive;
     private static readonly int IsHoldingHash = Animator.StringToHash("IsHolding");
     private static readonly int ThrowHash = Animator.StringToHash("Throw");
     private static readonly int ThrowStateHash = Animator.StringToHash("Throw");
+    private static readonly int RawKnifeAttackHash = Animator.StringToHash("RawKnifeAttack");
+    private static readonly int StoneSpearAttackHash = Animator.StringToHash("StoneSpearAttack");
+    private static readonly int IsAimingHash = Animator.StringToHash("IsAiming");
+    private static readonly int IsSpearAimingHash = Animator.StringToHash("IsSpearAiming");
 
     /// <summary>The currently equipped item behaviour (null if empty hand).</summary>
     public ItemBehaviour CurrentBehaviour => _currentBehaviour;
     public ItemData CurrentItem => _inventory != null ? _inventory.SelectedItem : null;
     public bool IsThrowAnimationLocked { get; private set; }
+    public bool IsAimModeActive => _isAimModeActive;
+    public bool IsStoneSpearAttackActive => _stoneSpearAttackSlowed;
+    public float MovementSpeedMultiplier
+    {
+        get
+        {
+            float multiplier = 1f;
+            if (_rawKnifeAttackSlowed)
+                multiplier *= RawKnifeAttackMovementMultiplier;
+            if (_stoneSpearAttackSlowed)
+                multiplier *= StoneSpearAttackMovementMultiplier;
+            if (_isAimModeActive)
+                multiplier *= AimMovementMultiplier;
+            return Mathf.Clamp01(multiplier);
+        }
+    }
 
     private static bool IsThrowableStone(ItemData item)
     {
@@ -84,8 +125,14 @@ public class EquipmentHolder : MonoBehaviour
         return item != null && (item.ItemName == "Raw Knife" || item.ItemName == "Stone Spear");
     }
 
+    public static bool SupportsAimMode(ItemData item)
+    {
+        return item != null && (item.ItemName == "Raw Knife" || item.ItemName == "Stonemini" || item.ItemName == "Stone Spear");
+    }
+
     public void ReleaseCurrentWeapon()
     {
+        SetAimMode(false, null);
         _currentWeaponObj = null;
         _currentBehaviour = null;
     }
@@ -264,6 +311,7 @@ public class EquipmentHolder : MonoBehaviour
     private void EquipItem(ItemData item)
     {
         EnsureHoldPoints();
+        SetAimMode(false, null);
 
         // Cleanup old weapon
         if (_currentBehaviour != null)
@@ -378,6 +426,7 @@ public class EquipmentHolder : MonoBehaviour
     public void TriggerThrowAnimation()
     {
         EnsurePlayerAnimator();
+        SetAimMode(false, null);
         StartThrowLock();
 
         if (PlayerAnimator != null)
@@ -385,6 +434,58 @@ public class EquipmentHolder : MonoBehaviour
             PlayerAnimator.ResetTrigger(ThrowHash);
             PlayerAnimator.CrossFadeInFixedTime(ThrowStateHash, ThrowAnimationBlendTime, 0, 0f);
             PlayerAnimator.ResetTrigger(ThrowHash);
+        }
+    }
+
+    public void TriggerRawKnifeMeleeAnimation()
+    {
+        if (CurrentItem == null || CurrentItem.ItemName != "Raw Knife")
+            return;
+
+        EnsurePlayerAnimator();
+        StartRawKnifeAttackSlow();
+
+        if (PlayerAnimator != null && HasAnimatorParameter(PlayerAnimator, RawKnifeAttackHash))
+        {
+            PlayerAnimator.ResetTrigger(RawKnifeAttackHash);
+            PlayerAnimator.SetTrigger(RawKnifeAttackHash);
+        }
+    }
+
+    public void TriggerStoneSpearMeleeAnimation()
+    {
+        if (CurrentItem == null || CurrentItem.ItemName != "Stone Spear")
+            return;
+
+        EnsurePlayerAnimator();
+        StartStoneSpearAttackSlow();
+
+        if (PlayerAnimator != null && HasAnimatorParameter(PlayerAnimator, StoneSpearAttackHash))
+        {
+            PlayerAnimator.ResetTrigger(StoneSpearAttackHash);
+            PlayerAnimator.SetTrigger(StoneSpearAttackHash);
+        }
+    }
+
+    public void SetAimMode(bool isAiming, ItemData item)
+    {
+        if (isAiming && !SupportsAimMode(item))
+            return;
+
+        _isAimModeActive = isAiming;
+        EnsurePlayerAnimator();
+
+        bool isSpearAiming = isAiming && item != null && item.ItemName == "Stone Spear";
+        bool isThrowableAiming = isAiming && !isSpearAiming;
+
+        if (PlayerAnimator != null && HasAnimatorParameter(PlayerAnimator, IsAimingHash))
+        {
+            PlayerAnimator.SetBool(IsAimingHash, isThrowableAiming);
+        }
+
+        if (PlayerAnimator != null && HasAnimatorParameter(PlayerAnimator, IsSpearAimingHash))
+        {
+            PlayerAnimator.SetBool(IsSpearAimingHash, isSpearAiming);
         }
     }
 
@@ -423,6 +524,46 @@ public class EquipmentHolder : MonoBehaviour
 
         IsThrowAnimationLocked = false;
         _throwLockRoutine = null;
+    }
+
+    private void StartRawKnifeAttackSlow()
+    {
+        if (_rawKnifeAttackRoutine != null)
+            StopCoroutine(_rawKnifeAttackRoutine);
+
+        _rawKnifeAttackRoutine = StartCoroutine(RawKnifeAttackSlowRoutine());
+    }
+
+    private IEnumerator RawKnifeAttackSlowRoutine()
+    {
+        _rawKnifeAttackSlowed = true;
+
+        float duration = Mathf.Max(0f, RawKnifeAttackSlowDuration);
+        if (duration > 0f)
+            yield return new WaitForSeconds(duration);
+
+        _rawKnifeAttackSlowed = false;
+        _rawKnifeAttackRoutine = null;
+    }
+
+    private void StartStoneSpearAttackSlow()
+    {
+        if (_stoneSpearAttackRoutine != null)
+            StopCoroutine(_stoneSpearAttackRoutine);
+
+        _stoneSpearAttackRoutine = StartCoroutine(StoneSpearAttackSlowRoutine());
+    }
+
+    private IEnumerator StoneSpearAttackSlowRoutine()
+    {
+        _stoneSpearAttackSlowed = true;
+
+        float duration = Mathf.Max(0f, StoneSpearAttackSlowDuration);
+        if (duration > 0f)
+            yield return new WaitForSeconds(duration);
+
+        _stoneSpearAttackSlowed = false;
+        _stoneSpearAttackRoutine = null;
     }
 
     private void EnsureHoldPoints()
@@ -485,13 +626,22 @@ public class EquipmentHolder : MonoBehaviour
 
     private void EnsurePlayerAnimator()
     {
-        if (HasAnimatorParameter(PlayerAnimator, ThrowHash) || HasAnimatorParameter(PlayerAnimator, IsHoldingHash))
+        if (HasAnimatorParameter(PlayerAnimator, ThrowHash) ||
+            HasAnimatorParameter(PlayerAnimator, IsHoldingHash) ||
+            HasAnimatorParameter(PlayerAnimator, RawKnifeAttackHash) ||
+            HasAnimatorParameter(PlayerAnimator, StoneSpearAttackHash) ||
+            HasAnimatorParameter(PlayerAnimator, IsAimingHash) ||
+            HasAnimatorParameter(PlayerAnimator, IsSpearAimingHash))
             return;
 
         PlayerAnimator = null;
         foreach (Animator animator in GetComponentsInChildren<Animator>(true))
         {
-            if (HasAnimatorParameter(animator, ThrowHash))
+            if (HasAnimatorParameter(animator, ThrowHash) ||
+                HasAnimatorParameter(animator, RawKnifeAttackHash) ||
+                HasAnimatorParameter(animator, StoneSpearAttackHash) ||
+                HasAnimatorParameter(animator, IsAimingHash) ||
+                HasAnimatorParameter(animator, IsSpearAimingHash))
             {
                 PlayerAnimator = animator;
                 return;

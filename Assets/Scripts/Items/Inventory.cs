@@ -8,18 +8,19 @@ using UnityEngine;
 public class Inventory : MonoBehaviour
 {
     public static Inventory Instance { get; private set; }
+    private const int VisibleHotbarSlotLimit = 5;
 
     [Header("Inventory")]
-    [Tooltip("Item slots. Handbar (0-1) = equippable, Bag (2-9) = storage.")]
+    [Tooltip("Item slots. Handbar and bag slots are selectable from the visible hotbar UI.")]
     public ItemData[] Slots = new ItemData[10];
     public int[] SlotCounts = new int[10];
 
-    /// <summary>Number of handbar slots (scroll wheel and number keys cycle through these only).</summary>
-    public int HotbarSize = 2;
+    /// <summary>Number of visible hotbar slots that scroll wheel and number keys cycle through.</summary>
+    public int HotbarSize = 5;
 
     [Header("Input")]
     public KeyCode[] SlotKeys = {
-        KeyCode.Alpha1, KeyCode.Alpha2
+        KeyCode.Alpha1, KeyCode.Alpha2, KeyCode.Alpha3, KeyCode.Alpha4, KeyCode.Alpha5
     };
 
     /// <summary>Currently selected slot index (0-8 for hotbar).</summary>
@@ -59,8 +60,12 @@ public class Inventory : MonoBehaviour
 
     private void HandleHotbarInput()
     {
-        // Number keys 1-9
-        for (int i = 0; i < SlotKeys.Length && i < Slots.Length; i++)
+        int visibleHotbarSlots = GetVisibleHotbarSlotCount();
+        if (visibleHotbarSlots <= 0)
+            return;
+
+        // Number keys 1-5 select only the visible handbar/bag slots.
+        for (int i = 0; i < visibleHotbarSlots; i++)
         {
             if (Input.GetKeyDown(SlotKeys[i]))
             {
@@ -78,13 +83,17 @@ public class Inventory : MonoBehaviour
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (Mathf.Abs(scroll) > 0.01f)
         {
-            int hotbar = Mathf.Min(HotbarSize, Slots.Length);
             int dir = scroll > 0 ? -1 : 1;
-            // Clamp current index into hotbar range before cycling
-            int cur = Mathf.Clamp(SelectedIndex, 0, hotbar - 1);
-            int newIndex = (cur + dir + hotbar) % hotbar;
+            int cur = Mathf.Clamp(SelectedIndex, 0, visibleHotbarSlots - 1);
+            int newIndex = (cur + dir + visibleHotbarSlots) % visibleHotbarSlots;
             SelectSlot(newIndex);
         }
+    }
+
+    private int GetVisibleHotbarSlotCount()
+    {
+        int slotKeyCount = SlotKeys != null ? SlotKeys.Length : 0;
+        return Mathf.Min(VisibleHotbarSlotLimit, HotbarSize, slotKeyCount, Slots.Length);
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 352103
+  Seed: 5434635
   NoiseScale: 0.005
   HeightMultiplier: 30
   BaseHeight: 5
@@ -60,15 +60,15 @@ MonoBehaviour:
   - {fileID: 7219398685013066971, guid: 01fe44ad65f0eb0469d8ea6ca5a42ffa, type: 3}
   - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
   - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
-  MiniStoneSpawnChance: 10
-  MiniStonesPerChunk: 4
+  MiniStoneSpawnChance: 3
+  MiniStonesPerChunk: 3
   MiniStoneMinScale: 0.1
   MiniStoneMaxScale: 0.3
   MiniStoneGroundingOffset: 0.05
   SmallBranchPrefabs:
   - {fileID: 2308397448223021452, guid: 55362b5f9f268fa4b8c7d8a9141d3bbf, type: 3}
-  SmallBranchSpawnChance: 10
-  SmallBranchesPerChunk: 10
+  SmallBranchSpawnChance: 6
+  SmallBranchesPerChunk: 6
   SmallBranchMinScale: 0.4
   SmallBranchMaxScale: 0.8
   SmallBranchGroundingOffset: 0.03
@@ -78,15 +78,15 @@ MonoBehaviour:
   - {fileID: 8214100204761854514, guid: f69503684ecd24c408ade799b66bea95, type: 3}
   - {fileID: 7973196419042793069, guid: 7b9059e43e49df14ab6b77a3fbea556a, type: 3}
   MountainGrassPrefabs:
-  - {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
+  - {fileID: 5980154359073222182, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
   MountainBushCountPerChunk: {x: 10, y: 15}
-  MountainGrassCountPerChunk: {x: 300, y: 400}
+  MountainGrassCountPerChunk: {x: 100, y: 200}
   MountainBushScale: 1
   MountainGrassScale: 2
   MountainVegClumpScale: 0.05
   MountainVegClumpThreshold: 0.45
   TerrainGrassPrefabs:
-  - {fileID: 2812298725119703801, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
+  - {fileID: 5980154359073222182, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
   TerrainGrassCountPerChunk: {x: 2, y: 5}
   TerrainGrassScale: 90
   TerrainGrassGroundingOffset: 0.1
@@ -109,7 +109,7 @@ MonoBehaviour:
   JoshuaTreeMinScale: 2.4
   JoshuaTreeMaxScale: 5.19
   JoshuaTreeGroundingOffset: 0.1
-  SpawnSafeRadius: 100
+  SpawnSafeRadius: 0
   MountainSafeRadius: 100
   PlayerSpawnPoint: {x: 50, y: 40, z: 50}
   MountainFlatRadius: 150

@@ -191,7 +191,7 @@ public class TerrainConfig : ScriptableObject
 
     [Header("Safe Zones")]
     [Tooltip("Radius around the spawn point where stones and plants will NOT spawn.")]
-    public float SpawnSafeRadius = 100.0f;
+    public float SpawnSafeRadius = 0.0f;
     [Tooltip("Radius around the spawn point where mountains will NOT spawn. Should be larger than SpawnSafeRadius to account for mountain scale.")]
     public float MountainSafeRadius = 2000.0f;
     [Tooltip("The initial spawn point of the player.")]

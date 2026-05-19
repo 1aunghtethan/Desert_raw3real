@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using ithappy.Animals_FREE;
 
 /// <summary>
 /// Health system for animals. Implements IDamageable for combat.
@@ -16,6 +17,7 @@ public class AnimalHealth : MonoBehaviour, IDamageable
 
     private bool m_HasDieParameter;
     private Animator m_Animator;
+    private bool m_IsDead;
 
     void Start()
     {
@@ -38,6 +40,9 @@ public class AnimalHealth : MonoBehaviour, IDamageable
 
     public void TakeDamage(float damage, Vector3 hitPoint, Vector3 hitDirection)
     {
+        if (m_IsDead)
+            return;
+
         m_CurrentHealth -= damage;
         float maxH = Data != null ? Data.MaxHealth : 30f;
         Debug.Log($"[AnimalHealth] {gameObject.name} took {damage} damage. Health: {m_CurrentHealth}/{maxH}");
@@ -47,6 +52,21 @@ public class AnimalHealth : MonoBehaviour, IDamageable
         // Reactive AI: If this is a fish, make it flee on hit
         OasisFishAI fishAI = GetComponent<OasisFishAI>();
         if (fishAI != null) fishAI.Flee();
+        else
+        {
+            AnimalAI animalAI = GetComponent<AnimalAI>();
+            if (animalAI != null)
+            {
+                AnimalData aiData = animalAI.Data != null ? animalAI.Data : Data;
+                float fleeDuration = aiData != null ? aiData.DamageFleeDuration : 4f;
+                Vector3 threatPosition = hitPoint;
+
+                if (hitDirection.sqrMagnitude > 0.001f)
+                    threatPosition = transform.position - hitDirection.normalized;
+
+                animalAI.FleeFrom(threatPosition, fleeDuration);
+            }
+        }
 
         if (m_CurrentHealth <= 0)
         {
@@ -83,7 +103,13 @@ public class AnimalHealth : MonoBehaviour, IDamageable
 
     private void Die()
     {
+        if (m_IsDead)
+            return;
+
+        m_IsDead = true;
         Debug.Log($"[AnimalHealth] {gameObject.name} has died.");
+        DisableMovementSystem();
+
         // Play death animation if animator exists
         if (m_Animator != null && m_HasDieParameter)
         {
@@ -91,9 +117,46 @@ public class AnimalHealth : MonoBehaviour, IDamageable
         }
 
         SpawnLoot();
-        
-        // Destroy after a short delay for animation/feedback
-        Destroy(gameObject, 1.2f); // Slightly longer for animation
+
+        StartCoroutine(RotateToDeathPoseAndDestroy());
+    }
+
+    private void DisableMovementSystem()
+    {
+        AnimalAI animalAI = GetComponent<AnimalAI>();
+        if (animalAI != null)
+            animalAI.enabled = false;
+
+        CreatureMover creatureMover = GetComponent<CreatureMover>();
+        if (creatureMover != null)
+            creatureMover.enabled = false;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private IEnumerator RotateToDeathPoseAndDestroy()
+    {
+        Quaternion startRotation = transform.rotation;
+        Vector3 targetEuler = transform.eulerAngles;
+        targetEuler.z = 90f;
+        Quaternion targetRotation = Quaternion.Euler(targetEuler);
+
+        float elapsed = 0f;
+        const float duration = 1f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            transform.rotation = Quaternion.Slerp(startRotation, targetRotation, Mathf.Clamp01(elapsed / duration));
+            yield return null;
+        }
+
+        transform.rotation = targetRotation;
+        Destroy(gameObject, 0.2f);
     }
 
     private void SpawnLoot()

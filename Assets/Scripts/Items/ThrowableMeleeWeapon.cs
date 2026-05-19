@@ -11,11 +11,15 @@ public class ThrowableMeleeWeapon : MeleeWeapon
     public GameObject VisualizerPrefab;
     [Tooltip("Only used by Stone Spear. Adjust this to tune the spear's visible rotation while flying.")]
     public Vector3 StoneSpearAirRotationOffset = new Vector3(46.146f, 147.333f, 44.851f);
+    [Tooltip("Held Stone Spear local rotation while aiming.")]
+    public Vector3 StoneSpearAimLocalEulerAngles = new Vector3(-26.789f, 326.944f, 1.633f);
 
     private ProjectileCurveVisualizerSystem.ProjectileCurveVisualizer _visualizer;
     private bool _isAiming;
     private bool _throwInProgress;
     private float _throwPower = 1f;
+    private bool _hasStoredPreAimRotation;
+    private Quaternion _preAimLocalRotation;
 
     protected override void Update()
     {
@@ -30,15 +34,18 @@ public class ThrowableMeleeWeapon : MeleeWeapon
                 GameObject obj = Instantiate(VisualizerPrefab);
                 _visualizer = obj.GetComponent<ProjectileCurveVisualizerSystem.ProjectileCurveVisualizer>();
                 if (_visualizer != null)
+                {
                     _visualizer.gravity = 9.81f * 2.5f;
+                    ConfigurePreviewIgnoredLayers(_visualizer);
+                }
             }
 
             Camera cam = GetCurrentCamera();
             if (_visualizer != null && cam != null)
             {
-                Vector3 spawnPos = cam.transform.position + cam.transform.forward * 3f;
+                Vector3 spawnPos = GetPreviewSpawnPosition();
                 Vector3 velocity = (cam.transform.forward * 20f + Vector3.up * 5f) * _throwPower;
-                _visualizer.VisualizeProjectileCurve(spawnPos, 0f, velocity, 0.05f, 0.01f, false, out _, out _);
+                _visualizer.VisualizeProjectileCurve(spawnPos, 0.6f, velocity, 0.05f, 0.01f, false, out _, out _);
             }
         }
         else
@@ -51,6 +58,8 @@ public class ThrowableMeleeWeapon : MeleeWeapon
     {
         _isAiming = !_isAiming;
         ThrowableItem.IsAiming = _isAiming;
+        EquipmentHolder.Instance?.SetAimMode(_isAiming && EquipmentHolder.SupportsAimMode(Data), Data);
+        ApplyStoneSpearAimRotation(_isAiming);
         if (!_isAiming && _visualizer != null)
             _visualizer.HideProjectileCurve();
         return true;
@@ -58,8 +67,11 @@ public class ThrowableMeleeWeapon : MeleeWeapon
 
     public override void OnUnequip()
     {
+        base.OnUnequip();
         _isAiming = false;
         ThrowableItem.IsAiming = false;
+        ApplyStoneSpearAimRotation(false);
+        EquipmentHolder.Instance?.SetAimMode(false, null);
         if (_visualizer != null)
             Destroy(_visualizer.gameObject);
     }
@@ -77,6 +89,8 @@ public class ThrowableMeleeWeapon : MeleeWeapon
 
         _isAiming = false;
         ThrowableItem.IsAiming = false;
+        ApplyStoneSpearAimRotation(false);
+        EquipmentHolder.Instance?.SetAimMode(false, null);
         if (_visualizer != null)
         {
             _visualizer.HideProjectileCurve();
@@ -109,6 +123,41 @@ public class ThrowableMeleeWeapon : MeleeWeapon
         StartCoroutine(ReleaseAfterThrowDelay(cam, _throwPower));
         _lastUseTime = Time.time;
         return true;
+    }
+
+    private Vector3 GetPreviewSpawnPosition()
+    {
+        if (Data != null && Data.ItemName == "Raw Knife" &&
+            EquipmentHolder.Instance != null && EquipmentHolder.Instance.HandAnchor != null)
+        {
+            return EquipmentHolder.Instance.HandAnchor.position;
+        }
+
+        return transform.position;
+    }
+
+    private void ApplyStoneSpearAimRotation(bool isAiming)
+    {
+        if (Data == null || Data.ItemName != "Stone Spear")
+            return;
+
+        if (isAiming)
+        {
+            if (!_hasStoredPreAimRotation)
+            {
+                _preAimLocalRotation = transform.localRotation;
+                _hasStoredPreAimRotation = true;
+            }
+
+            transform.localRotation = Quaternion.Euler(StoneSpearAimLocalEulerAngles);
+            return;
+        }
+
+        if (_hasStoredPreAimRotation)
+        {
+            transform.localRotation = _preAimLocalRotation;
+            _hasStoredPreAimRotation = false;
+        }
     }
 
     private IEnumerator ReleaseAfterThrowDelay(Camera cam, float throwPower)

@@ -21,6 +21,7 @@ public class InteractionManager : MonoBehaviour
     [Header("Pickup Animation")]
     public float PickupGatherDuration = 0.8f;
     public float PickupActionDelay = 0.6f;
+    public float PickupMovementMultiplier = 0.25f;
 
     private LootItem m_CurrentTarget;
     private LootItem m_PreviousOutlineTarget;
@@ -38,6 +39,7 @@ public class InteractionManager : MonoBehaviour
 
     private GUIStyle m_PromptStyle;
     private GUIStyle m_ShadowStyle;
+    public float MovementSpeedMultiplier => m_PickupRoutine != null ? Mathf.Clamp01(PickupMovementMultiplier) : 1f;
 
     private void Start()
     {
