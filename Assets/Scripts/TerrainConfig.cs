@@ -1,6 +1,36 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
+public class TreeZoneTreeSpawnEntry
+{
+    public GameObject Prefab;
+    [Range(0f, 1f)]
+    public float SpawnChance = 1.0f;
+    public Vector2Int CountRange = new Vector2Int(1, 1);
+    public float ScaleMultiplier = 5.0f;
+    public float GroundingOffset = 0.1f;
+    public float MinSpacing = 10.0f;
+
+    public void RepairUnsetValues(float fallbackScaleMultiplier, float fallbackGroundingOffset, float fallbackMinSpacing)
+    {
+        if (SpawnChance <= 0f && Prefab == null)
+            SpawnChance = 1.0f;
+
+        if (CountRange.x <= 0 && CountRange.y <= 0)
+            CountRange = new Vector2Int(1, 1);
+
+        if (ScaleMultiplier <= 0f)
+            ScaleMultiplier = Mathf.Max(0.01f, fallbackScaleMultiplier);
+
+        if (Mathf.Approximately(GroundingOffset, 0f) && fallbackGroundingOffset > 0f)
+            GroundingOffset = fallbackGroundingOffset;
+
+        if (MinSpacing <= 0f)
+            MinSpacing = Mathf.Max(0.01f, fallbackMinSpacing);
+    }
+}
+
 [CreateAssetMenu(fileName = "TerrainConfig", menuName = "Sand/Terrain Config")]
 public class TerrainConfig : ScriptableObject
 {
@@ -12,14 +42,6 @@ public class TerrainConfig : ScriptableObject
     public float HeightMultiplier = 35.0f;
     public float BaseHeight = 5.0f;
 
-    void Awake()
-    {
-        if (RandomizeSeedOnPlay)
-        {
-            Seed = Random.Range(1000, 999999);
-        }
-    }
-    
     [Header("Simulation")]
     [Tooltip("Size of one chunk in grid cells (excluding overlap).")]
     public int ChunkSize = 64; 
@@ -33,6 +55,17 @@ public class TerrainConfig : ScriptableObject
     public float FlowDurationAfterEdit = 2.5f;
     [Tooltip("Depth of the volume skirt (visual only).")]
     public float BottomDepth = 10.0f;
+    [Header("Roof Sand Stabilization")]
+    [Tooltip("If true, placed Roof objects stop sand from flowing where they touch or support it.")]
+    public bool RootSandStabilizationEnabled = true;
+    [Tooltip("Distance from the Roof collider that counts as direct contact with sand.")]
+    public float RootSandContactDistance = 0.35f;
+    [Tooltip("Extra vertical space above a Roof collider footprint where sand is treated as supported.")]
+    public float RootSandAbovePadding = 0.5f;
+    [Tooltip("Extra radius around Roof contact where sand flow is slowed instead of fully stopped.")]
+    public float RootSandEdgeSlowRadius = 1.0f;
+    [Tooltip("Flow multiplier for sand near, but not directly touching, a Roof.")]
+    [Range(0f, 1f)] public float RootSandEdgeFlowMultiplier = 0.15f;
 
     [Header("Streaming")]
     [Tooltip("Radius of active simulation chunks around player.")]
@@ -43,6 +76,8 @@ public class TerrainConfig : ScriptableObject
     public float SimulationLODDistance = 200.0f;
     [Tooltip("Radius around the player to load vegetation (Joshua Trees, bushes, grass). Should be smaller than MountainLoadingRadius for performance.")]
     public int VegetationLoadingRadius = 4;
+    [Tooltip("World-space radius around the player where pickup real grass is loaded. Other vegetation still uses VegetationLoadingRadius.")]
+    public float RealGrassLoadRadiusMeters = 150f;
     
     [Header("Rendering")]
     public Material SandMaterial;
@@ -161,6 +196,129 @@ public class TerrainConfig : ScriptableObject
     public float TerrainGrassGroupRadiusMin = 0.3f;
     [Tooltip("Largest scatter radius used when a grass group forms.")]
     public float TerrainGrassGroupRadiusMax = 0.8f;
+
+    [Header("Tree Forming Zones")]
+    [Range(0f, 1f)]
+    [Tooltip("Chance that any vegetation chunk becomes a flat tree-forming zone. 0.05 is 1 in 20 chunks.")]
+    public float TreeZoneSpawnChance = 0.05f;
+    [Tooltip("If true, tree-forming zones use deterministic 1000m spacing measured from the highway flat corridor.")]
+    public bool TreeZoneUseHighwayFlatSpacing = true;
+    [Tooltip("World-space interval between tree-forming zones, measured from the outer edge of the highway flat corridor.")]
+    public float TreeZoneSpacingFromFlatMeters = 1000.0f;
+    [Tooltip("Minimum base Y level for tree-forming zones. Set both min and max to 8 for a fixed Y 8 zone.")]
+    public float TreeZoneMinBaseHeight = 8.0f;
+    [Tooltip("Maximum base Y level for tree-forming zones. Different min/max values make each zone pick a seeded height in this range.")]
+    public float TreeZoneMaxBaseHeight = 8.0f;
+    [Tooltip("Per-prefab tree-zone spawn settings. Each entry rolls independently in a tree-forming chunk.")]
+    public List<TreeZoneTreeSpawnEntry> TreeZoneTreeSpawnEntries = new List<TreeZoneTreeSpawnEntry>();
+    [Tooltip("Tree prefabs to scatter inside tree-forming zones. Drag & Drop here.")]
+    public List<GameObject> TreeZoneTreePrefabs = new List<GameObject>();
+    [Tooltip("Fallback count used only by TreeZoneTreePrefabs when no per-prefab entries are assigned.")]
+    public Vector2Int TreeZoneTreeCountPerChunk = new Vector2Int(1, 1);
+    [Tooltip("Fallback prefab scale multiplier used only by TreeZoneTreePrefabs when no per-prefab entries are assigned.")]
+    public float TreeZoneTreeScaleMultiplier = 5.0f;
+    public float TreeZoneTreeGroundingOffset = 0.1f;
+    [Tooltip("Minimum spacing between trees inside a tree-forming chunk.")]
+    public float TreeZoneTreeMinSpacing = 10.0f;
+    [Tooltip("Number of mini stones to spawn inside each tree-forming zone.")]
+    public Vector2Int TreeZoneMiniStoneCountPerZone = new Vector2Int(10, 20);
+    [Tooltip("Minimum full width, in meters, for each square tree-forming zone. Can be larger than one terrain chunk.")]
+    public float TreeZoneMinAreaMeters = 63.0f;
+    [Tooltip("Maximum full width, in meters, for each square tree-forming zone. Each zone picks a seeded width between min and max.")]
+    public float TreeZoneMaxAreaMeters = 63.0f;
+    [Tooltip("World-space distance used to fade the edge of the tree-forming zone into normal dunes.")]
+    public float TreeZoneEdgeBlendMeters = 8.0f;
+    [Tooltip("World-space distance used only for fading tree-zone ground textures. Higher values create a longer, softer texture gradient.")]
+    public float TreeZoneTextureEdgeBlendMeters = 35.0f;
+    [HideInInspector]
+    [Tooltip("Extra world-space padding from the soft edge of each tree-forming chunk. Lower values allow trees closer to the edge; higher values shrink the spawn area.")]
+    public float TreeZoneTreeSpawnEdgePadding = 2.0f;
+    [HideInInspector]
+    [Tooltip("Minimum tree-zone influence required before trees can spawn. Lower values make the usable tree-forming area larger.")]
+    public float TreeZoneTreeSpawnInfluenceThreshold = 0.75f;
+    [Range(0f, 1f)]
+    [Tooltip("How strongly selected tree-forming chunks flatten toward their calm center height.")]
+    public float TreeZoneFlatStrength = 1.0f;
+    [HideInInspector]
+    [Tooltip("Fraction of the chunk width used to blend flat tree-zone ground into normal dunes at the edge.")]
+    public float TreeZoneEdgeBlend = 0.18f;
+    [Tooltip("How far outside a tree-forming chunk the surrounding sand becomes low-wave and almost flat.")]
+    public float TreeZoneLowWaveRadius = 150.0f;
+    [Range(0f, 1f)]
+    [Tooltip("How strongly the surrounding tree-zone sand suppresses normal dunes into low waves.")]
+    public float TreeZoneLowWaveStrength = 0.9f;
+    [Tooltip("World-space distance used to fade the 150m low-wave area back into normal dunes.")]
+    public float TreeZoneLowWaveEdgeBlend = 45.0f;
+    [Tooltip("If true, realgrass entries in TreeZoneTreeSpawnEntries use dense gradient spawning instead of tree spacing.")]
+    public bool TreeZoneGrassGradientEnabled = true;
+    [Tooltip("World-space distance outside a tree-forming chunk where realgrass can fade across the low-wave flat sand.")]
+    public float TreeZoneGrassOuterRadius = 150.0f;
+    [Tooltip("How strongly tree-zone grass placement is pulled toward the center. Lower values spread the same count outward.")]
+    public float TreeZoneGrassCenterBiasPower = 1.85f;
+    [Range(0f, 1f)]
+    [Tooltip("Spawn acceptance density near the tree-forming chunk center.")]
+    public float TreeZoneGrassCenterDensity = 1.0f;
+    [Range(0f, 1f)]
+    [Tooltip("Spawn acceptance density near the outer edge of the tree-zone grass radius.")]
+    public float TreeZoneGrassOuterDensity = 0.15f;
+    [Tooltip("How many placement attempts to make per desired tree-zone grass blade.")]
+    public int TreeZoneGrassSpawnAttemptsMultiplier = 3;
+    [Tooltip("Smallest scatter offset used to soften dense tree-zone grass placement.")]
+    public float TreeZoneGrassGroupRadiusMin = 0.3f;
+    [Tooltip("Largest scatter offset used to soften dense tree-zone grass placement.")]
+    public float TreeZoneGrassGroupRadiusMax = 0.8f;
+    public Texture2D TreeZoneGroundTextureA;
+    public Texture2D TreeZoneGroundTextureB;
+    public Texture2D TreeZoneGroundTextureC;
+    public Color TreeZoneGroundColor = Color.white;
+    public float TreeZoneTextureTiling = 0.35f;
+
+    private void OnValidate()
+    {
+        NormalizeTreeZoneAreaMeters();
+        RepairTreeZoneEntries();
+    }
+
+    private void NormalizeTreeZoneAreaMeters()
+    {
+        RealGrassLoadRadiusMeters = Mathf.Max(0f, RealGrassLoadRadiusMeters);
+        TreeZoneMinAreaMeters = Mathf.Max(1.0f, TreeZoneMinAreaMeters);
+        TreeZoneMaxAreaMeters = Mathf.Max(1.0f, TreeZoneMaxAreaMeters);
+
+        if (TreeZoneMinAreaMeters > TreeZoneMaxAreaMeters)
+        {
+            float oldMin = TreeZoneMinAreaMeters;
+            TreeZoneMinAreaMeters = TreeZoneMaxAreaMeters;
+            TreeZoneMaxAreaMeters = oldMin;
+        }
+
+        TreeZoneEdgeBlendMeters = Mathf.Clamp(TreeZoneEdgeBlendMeters, 0.01f, TreeZoneMaxAreaMeters * 0.5f);
+        TreeZoneTextureEdgeBlendMeters = Mathf.Max(0.01f, TreeZoneTextureEdgeBlendMeters);
+        TreeZoneSpacingFromFlatMeters = Mathf.Max(1.0f, TreeZoneSpacingFromFlatMeters);
+        TreeZoneGrassCenterBiasPower = Mathf.Max(0.01f, TreeZoneGrassCenterBiasPower);
+    }
+
+    private void RepairTreeZoneEntries()
+    {
+        if (TreeZoneTreeSpawnEntries == null)
+            return;
+
+        float fallbackScale = TreeZoneTreeScaleMultiplier > 0f ? TreeZoneTreeScaleMultiplier : 5.0f;
+        float fallbackGrounding = TreeZoneTreeGroundingOffset > 0f ? TreeZoneTreeGroundingOffset : 0.1f;
+        float fallbackSpacing = TreeZoneTreeMinSpacing > 0f ? TreeZoneTreeMinSpacing : 10.0f;
+
+        for (int i = 0; i < TreeZoneTreeSpawnEntries.Count; i++)
+        {
+            TreeZoneTreeSpawnEntry entry = TreeZoneTreeSpawnEntries[i];
+            if (entry == null)
+            {
+                entry = new TreeZoneTreeSpawnEntry();
+                TreeZoneTreeSpawnEntries[i] = entry;
+            }
+
+            entry.RepairUnsetValues(fallbackScale, fallbackGrounding, fallbackSpacing);
+        }
+    }
 
     [Header("Plants")]
     [Tooltip("Plant (tree/cactus) prefabs to randomly scatter. Drag & Drop here.")]

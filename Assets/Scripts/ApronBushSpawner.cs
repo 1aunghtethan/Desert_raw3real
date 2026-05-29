@@ -261,6 +261,7 @@ public class ApronBushSpawner : MonoBehaviour
         GameObject obj = Instantiate(prefab, pos, Quaternion.identity, transform);
         obj.transform.localScale = Vector3.one * scale;
         obj.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        PlantPhysics.AlignGroundTouchPointToTerrain(obj, _tm, groundingOffset);
 
         // Name correctly so PlantPhysics knows which grounding offset to use
         if (isJoshuaTree) obj.name = "JoshuaTree";
@@ -390,6 +391,10 @@ public class ApronBushSpawner : MonoBehaviour
         // Ensure TM is ready
         if (_tm == null) _tm = TerrainManager.Instance;
         if (_tm == null || _tm.Config == null) return false;
+
+        if (HighwayWinManager.TryApplyHighwayFlattening(worldPos.x, worldPos.z, 0f, out _, out float highwayBlend)
+            && highwayBlend > 0.01f)
+            return false;
 
         float flatness = 0f;
         float influence = MountainSpawner.Instance.GetMountainInfluenceAtPoint(worldPos, out flatness);

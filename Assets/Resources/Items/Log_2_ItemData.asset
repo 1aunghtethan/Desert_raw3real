@@ -13,24 +13,35 @@ MonoBehaviour:
   m_Name: Log_2_ItemData
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   ItemName: Log 2
-  Icon: {fileID: 0}
+  Icon: {fileID: 21300000, guid: ff780c20b4594454f8eab02df29857f1, type: 3}
   Type: 2
   Prefab: {fileID: 4970916033140702363, guid: f5a1ea0fb5403df4680dd179b2767d4e, type: 3}
+  PrefabVariants: []
   MaxStack: 64
+  CanStoreInInventory: 1
+  CanPlaceInWorld: 0
+  DirectPlaceOnCraft: 0
+  PlacementSinkPercent: 0
+  PlacementMoveMultiplier: 1
+  LockRunDuringPlacement: 0
+  LockJumpDuringPlacement: 0
   Damage: 10
   AttackSpeed: 1
   Range: 2
   ProjectilePrefab: {fileID: 0}
   ProjectileSpeed: 30
-  DropPrefab: {fileID: 4970916033140702363, guid: f5a1ea0fb5403df4680dd179b2767d4e,
-    type: 3}
+  DropPrefab: {fileID: 4970916033140702363, guid: f5a1ea0fb5403df4680dd179b2767d4e, type: 3}
   PickupsSpinAndBob: 0
-  HoldPosition: {x: 0.3, y: -0.2, z: 0.6}
-  HoldRotation: {x: 0, y: 90, z: 30}
-  HoldScale: 0.4
+  HoldPosition: {x: 0.084, y: -0.015, z: 0.071}
+  HoldRotation: {x: -86.65, y: 0, z: 71.529}
+  HoldScale: 0.41
+  DigPower: 0.35
+  PlacePower: 0.35
+  DigRadius: 1
+  PlaceRadius: 1
   DigMultiplier: 1.5
   RadiusMultiplier: 1
   HealthRestore: 0
-  HungerRestore: 5
-  SaturationRestore: 5
+  HungerRestore: 0
+  SaturationRestore: 0
   ThirstRestore: 0

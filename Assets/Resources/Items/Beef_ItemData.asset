@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ceb21783dfe8874f93fda9977625099, type: 3}
+  m_Name: Beef_ItemData
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  ItemName: Beef
+  Icon: {fileID: 21300000, guid: e2c1a6569b9ecc5458257e98495bfe10, type: 3}
+  Type: 3
+  Prefab: {fileID: 6031132562142662508, guid: 55d1ea836155eae408480ede8d49259c, type: 3}
+  PrefabVariants: []
+  MaxStack: 10
+  Damage: 0
+  AttackSpeed: 1
+  Range: 2
+  ProjectilePrefab: {fileID: 0}
+  ProjectileSpeed: 30
+  DropPrefab: {fileID: 6031132562142662508, guid: 55d1ea836155eae408480ede8d49259c, type: 3}
+  PickupsSpinAndBob: 0
+  HoldPosition: {x: 0, y: 0, z: 0}
+  HoldRotation: {x: 0, y: 0, z: 0}
+  HoldScale: 1
+  DigMultiplier: 1
+  RadiusMultiplier: 1
+  HealthRestore: 0
+  HungerRestore: 40
+  SaturationRestore: 0
+  ThirstRestore: 10

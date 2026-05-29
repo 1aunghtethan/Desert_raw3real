@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: TerrainConfig_Default
   m_EditorClassIdentifier: Assembly-CSharp::TerrainConfig
   RandomizeSeedOnPlay: 1
-  Seed: 5434635
-  NoiseScale: 0.005
+  Seed: 389091
+  NoiseScale: 0.003
   HeightMultiplier: 30
   BaseHeight: 5
   ChunkSize: 64
@@ -23,24 +23,30 @@ MonoBehaviour:
   FlowSpeed: 0.1
   FlowDurationAfterEdit: 2.5
   BottomDepth: 5
+  RootSandStabilizationEnabled: 1
+  RootSandContactDistance: 0.35
+  RootSandAbovePadding: 0.5
+  RootSandEdgeSlowRadius: 1
+  RootSandEdgeFlowMultiplier: 0.15
   LoadingRadius: 1
   ColliderLODDistance: 499.2
   SimulationLODDistance: 300
   VegetationLoadingRadius: 4
+  RealGrassLoadRadiusMeters: 150
   SandMaterial: {fileID: 2100000, guid: 80b625abc94a0e64d990c5632f77a651, type: 2}
   SandColor: {r: 0.9924528, g: 0.8428958, b: 0.6198148, a: 1}
   ApronSandMaterial: {fileID: 2100000, guid: 1bad0c69a60bb714ba87c293802c7d57, type: 2}
   ApronSandTexture: {fileID: 2800000, guid: cdd12ada9ff1ca94582f5e89adc45e37, type: 3}
   ApronSandColor: {r: 0.9547169, g: 0.89725983, b: 0.7259451, a: 1}
   MountainTestMode: 0
-  MountainPrefab: {fileID: 7525341741460606052, guid: 55bb650c36565c047806c469a4ae0f65, type: 3}
+  MountainPrefab: {fileID: 8025208051326342902, guid: 1472b24bc247bbf419e0a50a802da085, type: 3}
   MountainMaterial: {fileID: 2100000, guid: 3659fbb208c2bc7468ec1e77ef8655c0, type: 2}
   StonePrefabPaths: []
   MountainSpawnChance: 0.0001
   StoneSpawnChance: 0.008
-  MountainLoadingRadius: 40
-  MountainMinScale: 400
-  MountainMaxScale: 500
+  MountainLoadingRadius: 10
+  MountainMinScale: 80
+  MountainMaxScale: 120
   MountainGroundingOffset: 0.2
   MountainMeshRadiusMultiplier: 1.6
   StoneMinScale: 10
@@ -60,14 +66,14 @@ MonoBehaviour:
   - {fileID: 7219398685013066971, guid: 01fe44ad65f0eb0469d8ea6ca5a42ffa, type: 3}
   - {fileID: 8316394944333674324, guid: ec2c3608dcad96b4ca2eb3efcd15803c, type: 3}
   - {fileID: 2568967360632783836, guid: 12088585393ad514399b6b6f76a32222, type: 3}
-  MiniStoneSpawnChance: 3
+  MiniStoneSpawnChance: 21.7
   MiniStonesPerChunk: 3
   MiniStoneMinScale: 0.1
   MiniStoneMaxScale: 0.3
   MiniStoneGroundingOffset: 0.05
   SmallBranchPrefabs:
-  - {fileID: 2308397448223021452, guid: 55362b5f9f268fa4b8c7d8a9141d3bbf, type: 3}
-  SmallBranchSpawnChance: 6
+  - {fileID: 7865032382282063947, guid: 55362b5f9f268fa4b8c7d8a9141d3bbf, type: 3}
+  SmallBranchSpawnChance: 20.2
   SmallBranchesPerChunk: 6
   SmallBranchMinScale: 0.4
   SmallBranchMaxScale: 0.8
@@ -87,18 +93,122 @@ MonoBehaviour:
   MountainVegClumpThreshold: 0.45
   TerrainGrassPrefabs:
   - {fileID: 5980154359073222182, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
-  TerrainGrassCountPerChunk: {x: 2, y: 5}
+  TerrainGrassCountPerChunk: {x: 106, y: 29}
   TerrainGrassScale: 90
   TerrainGrassGroundingOffset: 0.1
   TerrainGrassSoloFormationChance: 0.8
   TerrainGrassGroupRadiusMin: 0.3
   TerrainGrassGroupRadiusMax: 0.8
+  TreeZoneSpawnChance: 0.04
+  TreeZoneUseHighwayFlatSpacing: 1
+  TreeZoneSpacingFromFlatMeters: 900
+  TreeZoneMinBaseHeight: 16
+  TreeZoneMaxBaseHeight: 20
+  TreeZoneTreeSpawnEntries:
+  - Prefab: {fileID: 5980154359073222182, guid: d2855f4a090603f41b56d9c880bd02d2, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 1000, y: 1500}
+    ScaleMultiplier: 6
+    GroundingOffset: 0.1
+    MinSpacing: 0.1
+  - Prefab: {fileID: 1253365200111527898, guid: 8109e9e16ba4cc04b8e0928aea897927, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 5}
+    ScaleMultiplier: 2.5
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 8214100204761854514, guid: f69503684ecd24c408ade799b66bea95, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 5}
+    ScaleMultiplier: 3
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 6786704563919835699, guid: ff0b0a3d7ae7a9e4f8505795785ad853, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 5}
+    ScaleMultiplier: 2.5
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 2493414687536083250, guid: 7585aa1418038684fa51fbace83346d4, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 5}
+    ScaleMultiplier: 2.5
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 2493414687536083250, guid: 7585aa1418038684fa51fbace83346d4, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 5}
+    ScaleMultiplier: 2.5
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 1485378158726796, guid: 5da07da6c25a65249aa4f03d5ed92684, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 5}
+    ScaleMultiplier: 2.5
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 1268516079989756, guid: 5c243d3591422814a81656730b54873b, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 5}
+    ScaleMultiplier: 2.5
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 1600355717623300214, guid: a6b4926e02dc2f947b0d234e7e883aa3, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 3, y: 6}
+    ScaleMultiplier: 3
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 7865032382282063947, guid: 55362b5f9f268fa4b8c7d8a9141d3bbf, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 30, y: 36}
+    ScaleMultiplier: 1
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  - Prefab: {fileID: 139034945961923196, guid: b69f012115394db44be64a843211a4d9, type: 3}
+    SpawnChance: 1
+    CountRange: {x: 1, y: 2}
+    ScaleMultiplier: 3
+    GroundingOffset: 0.1
+    MinSpacing: 1
+  TreeZoneTreePrefabs: []
+  TreeZoneTreeCountPerChunk: {x: 1, y: 1}
+  TreeZoneTreeScaleMultiplier: 5
+  TreeZoneTreeGroundingOffset: 0.1
+  TreeZoneTreeMinSpacing: 10
+  TreeZoneMiniStoneCountPerZone: {x: 10, y: 20}
+  TreeZoneMinAreaMeters: 148.4
+  TreeZoneMaxAreaMeters: 181.1
+  TreeZoneEdgeBlendMeters: 8
+  TreeZoneTextureEdgeBlendMeters: 35
+  TreeZoneTreeSpawnEdgePadding: 2
+  TreeZoneTreeSpawnInfluenceThreshold: 0.75
+  TreeZoneFlatStrength: 0.81
+  TreeZoneEdgeBlend: 0.18
+  TreeZoneLowWaveRadius: 150
+  TreeZoneLowWaveStrength: 0.9
+  TreeZoneLowWaveEdgeBlend: 45
+  TreeZoneGrassGradientEnabled: 1
+  TreeZoneGrassOuterRadius: 150
+  TreeZoneGrassCenterBiasPower: 1.55
+  TreeZoneGrassCenterDensity: 0.863
+  TreeZoneGrassOuterDensity: 0.15
+  TreeZoneGrassSpawnAttemptsMultiplier: 12
+  TreeZoneGrassGroupRadiusMin: 0.3
+  TreeZoneGrassGroupRadiusMax: 0.8
+  TreeZoneGroundTextureA: {fileID: 2800000, guid: a75f540141984bc5a3199a2a632f913e, type: 3}
+  TreeZoneGroundTextureB: {fileID: 2800000, guid: 9c974b8f170a42979fc0a7d030cbad18, type: 3}
+  TreeZoneGroundTextureC: {fileID: 2800000, guid: fb86bfc5f1db4fda898d420f49586be9, type: 3}
+  TreeZoneGroundColor: {r: 1, g: 1, b: 1, a: 1}
+  TreeZoneTextureTiling: 0.35
   LoadedPlantPrefabs:
   - {fileID: 1485378158726796, guid: 5da07da6c25a65249aa4f03d5ed92684, type: 3}
   - {fileID: 1268516079989756, guid: 5c243d3591422814a81656730b54873b, type: 3}
   - {fileID: 1753111941425576, guid: 628ca882a5b7c144799112fa3339945c, type: 3}
   - {fileID: 1843913998665484884, guid: 1be39fcd789ade9419877e7e63b05a10, type: 3}
-  PlantSpawnChance: 0.1
+  - {fileID: 1600355717623300214, guid: a6b4926e02dc2f947b0d234e7e883aa3, type: 3}
+  - {fileID: 7992715529498131577, guid: 0cc0db2b14252644da9f1f74ed0c8f90, type: 3}
+  PlantSpawnChance: 0.6
   PlantMinScale: 1
   PlantMaxScale: 2.5
   PlantGroundingOffset: 0.2
@@ -106,8 +216,8 @@ MonoBehaviour:
   - {fileID: 1600355717623300214, guid: a6b4926e02dc2f947b0d234e7e883aa3, type: 3}
   JoshuaTreeSpawnChance: 0.1
   JoshuaTreeSpawnAttempts: 6
-  JoshuaTreeMinScale: 2.4
-  JoshuaTreeMaxScale: 5.19
+  JoshuaTreeMinScale: 7
+  JoshuaTreeMaxScale: 7
   JoshuaTreeGroundingOffset: 0.1
   SpawnSafeRadius: 0
   MountainSafeRadius: 100

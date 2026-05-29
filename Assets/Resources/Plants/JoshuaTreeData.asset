@@ -18,4 +18,4 @@ MonoBehaviour:
   - {fileID: 4970916033140702363, guid: f5a1ea0fb5403df4680dd179b2767d4e, type: 3}
   LootCount: 3
   TopplesOnDeath: 1
-  HitParticles: {fileID: 0}
+  HitParticles: {fileID: 5761938420157392841, guid: fdf2b9ee611b4ca58bdf4b79b5ee8588, type: 3}

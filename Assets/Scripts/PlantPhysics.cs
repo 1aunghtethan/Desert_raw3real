@@ -7,8 +7,12 @@ using UnityEngine;
 public class PlantPhysics : MonoBehaviour
 {
     public bool DisableFall = false;
+    public bool UseCustomGroundingOffset = false;
+    public float CustomGroundingOffset = 0.1f;
+    private const string GroundTouchPointName = "groundtouchpoint";
     private Rigidbody _rb;
     private TerrainManager _tm;
+    private Transform _groundTouchPoint;
     private bool _stabilityLost = false;
     private float _initialGroundHeight;
     private float _groundingOffset;
@@ -22,6 +26,7 @@ public class PlantPhysics : MonoBehaviour
     {
         _rb = GetComponent<Rigidbody>();
         _tm = TerrainManager.Instance;
+        _groundTouchPoint = FindChildIgnoreCase(transform, GroundTouchPointName);
         
         if (_rb != null)
         {
@@ -34,11 +39,17 @@ public class PlantPhysics : MonoBehaviour
         // Store ground height at spawn and the grounding offset from config
         if (_tm != null)
         {
-            _initialGroundHeight = _tm.SampleHeight(transform.position);
+            _initialGroundHeight = SampleGroundHeightAtAnchor();
             
             // Determine grounding offset based on what this is
-            if (gameObject.name.Contains("Joshua") || gameObject.name.Contains("Tree"))
+            if (UseCustomGroundingOffset)
+                _groundingOffset = CustomGroundingOffset;
+            else if (gameObject.name.Contains("TreeZoneTree"))
+                _groundingOffset = _tm.Config.TreeZoneTreeGroundingOffset;
+            else if (gameObject.name.Contains("Joshua") || gameObject.name.Contains("Tree"))
                 _groundingOffset = _tm.Config.JoshuaTreeGroundingOffset;
+            else if (_groundTouchPoint != null && gameObject.name.Contains("Grass"))
+                _groundingOffset = 0f;
             else if (gameObject.name.Contains("TerrainGrass"))
                 _groundingOffset = _tm.Config.TerrainGrassGroundingOffset;
             else if (gameObject.name.Contains("Grass"))
@@ -48,13 +59,15 @@ public class PlantPhysics : MonoBehaviour
         }
     }
 
-    void Update()
+    void LateUpdate()
     {
-        if (_tm == null || _rb == null || _stabilityLost) return;
+        if (_tm == null || _stabilityLost) return;
 
         // Continuously re-ground the tree to the terrain surface so it
         // follows any gentle terrain changes and never floats or sinks.
-        float currentGroundHeight = _tm.SampleHeight(transform.position);
+        float currentGroundHeight = SampleGroundHeightAtAnchor();
+        if (float.IsNaN(currentGroundHeight) || float.IsInfinity(currentGroundHeight))
+            return;
 
         // Check for major erosion — sand dropped far below the original spawn height
         if (!DisableFall && currentGroundHeight < _initialGroundHeight - EROSION_THRESHOLD)
@@ -64,9 +77,65 @@ public class PlantPhysics : MonoBehaviour
         }
 
         // Pin the tree to the current terrain surface
+        AlignToGroundHeight(currentGroundHeight, _groundingOffset);
+    }
+
+    public static bool AlignGroundTouchPointToTerrain(GameObject obj, TerrainManager terrainManager, float groundingOffset)
+    {
+        if (obj == null || terrainManager == null)
+            return false;
+
+        Transform groundTouchPoint = FindChildIgnoreCase(obj.transform, GroundTouchPointName);
+        if (groundTouchPoint == null)
+            return false;
+
+        float groundHeight = terrainManager.SampleHeight(groundTouchPoint.position);
+        if (float.IsNaN(groundHeight) || float.IsInfinity(groundHeight))
+            return false;
+
+        float targetY = groundHeight - groundingOffset;
+        float deltaY = targetY - groundTouchPoint.position.y;
+        obj.transform.position += Vector3.up * deltaY;
+        return true;
+    }
+
+    private float SampleGroundHeightAtAnchor()
+    {
+        Vector3 samplePosition = _groundTouchPoint != null ? _groundTouchPoint.position : transform.position;
+        return _tm.SampleHeight(samplePosition);
+    }
+
+    private void AlignToGroundHeight(float groundHeight, float groundingOffset)
+    {
+        if (_groundTouchPoint != null)
+        {
+            float targetY = groundHeight - groundingOffset;
+            float deltaY = targetY - _groundTouchPoint.position.y;
+            transform.position += Vector3.up * deltaY;
+            return;
+        }
+
         Vector3 pos = transform.position;
-        pos.y = currentGroundHeight - _groundingOffset;
+        pos.y = groundHeight - groundingOffset;
         transform.position = pos;
+    }
+
+    private static Transform FindChildIgnoreCase(Transform root, string childName)
+    {
+        if (root == null)
+            return null;
+
+        if (string.Equals(root.name, childName, System.StringComparison.OrdinalIgnoreCase))
+            return root;
+
+        foreach (Transform child in root)
+        {
+            Transform found = FindChildIgnoreCase(child, childName);
+            if (found != null)
+                return found;
+        }
+
+        return null;
     }
 
     public void LoseStability()

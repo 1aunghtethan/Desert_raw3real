@@ -5,6 +5,7 @@ public class GreenPlantHitParticles : MonoBehaviour
 {
     [SerializeField] private int minCount = 5;
     [SerializeField] private int maxCount = 9;
+    [SerializeField] private Texture2D particleTexture;
     public Color MinColor = new Color(0.01f, 0.09f, 0.015f, 1f);
     public Color MaxColor = new Color(0.03f, 0.2f, 0.035f, 1f);
     [SerializeField] private float minLifetime = 0.9f;
@@ -16,6 +17,7 @@ public class GreenPlantHitParticles : MonoBehaviour
     private static Mesh triangleMesh;
     private static Mesh squareMesh;
     private static Material sharedMaterial;
+    private static Texture2D sharedMaterialTexture;
 
     private void Awake()
     {
@@ -51,11 +53,13 @@ public class GreenPlantHitParticles : MonoBehaviour
         filter.sharedMesh = mesh;
 
         MeshRenderer renderer = shape.AddComponent<MeshRenderer>();
-        Material instanceMaterial = new Material(sharedMaterial);
+        Material instanceMaterial = new Material(GetSharedMaterial(particleTexture));
         Color color = Color.Lerp(MinColor, MaxColor, Random.value);
         instanceMaterial.color = color;
         if (instanceMaterial.HasProperty("_BaseColor")) instanceMaterial.SetColor("_BaseColor", color);
         if (instanceMaterial.HasProperty("_Color")) instanceMaterial.SetColor("_Color", color);
+        if (particleTexture != null)
+            instanceMaterial.mainTexture = particleTexture;
         renderer.sharedMaterial = instanceMaterial;
 
         Vector3 direction = (transform.forward * 0.7f + Random.insideUnitSphere * 0.8f + Vector3.up * 0.8f).normalized;
@@ -100,7 +104,15 @@ public class GreenPlantHitParticles : MonoBehaviour
         if (squareMesh == null)
             squareMesh = CreateSquareMesh();
 
-        if (sharedMaterial == null)
+        GetSharedMaterial(null);
+    }
+
+    private static Material GetSharedMaterial(Texture2D texture)
+    {
+        if (sharedMaterial != null && sharedMaterialTexture == texture)
+            return sharedMaterial;
+
+        if (sharedMaterial == null || sharedMaterialTexture != texture)
         {
             Shader shader = Shader.Find("Sprites/Default");
             if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
@@ -108,7 +120,10 @@ public class GreenPlantHitParticles : MonoBehaviour
             if (shader == null) shader = Shader.Find("Hidden/Internal-Colored");
 
             sharedMaterial = new Material(shader);
+            sharedMaterialTexture = texture;
             sharedMaterial.color = new Color(0.02f, 0.14f, 0.025f, 1f);
+            if (texture != null)
+                sharedMaterial.mainTexture = texture;
             if (sharedMaterial.HasProperty("_BaseColor"))
                 sharedMaterial.SetColor("_BaseColor", sharedMaterial.color);
             if (sharedMaterial.HasProperty("_Color"))
@@ -118,6 +133,8 @@ public class GreenPlantHitParticles : MonoBehaviour
             if (sharedMaterial.HasProperty("_Metallic"))
                 sharedMaterial.SetFloat("_Metallic", 0f);
         }
+
+        return sharedMaterial;
     }
 
     private static Mesh CreateTriangleMesh()
@@ -140,6 +157,15 @@ public class GreenPlantHitParticles : MonoBehaviour
             0, 3, 4, 0, 4, 1,
             1, 4, 5, 1, 5, 2,
             2, 5, 3, 2, 3, 0
+        };
+        mesh.uv = new[]
+        {
+            new Vector2(0.5f, 1f),
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f)
         };
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
@@ -166,6 +192,17 @@ public class GreenPlantHitParticles : MonoBehaviour
             1, 2, 6, 1, 6, 5,
             2, 3, 7, 2, 7, 6,
             3, 0, 4, 3, 4, 7
+        };
+        mesh.uv = new[]
+        {
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(1f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(0f, 0f),
+            new Vector2(1f, 0f),
+            new Vector2(1f, 1f),
+            new Vector2(0f, 1f)
         };
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();

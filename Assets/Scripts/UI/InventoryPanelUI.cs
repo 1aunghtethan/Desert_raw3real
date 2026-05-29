@@ -8,8 +8,10 @@ using UnityEngine.EventSystems;
 /// </summary>
 public class InventoryPanelUI : MonoBehaviour
 {
+    private const KeyCode InventoryToggleKey = KeyCode.E;
+
     [Header("Behavior")]
-    public KeyCode ToggleKey = KeyCode.Tab;
+    public KeyCode ToggleKey = KeyCode.E;
     public bool PauseGameWhenOpen = false;
 
     [Header("Manual Setup")]
@@ -19,6 +21,8 @@ public class InventoryPanelUI : MonoBehaviour
     private CanvasGroup _canvasGroup;
     private Inventory _inventory;
     private PlayerController _playerController;
+    private Rigidbody _playerRigidbody;
+    private Animator _playerAnimator;
     private EquipmentHolder _equipmentHolder;
     private ThirdPersonCamera _thirdPersonCamera;
     private MonoBehaviour _sandInteraction;
@@ -40,6 +44,8 @@ public class InventoryPanelUI : MonoBehaviour
 
     private void Awake()
     {
+        ToggleKey = InventoryToggleKey;
+
         // Immediately hide the panel before anything renders
         _canvasGroup = GetComponent<CanvasGroup>();
         if (_canvasGroup == null) _canvasGroup = gameObject.AddComponent<CanvasGroup>();
@@ -74,6 +80,11 @@ public class InventoryPanelUI : MonoBehaviour
 
         // Cache player references to disable input when inventory is open
         _playerController = FindFirstObjectByType<PlayerController>();
+        if (_playerController != null)
+        {
+            _playerRigidbody = _playerController.GetComponent<Rigidbody>();
+            _playerAnimator = _playerController.GetComponentInChildren<Animator>();
+        }
         _equipmentHolder = FindFirstObjectByType<EquipmentHolder>();
         _thirdPersonCamera = FindFirstObjectByType<ThirdPersonCamera>();
 
@@ -462,6 +473,7 @@ public class InventoryPanelUI : MonoBehaviour
             RefreshAll();
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+            StopPlayerMovement();
 
             // Disable player controls so the world doesn't respond
             if (_playerController != null) _playerController.enabled = false;
@@ -517,6 +529,33 @@ public class InventoryPanelUI : MonoBehaviour
         }
     }
 
+    private void StopPlayerMovement()
+    {
+        if (_playerRigidbody == null && _playerController != null)
+            _playerRigidbody = _playerController.GetComponent<Rigidbody>();
+
+        if (_playerRigidbody != null)
+        {
+            Vector3 velocity = _playerRigidbody.linearVelocity;
+            velocity.x = 0f;
+            velocity.z = 0f;
+            _playerRigidbody.linearVelocity = velocity;
+            _playerRigidbody.angularVelocity = Vector3.zero;
+        }
+
+        if (_playerAnimator == null && _playerController != null)
+            _playerAnimator = _playerController.GetComponentInChildren<Animator>();
+
+        if (_playerAnimator != null)
+        {
+            _playerAnimator.SetFloat("Speed", 0f);
+            _playerAnimator.SetFloat("MoveX", 0f);
+            _playerAnimator.SetFloat("MoveY", 0f);
+        }
+
+        AudioManager.Current?.StopFootsteps();
+    }
+
     public bool TryRemoveOneHeldItem()
     {
         if (_heldItem == null || _heldCount <= 0) return false;
@@ -535,10 +574,23 @@ public class InventoryPanelUI : MonoBehaviour
     public bool TrySetHeldItem(ItemData item, int count)
     {
         if (item == null || count <= 0) return false;
+        if (!item.CanStoreInInventory) return false;
         if (_heldItem != null) return false;
 
         _heldItem = item;
         _heldCount = count;
+        UpdateCursorIcon();
+        return true;
+    }
+
+    public bool TryReplaceHeldItem(ItemData item, int count)
+    {
+        if (item == null || count <= 0) return false;
+        if (!item.CanStoreInInventory) return false;
+
+        _heldItem = item;
+        _heldCount = count;
+        _heldSourceSlot = -1;
         UpdateCursorIcon();
         return true;
     }
@@ -560,6 +612,7 @@ public class InventoryPanelUI : MonoBehaviour
     public bool CanAcceptHeldItem(ItemData item, int amount)
     {
         if (item == null || amount <= 0) return false;
+        if (!item.CanStoreInInventory) return false;
         if (_heldItem == null) return true;
         if (_heldItem.ItemName != item.ItemName) return false;
         return _heldCount + amount <= Mathf.Max(1, item.MaxStack);

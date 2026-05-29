@@ -13,16 +13,21 @@ public static class SandJobs
         public int Size; 
         public float FlowThreshold;
         public float FlowSpeed;
+        public bool UseStabilityMask;
+        public float RootSandEdgeFlowMultiplier;
 
         [ReadOnly] public NativeArray<float> ReadHeights;
         public NativeArray<float> WriteHeights;
+        [ReadOnly] public NativeArray<float> StabilityMask;
         
         // Neighbor reference data for cross-chunk flow (Cardinal)
         [ReadOnly] public NativeArray<float> ReadN, ReadS, ReadE, ReadW;
+        [ReadOnly] public NativeArray<float> StabilityN, StabilityS, StabilityE, StabilityW;
         public bool HasN, HasS, HasE, HasW;
 
         // Neighbor reference data for cross-chunk flow (Diagonal)
         [ReadOnly] public NativeArray<float> ReadNE, ReadNW, ReadSE, ReadSW;
+        [ReadOnly] public NativeArray<float> StabilityNE, StabilityNW, StabilitySE, StabilitySW;
         public bool HasNE, HasNW, HasSE, HasSW;
 
         public NativeArray<int> ModifiedFlag; 
@@ -74,6 +79,17 @@ public static class SandJobs
                     }
 
                     float diff = hSelf - hNeighbor;
+                    float flowMultiplier = 1f;
+                    if (UseStabilityMask)
+                    {
+                        float selfStability = StabilityMask[i];
+                        float neighborStability = GetStabilityAt(nx, ny, x, y, w, h, isInternal);
+                        float pairStability = Mathf.Max(selfStability, neighborStability);
+                        if (pairStability >= 0.999f)
+                            continue;
+
+                        flowMultiplier = Mathf.Lerp(1f, RootSandEdgeFlowMultiplier, pairStability);
+                    }
 
                     // Flow Out
                     if (diff > FlowThreshold)
@@ -81,6 +97,7 @@ public static class SandJobs
                         float flow = (diff - FlowThreshold) * FlowSpeed;
                         float maxFlow = diff * 0.45f; // Safety clamp to prevent oscillation
                         if (flow > maxFlow) flow = maxFlow;
+                        flow *= flowMultiplier;
                         delta -= flow;
                     }
                     // Flow In (only from neighbors, internal flow is handled by the neighbor's Flow Out)
@@ -90,6 +107,7 @@ public static class SandJobs
                         float flow = (pullDiff - FlowThreshold) * FlowSpeed;
                         float maxFlow = pullDiff * 0.45f;
                         if (flow > maxFlow) flow = maxFlow;
+                        flow *= flowMultiplier;
                         delta += flow;
                     }
                     else if (isInternal)
@@ -102,6 +120,7 @@ public static class SandJobs
                             float flow = (reverseDiff - FlowThreshold) * FlowSpeed;
                             float maxFlow = reverseDiff * 0.45f;
                             if (flow > maxFlow) flow = maxFlow;
+                            flow *= flowMultiplier;
                             delta += flow;
                         }
                     }
@@ -119,6 +138,23 @@ public static class SandJobs
             }
             
             if (anyModified) ModifiedFlag[0] = 1;
+        }
+
+        private float GetStabilityAt(int nx, int ny, int x, int y, int w, int h, bool isInternal)
+        {
+            if (isInternal)
+                return StabilityMask[nx + ny * w];
+
+            if (nx < 0 && ny >= h) return HasNW ? StabilityNW[(w - 1) + 0 * w] : 0f;
+            if (nx >= w && ny >= h) return HasNE ? StabilityNE[0 + 0 * w] : 0f;
+            if (nx < 0 && ny < 0) return HasSW ? StabilitySW[(w - 1) + (h - 1) * w] : 0f;
+            if (nx >= w && ny < 0) return HasSE ? StabilitySE[0 + (h - 1) * w] : 0f;
+            if (nx < 0 && HasW && ny >= 0 && ny < h) return StabilityW[(w - 1) + ny * w];
+            if (nx >= w && HasE && ny >= 0 && ny < h) return StabilityE[0 + ny * w];
+            if (ny < 0 && HasS && nx >= 0 && nx < w) return StabilityS[x + (h - 1) * w];
+            if (ny >= h && HasN && nx >= 0 && nx < w) return StabilityN[x + 0 * w];
+
+            return 0f;
         }
     }
 
@@ -141,6 +177,8 @@ public static class SandJobs
         // Flatness data for texture blending (0 = desert, 1 = near mountain)
         [ReadOnly] public NativeArray<float> FlatnessData;
         public bool HasFlatnessData;
+        [ReadOnly] public NativeArray<Color> TreeZoneData;
+        public bool HasTreeZoneData;
 
         // Outputs
         public NativeArray<Vector3> Verts;
@@ -198,9 +236,10 @@ public static class SandJobs
                     float worldZ = Origin.z + y * CellSize;
                     UVs[i] = new Vector2(worldX * uvScale, worldZ * uvScale);
 
-                    // Vertex color: alpha = flatness (drives apron sand blend)
+                    // Vertex color: RGB = tree-zone texture weights, alpha = apron flatness.
                     float flatness = (HasFlatnessData && i < FlatnessData.Length) ? FlatnessData[i] : 0f;
-                    Colors[i] = new Color(1f, 1f, 1f, flatness);
+                    Color treeWeights = (HasTreeZoneData && i < TreeZoneData.Length) ? TreeZoneData[i] : Color.clear;
+                    Colors[i] = new Color(treeWeights.r, treeWeights.g, treeWeights.b, flatness);
 
                     // Normals (Seamless Central Difference)
                     // Sample neighbors at [x-1, x+1, y-1, y+1] across chunk boundaries

@@ -13,10 +13,12 @@ public class SandChunk : MonoBehaviour
     // Double Buffering: One for reading (current state), one for writing (next state)
     public NativeArray<float> HeightsRead;
     public NativeArray<float> HeightsWrite;
+    public NativeArray<float> RootStabilityMask;
 
     // Per-vertex flatness data for apron sand texture blending
     // 0 = desert (far from mountains), 1 = flat apron (close to mountain base)
     public NativeArray<float> FlatnessData;
+    public NativeArray<Color> TreeZoneBlendData;
     
     // Visuals
     // Neighbor Cache (8 Neighbors: N, S, E, W, NE, NW, SE, SW)
@@ -52,6 +54,7 @@ public class SandChunk : MonoBehaviour
     private NativeArray<Color> _meshColors;
 
     private bool _needsBake = true;
+    private static readonly Collider[] RootOverlapBuffer = new Collider[128];
 
     public void Initialize(Vector2Int coord, TerrainConfig config, float[] initialData = null)
     {
@@ -100,6 +103,14 @@ public class SandChunk : MonoBehaviour
             block.SetTexture("_SecondaryTex", Config.ApronSandTexture);
         }
         block.SetColor("_SecondaryColor", Config.ApronSandColor);
+        if (Config.TreeZoneGroundTextureA != null)
+            block.SetTexture("_TreeZoneTexA", Config.TreeZoneGroundTextureA);
+        if (Config.TreeZoneGroundTextureB != null)
+            block.SetTexture("_TreeZoneTexB", Config.TreeZoneGroundTextureB);
+        if (Config.TreeZoneGroundTextureC != null)
+            block.SetTexture("_TreeZoneTexC", Config.TreeZoneGroundTextureC);
+        block.SetColor("_TreeZoneColor", Config.TreeZoneGroundColor);
+        block.SetFloat("_TreeZoneTiling", Config.TreeZoneTextureTiling);
         _mr.SetPropertyBlock(block);
         
         _mesh = new Mesh();
@@ -131,7 +142,9 @@ public class SandChunk : MonoBehaviour
         // Allocate Memory
         HeightsRead = new NativeArray<float>(_numSurfaceVerts, Allocator.Persistent);
         HeightsWrite = new NativeArray<float>(_numSurfaceVerts, Allocator.Persistent);
+        RootStabilityMask = new NativeArray<float>(_numSurfaceVerts, Allocator.Persistent);
         FlatnessData = new NativeArray<float>(_numSurfaceVerts, Allocator.Persistent);
+        TreeZoneBlendData = new NativeArray<Color>(_numSurfaceVerts, Allocator.Persistent);
         ModifiedFlag = new NativeArray<int>(1, Allocator.Persistent);
         
         if (initialData != null && initialData.Length == _numSurfaceVerts)
@@ -144,6 +157,8 @@ public class SandChunk : MonoBehaviour
             GenerateInitialTerrain();
             PrewarmTerrain(); // Settle sand before first render
         }
+
+        PopulateTreeZoneBlendData();
 
         GenerateTriangles();
         
@@ -168,14 +183,19 @@ public class SandChunk : MonoBehaviour
                 Size = Config.ChunkSize,
                 FlowThreshold = Config.FlowThreshold,
                 FlowSpeed = Config.FlowSpeed,
+                UseStabilityMask = false,
+                RootSandEdgeFlowMultiplier = 1f,
                 ReadHeights = HeightsRead,
                 WriteHeights = HeightsWrite,
+                StabilityMask = RootStabilityMask,
 
                 // Neighbors don't exist during prewarm
                 ReadN = HeightsRead, ReadS = HeightsRead, ReadE = HeightsRead, ReadW = HeightsRead,
+                StabilityN = RootStabilityMask, StabilityS = RootStabilityMask, StabilityE = RootStabilityMask, StabilityW = RootStabilityMask,
                 HasN = false, HasS = false, HasE = false, HasW = false,
                 
                 ReadNE = HeightsRead, ReadNW = HeightsRead, ReadSE = HeightsRead, ReadSW = HeightsRead,
+                StabilityNE = RootStabilityMask, StabilityNW = RootStabilityMask, StabilitySE = RootStabilityMask, StabilitySW = RootStabilityMask,
                 HasNE = false, HasNW = false, HasSE = false, HasSW = false,
 
                 ModifiedFlag = ModifiedFlag
@@ -300,7 +320,9 @@ public class SandChunk : MonoBehaviour
 
                 // Store flatness for vertex color blending (apron sand texture)
                 // Use mountain influence as well so the transition extends beyond just the flat zone
-                float baseBlend = Mathf.Max(flatness, maxInf * 0.5f);
+                float highwayBlend = 0f;
+                HighwayWinManager.TryApplyHighwayFlattening(wx, wz, fHeight, out _, out highwayBlend);
+                float baseBlend = Mathf.Max(Mathf.Max(flatness, maxInf * 0.5f), highwayBlend);
                 
                 // Add Perlin noise to make the transition edge organic instead of a perfect circle
                 float noise = Mathf.PerlinNoise(wx * 0.2f + Config.Seed, wz * 0.2f + Config.Seed);
@@ -309,6 +331,43 @@ public class SandChunk : MonoBehaviour
                 FlatnessData[idx] = blendFlatness;
             }
         }
+    }
+
+    private void PopulateTreeZoneBlendData()
+    {
+        if (!TreeZoneBlendData.IsCreated || Config == null)
+            return;
+
+        float chunkSizeWorld = (Config.ChunkSize - 1) * Config.CellSize;
+        float worldXBase = ChunkCoord.x * chunkSizeWorld;
+        float worldZBase = ChunkCoord.y * chunkSizeWorld;
+
+        for (int z = 0; z < Config.ChunkSize; z++)
+        {
+            for (int x = 0; x < Config.ChunkSize; x++)
+            {
+                int idx = x + z * Config.ChunkSize;
+                float wx = worldXBase + x * Config.CellSize;
+                float wz = worldZBase + z * Config.CellSize;
+                TerrainManager.TreeZoneTextureInfluence textureInfluence =
+                    TerrainManager.GetTreeZoneTextureInfluence(ChunkCoord, Config, wx, wz);
+                TreeZoneBlendData[idx] = GetTreeZoneTextureWeights(textureInfluence.NormalizedPosition, textureInfluence.Influence);
+            }
+        }
+    }
+
+    private Color GetTreeZoneTextureWeights(Vector2 normalizedPosition, float influence)
+    {
+        if (influence <= 0f)
+            return Color.clear;
+
+        Vector2 p = new Vector2(Mathf.Clamp01(normalizedPosition.x), Mathf.Clamp01(normalizedPosition.y));
+        float a = 1f / (0.04f + (p - new Vector2(0.18f, 0.22f)).sqrMagnitude);
+        float b = 1f / (0.04f + (p - new Vector2(0.82f, 0.28f)).sqrMagnitude);
+        float c = 1f / (0.04f + (p - new Vector2(0.50f, 0.82f)).sqrMagnitude);
+        float sum = a + b + c;
+
+        return new Color((a / sum) * influence, (b / sum) * influence, (c / sum) * influence, 0f);
     }
 
     public void SwapBuffers()
@@ -432,6 +491,8 @@ public class SandChunk : MonoBehaviour
 
             FlatnessData = FlatnessData,
             HasFlatnessData = FlatnessData.IsCreated,
+            TreeZoneData = TreeZoneBlendData,
+            HasTreeZoneData = TreeZoneBlendData.IsCreated,
 
             Verts = _meshVerts, Normals = _meshNormals, UVs = _meshUVs, Colors = _meshColors
         };
@@ -513,6 +574,119 @@ public class SandChunk : MonoBehaviour
     {
         if (_flowTimer <= 0f) return;
         _flowTimer = Mathf.Max(0f, _flowTimer - deltaTime);
+    }
+
+    public void RefreshRootStabilityMask()
+    {
+        if (!RootStabilityMask.IsCreated)
+            return;
+
+        if (Config == null)
+            return;
+
+        int size = Config.ChunkSize;
+        int length = size * size;
+        for (int i = 0; i < length; i++)
+            RootStabilityMask[i] = 0f;
+
+        if (!Config.RootSandStabilizationEnabled)
+            return;
+
+        float contactDistance = Mathf.Max(0f, Config.RootSandContactDistance);
+        float abovePadding = Mathf.Max(0f, Config.RootSandAbovePadding);
+        float edgeRadius = Mathf.Max(0f, Config.RootSandEdgeSlowRadius);
+        float searchPadding = contactDistance + edgeRadius;
+        float chunkSizeWorld = (Config.ChunkSize - 1) * Config.CellSize;
+        Vector3 chunkCenter = transform.position + new Vector3(chunkSizeWorld * 0.5f, Config.BaseHeight, chunkSizeWorld * 0.5f);
+        float verticalSearch = Mathf.Abs(Config.HeightMultiplier) + Mathf.Abs(Config.BaseHeight) + Config.BottomDepth + abovePadding + 25f;
+        Vector3 halfExtents = new Vector3(chunkSizeWorld * 0.5f + searchPadding, Mathf.Max(25f, verticalSearch), chunkSizeWorld * 0.5f + searchPadding);
+
+        int rootCount = Physics.OverlapBoxNonAlloc(chunkCenter, halfExtents, RootOverlapBuffer, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+        if (rootCount <= 0)
+            return;
+
+        for (int c = 0; c < rootCount; c++)
+        {
+            Collider roofCollider = RootOverlapBuffer[c];
+            if (!IsRootStabilizerCollider(roofCollider))
+                continue;
+
+            ApplyRootStability(roofCollider, contactDistance, abovePadding, edgeRadius);
+        }
+    }
+
+    private void ApplyRootStability(Collider roofCollider, float contactDistance, float abovePadding, float edgeRadius)
+    {
+        Bounds bounds = roofCollider.bounds;
+        float maxXZDistance = contactDistance + edgeRadius;
+
+        int size = Config.ChunkSize;
+        for (int z = 0; z < size; z++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                int idx = x + z * size;
+                if (RootStabilityMask[idx] >= 1f)
+                    continue;
+
+                Vector3 surfacePoint = new Vector3(
+                    transform.position.x + x * Config.CellSize,
+                    HeightsRead[idx],
+                    transform.position.z + z * Config.CellSize);
+
+                if (surfacePoint.x < bounds.min.x - maxXZDistance
+                    || surfacePoint.x > bounds.max.x + maxXZDistance
+                    || surfacePoint.z < bounds.min.z - maxXZDistance
+                    || surfacePoint.z > bounds.max.z + maxXZDistance
+                    || surfacePoint.y < bounds.min.y - contactDistance
+                    || surfacePoint.y > bounds.max.y + abovePadding + edgeRadius)
+                {
+                    continue;
+                }
+
+                Vector3 closestPoint = roofCollider.ClosestPoint(surfacePoint);
+                float contactSqr = contactDistance * contactDistance;
+                bool directContact = (surfacePoint - closestPoint).sqrMagnitude <= contactSqr;
+                float xzDistance = Vector2.Distance(
+                    new Vector2(surfacePoint.x, surfacePoint.z),
+                    new Vector2(closestPoint.x, closestPoint.z));
+                bool aboveFootprint = xzDistance <= contactDistance
+                    && surfacePoint.y >= bounds.min.y - contactDistance
+                    && surfacePoint.y <= bounds.max.y + abovePadding;
+
+                if (directContact || aboveFootprint)
+                {
+                    RootStabilityMask[idx] = 1f;
+                    continue;
+                }
+
+                if (edgeRadius <= 0f || xzDistance > contactDistance + edgeRadius)
+                    continue;
+
+                bool nearRootHeight = surfacePoint.y >= bounds.min.y - contactDistance
+                    && surfacePoint.y <= bounds.max.y + abovePadding + edgeRadius;
+                if (!nearRootHeight)
+                    continue;
+
+                float edgeT = 1f - Mathf.Clamp01((xzDistance - contactDistance) / edgeRadius);
+                if (edgeT > RootStabilityMask[idx])
+                    RootStabilityMask[idx] = edgeT;
+            }
+        }
+    }
+
+    private static bool IsRootStabilizerCollider(Collider collider)
+    {
+        if (collider == null || !collider.enabled)
+            return false;
+
+        if (collider.GetComponentInParent<RoofSandStabilizer>() != null)
+            return true;
+
+        Transform root = collider.transform.root;
+        return root != null
+            && (root.name.StartsWith("roof_Placed", System.StringComparison.OrdinalIgnoreCase)
+                || root.name.StartsWith("root_Placed", System.StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -644,7 +818,9 @@ public class SandChunk : MonoBehaviour
         CleanupTempBuffers();
         if (HeightsRead.IsCreated) HeightsRead.Dispose();
         if (HeightsWrite.IsCreated) HeightsWrite.Dispose();
+        if (RootStabilityMask.IsCreated) RootStabilityMask.Dispose();
         if (FlatnessData.IsCreated) FlatnessData.Dispose();
+        if (TreeZoneBlendData.IsCreated) TreeZoneBlendData.Dispose();
         if (ModifiedFlag.IsCreated) ModifiedFlag.Dispose();
         if (_mesh != null) Destroy(_mesh);
     }

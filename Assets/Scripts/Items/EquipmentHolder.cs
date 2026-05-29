@@ -61,7 +61,13 @@ public class EquipmentHolder : MonoBehaviour
     [Tooltip("Movement speed multiplier while the Raw Knife upper-body attack plays.")]
     public float RawKnifeAttackMovementMultiplier = 0.6f;
     [Tooltip("How long the Raw Knife melee attack slows movement.")]
-    public float RawKnifeAttackSlowDuration = 1.25f;
+    public float RawKnifeAttackSlowDuration = 1.2f;
+    [Tooltip("Raw Knife first-click attack stops at this frame unless a second click happens before it.")]
+    public int RawKnifeAttackStopFrame = 50;
+    [Tooltip("Frame rate used by Assets/Animations/new/attack.anim.")]
+    public float RawKnifeAttackFrameRate = 60f;
+    [Tooltip("How long to stabilize the spine/head chain during a locomotion Raw Knife attack.")]
+    public float RawKnifeHeadStabilizeDuration = 1.2f;
 
     [Header("Stone Spear Attack")]
     [Tooltip("Movement speed multiplier while the Stone Spear upper-body attack plays.")]
@@ -73,31 +79,102 @@ public class EquipmentHolder : MonoBehaviour
     [Tooltip("Movement speed multiplier while aiming throwable stone or Raw Knife.")]
     public float AimMovementMultiplier = 0.15f;
 
+    [Header("Swarded Cactaus Water")]
+    public float DrinkUseEffectDelay = 2.5f;
+    public float DrinkRunJumpLockDuration = 3.8f;
+    public float DrinkAnimationBlendTime = 0.1f;
+
+    [Header("Eating")]
+    public float EatAnimationDuration = 1f;
+    public float EatUseEffectDelay = 2.5f;
+    public float EatMovementMultiplier = 0.3f;
+    public float EatAnimationBlendTime = 0.1f;
+    public Vector3 BeefEatLocalPosition = new Vector3(0.245f, -0.221f, 0.112f);
+    public Vector3 BeefEatLocalEulerAngles = new Vector3(35.78f, -72.36f, -65.05f);
+    public Vector3 BeefEatLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
+
+    [Header("Wood Shovel")]
+    public float WoodShovelMovementMultiplier = 0.2f;
+    public float WoodShovelAnimationBlendTime = 0.1f;
+    public Vector3 WoodShovelActionLocalPosition = new Vector3(0.448f, -0.451f, 0.1417f);
+    public Vector3 WoodShovelActionLocalEulerAngles = new Vector3(-24.14f, 162.63f, 45.38f);
+    public Vector3 WoodShovelActionLocalScale = new Vector3(1f, 0.999f, 1f);
+
     private float _bobTimer;
 
     private Inventory _inventory;
     private PlayerController _player;
+    private InteractionManager _interactionManager;
     private GameObject _currentWeaponObj;
     private ItemBehaviour _currentBehaviour;
     private bool _usingAutoCreatedHoldPoint;
     private Coroutine _throwLockRoutine;
     private Coroutine _rawKnifeAttackRoutine;
+    private Coroutine _rawKnifeAnimationStopRoutine;
     private Coroutine _stoneSpearAttackRoutine;
+    private Coroutine _drinkUseRoutine;
+    private Coroutine _eatAnimationRoutine;
+    private Coroutine _delayedEatUseRoutine;
     private bool _rawKnifeAttackSlowed;
+    private bool _rawKnifeFullAttackRequested;
+    private bool _rawKnifeFullAttackRequestWindowOpen;
+    private bool _rawKnifeHeadStabilizeActive;
     private bool _stoneSpearAttackSlowed;
     private bool _isAimModeActive;
+    private bool _drinkUseApplyingEffect;
+    private bool _eatUseApplyingEffect;
+    private bool _beefEatTransformActive;
+    private bool _hasBeefEatRestTransform;
+    private Vector3 _beefEatRestLocalPosition;
+    private Quaternion _beefEatRestLocalRotation;
+    private Vector3 _beefEatRestLocalScale;
+    private bool _woodShovelActionTransformActive;
+    private bool _hasWoodShovelRestTransform;
+    private Vector3 _woodShovelRestLocalPosition;
+    private Quaternion _woodShovelRestLocalRotation;
+    private Vector3 _woodShovelRestLocalScale;
+    private Animator _rawKnifeHeadStabilizeAnimator;
+    private float _rawKnifeHeadStabilizeUntil = -999f;
+    private bool _rawKnifeHeadStabilizeRestCached;
+    private readonly Transform[] _rawKnifeHeadStabilizeBones = new Transform[5];
+    private readonly Quaternion[] _rawKnifeHeadStabilizeLocalRotations = new Quaternion[5];
+    private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int IsHoldingHash = Animator.StringToHash("IsHolding");
+    private static readonly int LocomotionStateHash = Animator.StringToHash("Locomotion");
     private static readonly int ThrowHash = Animator.StringToHash("Throw");
     private static readonly int ThrowStateHash = Animator.StringToHash("Throw");
     private static readonly int RawKnifeAttackHash = Animator.StringToHash("RawKnifeAttack");
+    private static readonly int RawKnifeStandAttackStateHash = Animator.StringToHash("RawKnifeStandAttack");
     private static readonly int StoneSpearAttackHash = Animator.StringToHash("StoneSpearAttack");
     private static readonly int IsAimingHash = Animator.StringToHash("IsAiming");
     private static readonly int IsSpearAimingHash = Animator.StringToHash("IsSpearAiming");
+    private static readonly int DrinkStateHash = Animator.StringToHash("newDrink");
+    private static readonly int EatStateHash = Animator.StringToHash("new eat");
+    private static readonly int ArmsOnlyIdleStateHash = Animator.StringToHash("ArmsOnlyIdle");
+    private static readonly int WoodShovelDiggingStateHash = Animator.StringToHash("digging");
+    private static readonly int WoodShovelPlaceStateHash = Animator.StringToHash("digPlace");
+    private static readonly int UpperBodyIdleStateHash = Animator.StringToHash("UpperBodyIdle");
+    private const int BaseLayerIndex = 0;
+    private const int UpperBodyLayerIndex = 1;
+    private const int ArmsOnlyLayerIndex = 2;
+    private const float RawKnifeLocomotionAttackSpeedThreshold = 0.05f;
+    private const float RawKnifeAttackAnimationBlendTime = 0.05f;
+    private const string DelayedDrinkItemName = "Swarded Cactaus Water";
+    private const string BeefItemName = "Beef";
+    private const string DiedCatItemName = "Died Cat";
+    private const string Log2ItemName = "Log 2";
+    private const string LogHalfItemName = "Log Half";
+    private const string SmallBranchItemName = "Small Branch";
 
     /// <summary>The currently equipped item behaviour (null if empty hand).</summary>
     public ItemBehaviour CurrentBehaviour => _currentBehaviour;
     public ItemData CurrentItem => _inventory != null ? _inventory.SelectedItem : null;
     public bool IsThrowAnimationLocked { get; private set; }
+    public bool IsDrinkUseLocked { get; private set; }
+    public bool IsEatUseLocked { get; private set; }
+    public bool IsWoodShovelUseLocked { get; private set; }
+    public bool IsWoodShovelCameraLocked { get; private set; }
+    public bool IsEatUseApplyingEffect => _eatUseApplyingEffect;
     public bool IsAimModeActive => _isAimModeActive;
     public bool IsStoneSpearAttackActive => _stoneSpearAttackSlowed;
     public float MovementSpeedMultiplier
@@ -111,6 +188,10 @@ public class EquipmentHolder : MonoBehaviour
                 multiplier *= StoneSpearAttackMovementMultiplier;
             if (_isAimModeActive)
                 multiplier *= AimMovementMultiplier;
+            if (IsEatUseLocked)
+                multiplier *= EatMovementMultiplier;
+            if (IsWoodShovelUseLocked)
+                multiplier *= WoodShovelMovementMultiplier;
             return Mathf.Clamp01(multiplier);
         }
     }
@@ -120,9 +201,41 @@ public class EquipmentHolder : MonoBehaviour
         return item != null && item.ItemName == "Stonemini";
     }
 
+    private static bool IsWoodShovel(ItemData item)
+    {
+        return item != null && item.ItemName == "Wood Shovel";
+    }
+
+    private static bool IsBeef(ItemData item)
+    {
+        return item != null && item.ItemName == BeefItemName;
+    }
+
+    private bool ShouldUseItemDataHoldTransform(ItemData item)
+    {
+        return !UsePrefabTransformWhenHeld || IsForcedItemDataHoldTransform(item);
+    }
+
+    private static bool IsForcedItemDataHoldTransform(ItemData item)
+    {
+        return item != null && (item.ItemName == Log2ItemName
+            || item.ItemName == LogHalfItemName
+            || item.ItemName == SmallBranchItemName);
+    }
+
     private static bool IsThrowableMelee(ItemData item)
     {
         return item != null && (item.ItemName == "Raw Knife" || item.ItemName == "Stone Spear");
+    }
+
+    private static bool IsDelayedDrinkItem(ItemData item)
+    {
+        return item != null && item.ItemName == DelayedDrinkItemName;
+    }
+
+    private static bool IsDelayedEatItem(ItemData item)
+    {
+        return item != null && (item.ItemName == BeefItemName || item.ItemName == DiedCatItemName);
     }
 
     public static bool SupportsAimMode(ItemData item)
@@ -133,6 +246,12 @@ public class EquipmentHolder : MonoBehaviour
     public void ReleaseCurrentWeapon()
     {
         SetAimMode(false, null);
+        CancelDrinkUse();
+        CancelDelayedEatUse();
+        SetBeefEatTransformActive(false);
+        SetWoodShovelUseLocked(false);
+        ResetWoodShovelAnimation();
+        _currentBehaviour?.OnUnequip();
         _currentWeaponObj = null;
         _currentBehaviour = null;
     }
@@ -146,7 +265,9 @@ public class EquipmentHolder : MonoBehaviour
     {
         _inventory = GetComponent<Inventory>();
         _player = GetComponent<PlayerController>();
+        _interactionManager = GetComponent<InteractionManager>();
         EnsurePlayerAnimator();
+        CacheRawKnifeHeadStabilizeRestPose();
 
         if (_inventory == null)
         {
@@ -165,6 +286,12 @@ public class EquipmentHolder : MonoBehaviour
 
     void OnDestroy()
     {
+        CancelRawKnifeAnimationStop();
+        StopRawKnifeHeadStabilize();
+        CancelDrinkUse();
+        CancelDelayedEatUse();
+        CancelEatAnimation();
+
         if (_inventory != null)
             _inventory.OnSelectedItemChanged -= OnSlotChanged;
     }
@@ -175,6 +302,11 @@ public class EquipmentHolder : MonoBehaviour
         UpdateHandPosition();
     }
 
+    void LateUpdate()
+    {
+        ApplyRawKnifeHeadStabilize();
+    }
+
     private void HandleInput()
     {
         if (_currentBehaviour == null) return;
@@ -182,6 +314,24 @@ public class EquipmentHolder : MonoBehaviour
         // Left-click = primary use (attack/consume)
         if (Input.GetMouseButtonDown(0))
         {
+            if (_interactionManager == null)
+                _interactionManager = GetComponent<InteractionManager>();
+
+            if (_interactionManager != null && _interactionManager.TryStartCursorPickup())
+                return;
+
+            if (IsDelayedDrinkItem(CurrentItem))
+            {
+                TryStartDelayedDrinkUse();
+                return;
+            }
+
+            if (IsDelayedEatItem(CurrentItem))
+            {
+                TryStartDelayedEatUse();
+                return;
+            }
+
             _currentBehaviour.Use();
         }
 
@@ -282,25 +432,44 @@ public class EquipmentHolder : MonoBehaviour
 
     private void ApplyCurrentItemHoldSettings()
     {
-        if (UsePrefabTransformWhenHeld)
+        if (_beefEatTransformActive && IsBeef(CurrentItem))
+        {
+            ApplyBeefEatTransform();
+            return;
+        }
+
+        if (_woodShovelActionTransformActive && IsWoodShovel(CurrentItem))
+        {
+            ApplyWoodShovelActionTransform();
+            return;
+        }
+
+        if (!ShouldUseItemDataHoldTransform(CurrentItem))
             return;
 
         // Apply item's hold settings dynamically so they can be tweaked in the Inspector live
-        if (_currentWeaponObj != null && CurrentItem != null)
-        {
-            // NaN Protection
-            Vector3 pos = CurrentItem.HoldPosition;
-            if (float.IsNaN(pos.x) || float.IsNaN(pos.y) || float.IsNaN(pos.z)) pos = Vector3.zero;
-            
-            _currentWeaponObj.transform.localPosition = pos;
-            _currentWeaponObj.transform.localRotation = Quaternion.Euler(CurrentItem.HoldRotation);
-            
-            // Allow manual scale tweaking. We use Lerp to smooth out slider dragging
-            float targetScale = CurrentItem.HoldScale;
-            if (float.IsNaN(targetScale)) targetScale = 1f;
+        ApplyItemDataHoldTransform(CurrentItem, true);
+    }
 
-            _currentWeaponObj.transform.localScale = Vector3.Lerp(_currentWeaponObj.transform.localScale, Vector3.one * targetScale, Time.deltaTime * 15f);
-        }
+    private void ApplyItemDataHoldTransform(ItemData item, bool smoothScale)
+    {
+        if (_currentWeaponObj == null || item == null)
+            return;
+
+        // NaN Protection
+        Vector3 pos = item.HoldPosition;
+        if (float.IsNaN(pos.x) || float.IsNaN(pos.y) || float.IsNaN(pos.z)) pos = Vector3.zero;
+
+        _currentWeaponObj.transform.localPosition = pos;
+        _currentWeaponObj.transform.localRotation = Quaternion.Euler(item.HoldRotation);
+
+        float targetScale = item.HoldScale;
+        if (float.IsNaN(targetScale)) targetScale = 1f;
+
+        Vector3 scale = Vector3.one * targetScale;
+        _currentWeaponObj.transform.localScale = smoothScale
+            ? Vector3.Lerp(_currentWeaponObj.transform.localScale, scale, Time.deltaTime * 15f)
+            : scale;
     }
 
     private void OnSlotChanged(int index, ItemData item)
@@ -312,6 +481,13 @@ public class EquipmentHolder : MonoBehaviour
     {
         EnsureHoldPoints();
         SetAimMode(false, null);
+        if (!_drinkUseApplyingEffect)
+            CancelDrinkUse();
+        if (!_eatUseApplyingEffect)
+            CancelDelayedEatUse();
+        if (!_eatUseApplyingEffect)
+            SetBeefEatTransformActive(false);
+        CancelRawKnifeAnimationStop();
 
         // Cleanup old weapon
         if (_currentBehaviour != null)
@@ -342,12 +518,8 @@ public class EquipmentHolder : MonoBehaviour
             return;
         }
 
-        if (!UsePrefabTransformWhenHeld)
-        {
-            _currentWeaponObj.transform.localPosition = item.HoldPosition;
-            _currentWeaponObj.transform.localRotation = Quaternion.Euler(item.HoldRotation);
-            _currentWeaponObj.transform.localScale = Vector3.one * item.HoldScale;
-        }
+        if (ShouldUseItemDataHoldTransform(item))
+            ApplyItemDataHoldTransform(item, false);
 
         // Get or add appropriate behaviour
         _currentBehaviour = _currentWeaponObj.GetComponent<ItemBehaviour>();
@@ -370,7 +542,11 @@ public class EquipmentHolder : MonoBehaviour
                     _currentBehaviour = _currentWeaponObj.AddComponent<RangedWeapon>();
                     break;
                 case ItemType.Tool:
-                    if (IsThrowableStone(item))
+                    if (IsWoodShovel(item))
+                    {
+                        _currentBehaviour = _currentWeaponObj.AddComponent<WoodShovelItem>();
+                    }
+                    else if (IsThrowableStone(item))
                     {
                         var throwable = _currentWeaponObj.AddComponent<ThrowableItem>();
                         throwable.VisualizerPrefab = ToolVisualizerPrefab;
@@ -445,11 +621,206 @@ public class EquipmentHolder : MonoBehaviour
         EnsurePlayerAnimator();
         StartRawKnifeAttackSlow();
 
-        if (PlayerAnimator != null && HasAnimatorParameter(PlayerAnimator, RawKnifeAttackHash))
-        {
+        int attackLayer = PlayRawKnifeAttackAnimation();
+        StartRawKnifeAnimationStopWindow(attackLayer);
+    }
+
+    public bool RequestRawKnifeFullAttackAnimation()
+    {
+        if (!_rawKnifeFullAttackRequestWindowOpen)
+            return false;
+
+        _rawKnifeFullAttackRequested = true;
+        _rawKnifeFullAttackRequestWindowOpen = false;
+        return true;
+    }
+
+    private int PlayRawKnifeAttackAnimation()
+    {
+        if (PlayerAnimator == null)
+            return -1;
+
+        if (HasAnimatorParameter(PlayerAnimator, RawKnifeAttackHash))
             PlayerAnimator.ResetTrigger(RawKnifeAttackHash);
-            PlayerAnimator.SetTrigger(RawKnifeAttackHash);
+
+        float speed = HasAnimatorParameter(PlayerAnimator, SpeedHash)
+            ? PlayerAnimator.GetFloat(SpeedHash)
+            : 0f;
+        Vector2 moveInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        bool hasMoveInput = moveInput.sqrMagnitude > 0.01f;
+
+        bool playUpperBody = (speed > RawKnifeLocomotionAttackSpeedThreshold || hasMoveInput)
+            && HasAnimatorState(PlayerAnimator, UpperBodyLayerIndex, RawKnifeAttackHash);
+
+        if (playUpperBody)
+        {
+            StartRawKnifeHeadStabilize();
+            PlayerAnimator.CrossFadeInFixedTime(
+                RawKnifeAttackHash,
+                RawKnifeAttackAnimationBlendTime,
+                UpperBodyLayerIndex,
+                0f);
+            return UpperBodyLayerIndex;
         }
+
+        if (HasAnimatorState(PlayerAnimator, 0, RawKnifeStandAttackStateHash))
+        {
+            PlayerAnimator.CrossFadeInFixedTime(
+                RawKnifeStandAttackStateHash,
+                RawKnifeAttackAnimationBlendTime,
+                0,
+                0f);
+            return 0;
+        }
+
+        return -1;
+    }
+
+    private void StartRawKnifeAnimationStopWindow(int attackLayer)
+    {
+        CancelRawKnifeAnimationStop();
+
+        if (attackLayer < 0)
+            return;
+
+        _rawKnifeFullAttackRequested = false;
+        _rawKnifeFullAttackRequestWindowOpen = true;
+        _rawKnifeAnimationStopRoutine = StartCoroutine(RawKnifeAnimationStopWindowRoutine(attackLayer));
+    }
+
+    private IEnumerator RawKnifeAnimationStopWindowRoutine(int attackLayer)
+    {
+        float frameRate = Mathf.Max(1f, RawKnifeAttackFrameRate);
+        float stopDelay = Mathf.Max(0f, RawKnifeAttackStopFrame) / frameRate;
+        if (stopDelay > 0f)
+            yield return new WaitForSeconds(stopDelay);
+
+        _rawKnifeFullAttackRequestWindowOpen = false;
+
+        if (!_rawKnifeFullAttackRequested)
+        {
+            int stopStateHash = attackLayer == UpperBodyLayerIndex
+                ? UpperBodyIdleStateHash
+                : LocomotionStateHash;
+            CrossFadeLayerState(stopStateHash, attackLayer, RawKnifeAttackAnimationBlendTime);
+
+            if (attackLayer == UpperBodyLayerIndex)
+                StopRawKnifeHeadStabilize();
+        }
+
+        _rawKnifeAnimationStopRoutine = null;
+    }
+
+    private void CancelRawKnifeAnimationStop()
+    {
+        if (_rawKnifeAnimationStopRoutine != null)
+        {
+            StopCoroutine(_rawKnifeAnimationStopRoutine);
+            _rawKnifeAnimationStopRoutine = null;
+        }
+
+        _rawKnifeFullAttackRequested = false;
+        _rawKnifeFullAttackRequestWindowOpen = false;
+    }
+
+    private void StartRawKnifeHeadStabilize()
+    {
+        CacheRawKnifeHeadStabilizeRestPose();
+        if (!_rawKnifeHeadStabilizeRestCached)
+            return;
+
+        _rawKnifeHeadStabilizeUntil = Time.time + Mathf.Max(0f, RawKnifeHeadStabilizeDuration);
+        _rawKnifeHeadStabilizeActive = true;
+    }
+
+    private void StopRawKnifeHeadStabilize()
+    {
+        _rawKnifeHeadStabilizeActive = false;
+        _rawKnifeHeadStabilizeUntil = -999f;
+    }
+
+    private void ApplyRawKnifeHeadStabilize()
+    {
+        if (!_rawKnifeHeadStabilizeActive)
+            return;
+
+        if (Time.time >= _rawKnifeHeadStabilizeUntil)
+        {
+            StopRawKnifeHeadStabilize();
+            return;
+        }
+
+        for (int i = 0; i < _rawKnifeHeadStabilizeBones.Length; i++)
+        {
+            Transform bone = _rawKnifeHeadStabilizeBones[i];
+            if (bone != null)
+                bone.localRotation = _rawKnifeHeadStabilizeLocalRotations[i];
+        }
+    }
+
+    private void CacheRawKnifeHeadStabilizeBones()
+    {
+        if (PlayerAnimator == null)
+            return;
+
+        if (_rawKnifeHeadStabilizeAnimator == PlayerAnimator && _rawKnifeHeadStabilizeBones[4] != null)
+            return;
+
+        _rawKnifeHeadStabilizeAnimator = PlayerAnimator;
+        _rawKnifeHeadStabilizeRestCached = false;
+        _rawKnifeHeadStabilizeBones[0] = GetAnimatorBoneOrChild(HumanBodyBones.Spine, "mixamorig:Spine");
+        _rawKnifeHeadStabilizeBones[1] = GetAnimatorBoneOrChild(HumanBodyBones.Chest, "mixamorig:Spine1");
+        _rawKnifeHeadStabilizeBones[2] = GetAnimatorBoneOrChild(HumanBodyBones.UpperChest, "mixamorig:Spine2");
+        _rawKnifeHeadStabilizeBones[3] = GetAnimatorBoneOrChild(HumanBodyBones.Neck, "mixamorig:Neck");
+        _rawKnifeHeadStabilizeBones[4] = GetAnimatorBoneOrChild(HumanBodyBones.Head, "mixamorig:Head");
+    }
+
+    private void CacheRawKnifeHeadStabilizeRestPose()
+    {
+        CacheRawKnifeHeadStabilizeBones();
+
+        if (_rawKnifeHeadStabilizeRestCached)
+            return;
+
+        bool hasBone = false;
+        for (int i = 0; i < _rawKnifeHeadStabilizeBones.Length; i++)
+        {
+            Transform bone = _rawKnifeHeadStabilizeBones[i];
+            if (bone == null)
+                continue;
+
+            _rawKnifeHeadStabilizeLocalRotations[i] = bone.localRotation;
+            hasBone = true;
+        }
+
+        _rawKnifeHeadStabilizeRestCached = hasBone;
+    }
+
+    private Transform GetAnimatorBoneOrChild(HumanBodyBones bone, string fallbackName)
+    {
+        Transform result = PlayerAnimator != null && PlayerAnimator.isHuman
+            ? PlayerAnimator.GetBoneTransform(bone)
+            : null;
+
+        return result != null ? result : FindChildRecursive(PlayerAnimator != null ? PlayerAnimator.transform : transform, fallbackName);
+    }
+
+    private static Transform FindChildRecursive(Transform root, string childName)
+    {
+        if (root == null)
+            return null;
+
+        if (root.name == childName)
+            return root;
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform result = FindChildRecursive(root.GetChild(i), childName);
+            if (result != null)
+                return result;
+        }
+
+        return null;
     }
 
     public void TriggerStoneSpearMeleeAnimation()
@@ -524,6 +895,338 @@ public class EquipmentHolder : MonoBehaviour
 
         IsThrowAnimationLocked = false;
         _throwLockRoutine = null;
+    }
+
+    private void TryStartDelayedDrinkUse()
+    {
+        if (_drinkUseRoutine != null)
+            return;
+
+        if (_currentBehaviour == null || !IsDelayedDrinkItem(CurrentItem))
+            return;
+
+        _drinkUseRoutine = StartCoroutine(DelayedDrinkUseRoutine(_currentBehaviour, CurrentItem));
+    }
+
+    private IEnumerator DelayedDrinkUseRoutine(ItemBehaviour behaviour, ItemData item)
+    {
+        IsDrinkUseLocked = true;
+        EnsurePlayerAnimator();
+        CrossFadeLayerState(DrinkStateHash, BaseLayerIndex, DrinkAnimationBlendTime);
+
+        float effectDelay = Mathf.Max(0f, DrinkUseEffectDelay);
+        float lockDuration = Mathf.Max(effectDelay, DrinkRunJumpLockDuration);
+
+        if (effectDelay > 0f)
+            yield return new WaitForSeconds(effectDelay);
+
+        if (_currentBehaviour == behaviour && CurrentItem == item && IsDelayedDrinkItem(CurrentItem))
+        {
+            _drinkUseApplyingEffect = true;
+            try
+            {
+                behaviour.Use();
+            }
+            finally
+            {
+                _drinkUseApplyingEffect = false;
+            }
+        }
+
+        float remainingLockTime = lockDuration - effectDelay;
+        if (remainingLockTime > 0f)
+            yield return new WaitForSeconds(remainingLockTime);
+
+        CrossFadeLayerState(LocomotionStateHash, BaseLayerIndex, DrinkAnimationBlendTime);
+        IsDrinkUseLocked = false;
+        _drinkUseRoutine = null;
+    }
+
+    private void CancelDrinkUse()
+    {
+        if (_drinkUseRoutine != null)
+        {
+            StopCoroutine(_drinkUseRoutine);
+            _drinkUseRoutine = null;
+        }
+
+        IsDrinkUseLocked = false;
+        CrossFadeLayerState(LocomotionStateHash, BaseLayerIndex, DrinkAnimationBlendTime);
+    }
+
+    private void TryStartDelayedEatUse()
+    {
+        if (_delayedEatUseRoutine != null)
+            return;
+
+        if (_currentBehaviour == null || !IsDelayedEatItem(CurrentItem) || _currentBehaviour.IsOnCooldown())
+            return;
+
+        if (!CanEatDelayedItem(CurrentItem))
+            return;
+
+        _delayedEatUseRoutine = StartCoroutine(DelayedEatUseRoutine(_currentBehaviour, CurrentItem));
+    }
+
+    private static bool CanEatDelayedItem(ItemData item)
+    {
+        if (!IsDelayedEatItem(item) || PlayerStats.Instance == null)
+            return true;
+
+        if (PlayerStats.Instance.CurrentHunger < PlayerStats.Instance.MaxHunger * 0.8f)
+            return true;
+
+        Debug.Log($"[Equipment] {item.ItemName} cannot be eaten while hunger is above 80%.");
+        return false;
+    }
+
+    private IEnumerator DelayedEatUseRoutine(ItemBehaviour behaviour, ItemData item)
+    {
+        IsEatUseLocked = true;
+        EnsurePlayerAnimator();
+        SetBeefEatTransformActive(IsBeef(item));
+
+        if (_eatAnimationRoutine != null)
+        {
+            StopCoroutine(_eatAnimationRoutine);
+            _eatAnimationRoutine = null;
+        }
+
+        CrossFadeLayerState(EatStateHash, BaseLayerIndex, EatAnimationBlendTime);
+
+        float effectDelay = Mathf.Max(0f, EatUseEffectDelay);
+        if (effectDelay > 0f)
+            yield return new WaitForSeconds(effectDelay);
+
+        if (_currentBehaviour == behaviour && CurrentItem == item && IsDelayedEatItem(CurrentItem))
+        {
+            _eatUseApplyingEffect = true;
+            try
+            {
+                behaviour.Use();
+            }
+            finally
+            {
+                _eatUseApplyingEffect = false;
+            }
+        }
+
+        CrossFadeLayerState(LocomotionStateHash, BaseLayerIndex, EatAnimationBlendTime);
+        SetBeefEatTransformActive(false);
+        IsEatUseLocked = false;
+        _delayedEatUseRoutine = null;
+    }
+
+    private void CancelDelayedEatUse()
+    {
+        if (_delayedEatUseRoutine != null)
+        {
+            StopCoroutine(_delayedEatUseRoutine);
+            _delayedEatUseRoutine = null;
+        }
+
+        IsEatUseLocked = false;
+        _eatUseApplyingEffect = false;
+        SetBeefEatTransformActive(false);
+        CrossFadeLayerState(LocomotionStateHash, BaseLayerIndex, EatAnimationBlendTime);
+    }
+
+    public void PlayEatAnimation()
+    {
+        if (IsEatUseLocked)
+            return;
+
+        if (_eatAnimationRoutine != null)
+            StopCoroutine(_eatAnimationRoutine);
+
+        _eatAnimationRoutine = StartCoroutine(EatAnimationRoutine());
+    }
+
+    private IEnumerator EatAnimationRoutine()
+    {
+        CrossFadeLayerState(EatStateHash, BaseLayerIndex, EatAnimationBlendTime);
+
+        float duration = Mathf.Max(0f, EatAnimationDuration);
+        if (duration > 0f)
+            yield return new WaitForSeconds(duration);
+
+        CrossFadeLayerState(LocomotionStateHash, BaseLayerIndex, EatAnimationBlendTime);
+        _eatAnimationRoutine = null;
+    }
+
+    private void CancelEatAnimation()
+    {
+        if (_eatAnimationRoutine != null)
+        {
+            StopCoroutine(_eatAnimationRoutine);
+            _eatAnimationRoutine = null;
+        }
+
+        CrossFadeLayerState(LocomotionStateHash, BaseLayerIndex, EatAnimationBlendTime);
+    }
+
+    private void CrossFadeUpperBodyState(int stateHash)
+    {
+        CrossFadeUpperBodyState(stateHash, DrinkAnimationBlendTime);
+    }
+
+    private void CrossFadeUpperBodyState(int stateHash, float blendTime)
+    {
+        CrossFadeLayerState(stateHash, UpperBodyLayerIndex, blendTime);
+    }
+
+    private void CrossFadeLayerState(int stateHash, int layerIndex, float blendTime)
+    {
+        EnsurePlayerAnimator();
+        if (PlayerAnimator == null || PlayerAnimator.layerCount <= layerIndex)
+            return;
+
+        PlayerAnimator.CrossFadeInFixedTime(stateHash, Mathf.Max(0f, blendTime), layerIndex, 0f);
+    }
+
+    private void SetBeefEatTransformActive(bool active)
+    {
+        if (active && (!IsBeef(CurrentItem) || _currentWeaponObj == null))
+        {
+            _beefEatTransformActive = false;
+            _hasBeefEatRestTransform = false;
+            return;
+        }
+
+        if (active)
+        {
+            if (!_beefEatTransformActive)
+            {
+                Transform heldTransform = _currentWeaponObj.transform;
+                _beefEatRestLocalPosition = heldTransform.localPosition;
+                _beefEatRestLocalRotation = heldTransform.localRotation;
+                _beefEatRestLocalScale = heldTransform.localScale;
+                _hasBeefEatRestTransform = true;
+            }
+
+            _beefEatTransformActive = true;
+            ApplyBeefEatTransform();
+            return;
+        }
+
+        _beefEatTransformActive = false;
+        RestoreBeefEatTransform();
+    }
+
+    private void ApplyBeefEatTransform()
+    {
+        if (_currentWeaponObj == null)
+            return;
+
+        Transform heldTransform = _currentWeaponObj.transform;
+        heldTransform.localPosition = BeefEatLocalPosition;
+        heldTransform.localRotation = Quaternion.Euler(BeefEatLocalEulerAngles);
+        heldTransform.localScale = BeefEatLocalScale;
+    }
+
+    private void RestoreBeefEatTransform()
+    {
+        if (!_hasBeefEatRestTransform || _currentWeaponObj == null)
+        {
+            _hasBeefEatRestTransform = false;
+            return;
+        }
+
+        Transform heldTransform = _currentWeaponObj.transform;
+        heldTransform.localPosition = _beefEatRestLocalPosition;
+        heldTransform.localRotation = _beefEatRestLocalRotation;
+        heldTransform.localScale = _beefEatRestLocalScale;
+        _hasBeefEatRestTransform = false;
+    }
+
+    public void SetWoodShovelUseLocked(bool locked)
+    {
+        IsWoodShovelUseLocked = locked;
+    }
+
+    public void SetWoodShovelCameraLocked(bool locked)
+    {
+        IsWoodShovelCameraLocked = locked;
+    }
+
+    public void SetWoodShovelActionTransformActive(bool active)
+    {
+        if (!IsWoodShovel(CurrentItem) || _currentWeaponObj == null)
+        {
+            _woodShovelActionTransformActive = false;
+            _hasWoodShovelRestTransform = false;
+            return;
+        }
+
+        if (active)
+        {
+            if (!_woodShovelActionTransformActive)
+            {
+                Transform heldTransform = _currentWeaponObj.transform;
+                _woodShovelRestLocalPosition = heldTransform.localPosition;
+                _woodShovelRestLocalRotation = heldTransform.localRotation;
+                _woodShovelRestLocalScale = heldTransform.localScale;
+                _hasWoodShovelRestTransform = true;
+            }
+
+            _woodShovelActionTransformActive = true;
+            ApplyWoodShovelActionTransform();
+            return;
+        }
+
+        _woodShovelActionTransformActive = false;
+        RestoreWoodShovelRestTransform();
+    }
+
+    private void ApplyWoodShovelActionTransform()
+    {
+        if (_currentWeaponObj == null)
+            return;
+
+        Transform heldTransform = _currentWeaponObj.transform;
+        heldTransform.localPosition = WoodShovelActionLocalPosition;
+        heldTransform.localRotation = Quaternion.Euler(WoodShovelActionLocalEulerAngles);
+        heldTransform.localScale = WoodShovelActionLocalScale;
+    }
+
+    private void RestoreWoodShovelRestTransform()
+    {
+        if (!_hasWoodShovelRestTransform || _currentWeaponObj == null)
+        {
+            _hasWoodShovelRestTransform = false;
+            return;
+        }
+
+        Transform heldTransform = _currentWeaponObj.transform;
+        heldTransform.localPosition = _woodShovelRestLocalPosition;
+        heldTransform.localRotation = _woodShovelRestLocalRotation;
+        heldTransform.localScale = _woodShovelRestLocalScale;
+        _hasWoodShovelRestTransform = false;
+    }
+
+    public void PlayWoodShovelDiggingAnimation()
+    {
+        CrossFadeUpperBodyState(WoodShovelDiggingStateHash, WoodShovelAnimationBlendTime);
+    }
+
+    public void HoldWoodShovelDiggingPose()
+    {
+        EnsurePlayerAnimator();
+        if (PlayerAnimator == null || PlayerAnimator.layerCount <= UpperBodyLayerIndex)
+            return;
+
+        PlayerAnimator.Play(WoodShovelDiggingStateHash, UpperBodyLayerIndex, 0.999f);
+        PlayerAnimator.Update(0f);
+    }
+
+    public void PlayWoodShovelPlaceAnimation()
+    {
+        CrossFadeUpperBodyState(WoodShovelPlaceStateHash, WoodShovelAnimationBlendTime);
+    }
+
+    public void ResetWoodShovelAnimation()
+    {
+        CrossFadeUpperBodyState(UpperBodyIdleStateHash, WoodShovelAnimationBlendTime);
     }
 
     private void StartRawKnifeAttackSlow()
@@ -631,7 +1334,11 @@ public class EquipmentHolder : MonoBehaviour
             HasAnimatorParameter(PlayerAnimator, RawKnifeAttackHash) ||
             HasAnimatorParameter(PlayerAnimator, StoneSpearAttackHash) ||
             HasAnimatorParameter(PlayerAnimator, IsAimingHash) ||
-            HasAnimatorParameter(PlayerAnimator, IsSpearAimingHash))
+            HasAnimatorParameter(PlayerAnimator, IsSpearAimingHash) ||
+            HasAnimatorState(PlayerAnimator, UpperBodyLayerIndex, WoodShovelDiggingStateHash) ||
+            HasAnimatorState(PlayerAnimator, UpperBodyLayerIndex, WoodShovelPlaceStateHash) ||
+            HasAnimatorState(PlayerAnimator, BaseLayerIndex, DrinkStateHash) ||
+            HasAnimatorState(PlayerAnimator, BaseLayerIndex, EatStateHash))
             return;
 
         PlayerAnimator = null;
@@ -641,7 +1348,11 @@ public class EquipmentHolder : MonoBehaviour
                 HasAnimatorParameter(animator, RawKnifeAttackHash) ||
                 HasAnimatorParameter(animator, StoneSpearAttackHash) ||
                 HasAnimatorParameter(animator, IsAimingHash) ||
-                HasAnimatorParameter(animator, IsSpearAimingHash))
+                HasAnimatorParameter(animator, IsSpearAimingHash) ||
+                HasAnimatorState(animator, UpperBodyLayerIndex, WoodShovelDiggingStateHash) ||
+                HasAnimatorState(animator, UpperBodyLayerIndex, WoodShovelPlaceStateHash) ||
+                HasAnimatorState(animator, BaseLayerIndex, DrinkStateHash) ||
+                HasAnimatorState(animator, BaseLayerIndex, EatStateHash))
             {
                 PlayerAnimator = animator;
                 return;
@@ -660,5 +1371,12 @@ public class EquipmentHolder : MonoBehaviour
         }
 
         return false;
+    }
+
+    private static bool HasAnimatorState(Animator animator, int layerIndex, int stateHash)
+    {
+        return animator != null
+            && animator.layerCount > layerIndex
+            && animator.HasState(layerIndex, stateHash);
     }
 }

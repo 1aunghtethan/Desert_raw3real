@@ -90,6 +90,8 @@ public class AnimalSpawnerSetup : EditorWindow
                 animalName = System.Text.RegularExpressions.Regex.Replace(animalName, @"(_v[0-9]+|_00[0-9]+)$", "");
                 // Ensure name is clean for filenames
                 animalName = System.Text.RegularExpressions.Regex.Replace(animalName, @"[^a-zA-Z0-9_]", "");
+
+                if (animalName != "Deer" && animalName != "Kitty") continue;
                 
                 string assetPath = $"{dataPath}/{animalName}_Data.asset";
                 AnimalData data = AssetDatabase.LoadAssetAtPath<AnimalData>(assetPath);
@@ -121,7 +123,9 @@ public class AnimalSpawnerSetup : EditorWindow
         if (animalPool.Count > 0)
         {
             spawner.AnimalPool = animalPool;
-            spawner.AnimalCount = 10;
+            spawner.DeerCount = 2;
+            spawner.KittyCount = 1;
+            spawner.AnimalCount = spawner.DeerCount + spawner.KittyCount;
             spawner.SpawnRange = 100f;
             spawner.DespawnDistance = 200f;
             

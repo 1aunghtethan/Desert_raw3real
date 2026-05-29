@@ -8,55 +8,67 @@ Shader "Custom/Outline"
 
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags
+        {
+            "RenderPipeline"="UniversalPipeline"
+            "RenderType"="Transparent"
+            "Queue"="Transparent"
+        }
+
         Pass
         {
             Name "OUTLINE"
-            Tags { "LightMode" = "Always" }
+            Tags { "LightMode" = "SRPDefaultUnlit" }
+
             Cull Front
             ZWrite On
+            ZTest LEqual
             ColorMask RGB
             Blend SrcAlpha OneMinusSrcAlpha
 
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #include "UnityCG.cginc"
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
 
-            struct appdata
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct Attributes
             {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
             };
 
-            struct v2f
+            struct Varyings
             {
-                float4 pos : SV_POSITION;
-                float4 color : COLOR;
+                float4 positionCS : SV_POSITION;
+                half4 color : COLOR;
             };
 
+            CBUFFER_START(UnityPerMaterial)
             float _OutlineWidth;
-            float4 _OutlineColor;
+            half4 _OutlineColor;
+            CBUFFER_END
 
-            v2f vert (appdata v)
+            Varyings Vert(Attributes input)
             {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
+                Varyings output;
 
-                float3 norm   = normalize(mul ((float3x3)UNITY_MATRIX_IT_MV, v.normal));
-                float2 offset = TransformViewToProjection(norm.xy);
+                VertexPositionInputs positionInputs = GetVertexPositionInputs(input.positionOS.xyz);
+                VertexNormalInputs normalInputs = GetVertexNormalInputs(input.normalOS);
+                float3 outlinePositionWS = positionInputs.positionWS + normalize(normalInputs.normalWS) * _OutlineWidth;
 
-                o.pos.xy += offset * o.pos.z * _OutlineWidth;
-                o.color = _OutlineColor;
-                return o;
+                output.positionCS = TransformWorldToHClip(outlinePositionWS);
+                output.color = _OutlineColor;
+                return output;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            half4 Frag(Varyings input) : SV_Target
             {
-                return i.color;
+                return input.color;
             }
-            ENDCG
+            ENDHLSL
         }
     }
-    Fallback "Diffuse"
+
+    Fallback Off
 }

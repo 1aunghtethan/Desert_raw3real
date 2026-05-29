@@ -8,7 +8,17 @@ public class ConsumableItem : ItemBehaviour
 {
     public override bool Use()
     {
-        if (IsOnCooldown()) return false;
+        if (Data == null || IsOnCooldown()) return false;
+
+        if (IsBlockedByHighHunger(Data))
+            return false;
+
+        EquipmentHolder holder = EquipmentHolder.Instance;
+        if (Data != null && (Data.HungerRestore > 0f || Data.SaturationRestore > 0f) &&
+            (holder == null || !holder.IsEatUseApplyingEffect))
+        {
+            holder?.PlayEatAnimation();
+        }
 
         // Perform consumption
         if (PlayerStats.Instance != null)
@@ -28,6 +38,22 @@ public class ConsumableItem : ItemBehaviour
         }
 
         _lastUseTime = Time.time;
+        return true;
+    }
+
+    private static bool IsBlockedByHighHunger(ItemData item)
+    {
+        if (item == null || PlayerStats.Instance == null)
+            return false;
+
+        bool isBlockedFood = item.ItemName == "Beef" || item.ItemName == "Died Cat";
+        if (!isBlockedFood)
+            return false;
+
+        if (PlayerStats.Instance.CurrentHunger < PlayerStats.Instance.MaxHunger * 0.8f)
+            return false;
+
+        Debug.Log($"[ConsumableItem] {item.ItemName} cannot be eaten while hunger is above 80%.");
         return true;
     }
 }

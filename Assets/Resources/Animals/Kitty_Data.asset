@@ -18,8 +18,14 @@ MonoBehaviour:
   WanderRadius: 10
   WanderIntervalMin: 2
   WanderIntervalMax: 5
-  LootPrefab: {fileID: 0}
+  LootPrefab: {fileID: 3835150388577352895, guid: f77f788b6593ae942a0b489f8d12a353, type: 3}
+  LootCount: 1
+  LootWorldScale: 0
   CanEatGrass: 0
+  PainSound: {fileID: 8300000, guid: edca01c612413754fbbdc9196d63edfc, type: 3}
+  DeathSound: {fileID: 8300000, guid: 1b607d5d1d303b84094d916cc67c09f8, type: 3}
+  PainSoundVolume: 1
+  DeathSoundVolume: 1
   UsePlayerAvoidance: 1
   PlayerDangerRadius: 10
   PlayerAwarenessRadius: 40

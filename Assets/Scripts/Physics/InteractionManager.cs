@@ -1,27 +1,30 @@
 using UnityEngine;
 using GinjaGaming.FinalCharacterController;
 using System.Collections;
+using UnityEngine.UI;
 
 /// <summary>
 /// Handles player interaction with world objects (Meat, Water, etc.).
-/// Performs a raycast from the camera to detect LootItem components.
-/// Shows a UI prompt and handles the 'E' key for pickup.
+/// Performs a raycast through the visible UI cursor to detect LootItem components.
+/// Shows a UI prompt and handles left-click pickup.
 /// </summary>
 public class InteractionManager : MonoBehaviour
 {
     [Header("Settings")]
     public float InteractionRange = 4.0f;
     public LayerMask InteractionLayers = ~0; // Everything by default
-    public KeyCode InteractionKey = KeyCode.E;
 
     [Header("Visuals")]
     public Color PromptColor = Color.white;
     public int FontSize = 22;
+    public RectTransform CursorRectTransform;
+    public float CursorSphereRadius = 0.3f;
 
     [Header("Pickup Animation")]
-    public float PickupGatherDuration = 0.8f;
+    public float PickupGatherDuration = 1.2f;
     public float PickupActionDelay = 0.6f;
     public float PickupMovementMultiplier = 0.25f;
+    public float PickupMovementSlowDuration = 1.2f;
 
     private LootItem m_CurrentTarget;
     private LootItem m_PreviousOutlineTarget;
@@ -29,21 +32,40 @@ public class InteractionManager : MonoBehaviour
     private Camera m_MainCamera;
     private PlayerController m_Controller;
     private PlayerActionsInput m_PlayerActionsInput;
+    private ItemPlacer m_ItemPlacer;
+    private InventoryPanelUI m_InventoryPanel;
+    private CanvasGroup m_InventoryPanelCanvasGroup;
     private Animator m_Animator;
     private Coroutine m_PickupRoutine;
+    private float m_PickupMovementSlowUntil;
+    private int m_ActivePickupAnimationLayer = -1;
+    private int m_ActivePickupAnimationStateHash;
+    private float m_ActivePickupAnimationLength = 1f;
+    private float m_PrePickupUpperBodyLayerWeight;
+    private float m_PrePickupArmsOnlyLayerWeight;
+    private bool m_PickupMutedOverlayLayers;
 
     // Hash for the Gathering state name (used with CrossFadeInFixedTime)
     private static readonly int GatheringStateHash = Animator.StringToHash("Gathering");
+    private static readonly int NewPickupStateHash = Animator.StringToHash("newPickup");
     private static readonly int LocomotionStateHash = Animator.StringToHash("Locomotion");
+    private static readonly int ArmsOnlyIdleStateHash = Animator.StringToHash("ArmsOnlyIdle");
     private static readonly int IsGatheringHash = Animator.StringToHash("isGathering");
+    private const int BaseLayerIndex = 0;
+    private const int UpperBodyLayerIndex = 1;
+    private const int ArmsOnlyLayerIndex = 2;
 
-    private GUIStyle m_PromptStyle;
-    private GUIStyle m_ShadowStyle;
-    public float MovementSpeedMultiplier => m_PickupRoutine != null ? Mathf.Clamp01(PickupMovementMultiplier) : 1f;
+    public float MovementSpeedMultiplier => Time.time < m_PickupMovementSlowUntil ? Mathf.Clamp01(PickupMovementMultiplier) : 1f;
+    public bool HasCursorPickupTarget => m_CurrentTarget != null;
+    public bool IsPickupInProgress => m_PickupRoutine != null;
 
     private void Start()
     {
         m_Controller = GetComponent<PlayerController>();
+        m_ItemPlacer = GetComponent<ItemPlacer>();
+        m_InventoryPanel = FindFirstObjectByType<InventoryPanelUI>(FindObjectsInactive.Include);
+        if (m_InventoryPanel != null)
+            m_InventoryPanelCanvasGroup = m_InventoryPanel.GetComponent<CanvasGroup>();
 
         // Search in children too, in case PlayerActionsInput is on a child object
         m_PlayerActionsInput = GetComponent<PlayerActionsInput>();
@@ -52,12 +74,23 @@ public class InteractionManager : MonoBehaviour
 
         // Find the Animator that has the isGathering parameter (via PlayerAnimation's serialized reference)
         FindCorrectAnimator();
+        ResolveCursorRectTransform();
+        DisableCursorRaycastTargets();
 
         UpdateCameraReference();
     }
 
     private void FindCorrectAnimator()
     {
+        foreach (Animator animator in GetComponentsInChildren<Animator>(true))
+        {
+            if (IsPickupAnimator(animator))
+            {
+                m_Animator = animator;
+                return;
+            }
+        }
+
         // Try to find the Animator used by PlayerAnimation (which is serialized to the correct one)
         var playerAnim = GetComponentInChildren<GinjaGaming.FinalCharacterController.PlayerAnimation>();
         if (playerAnim != null)
@@ -79,21 +112,50 @@ public class InteractionManager : MonoBehaviour
         UpdateCameraReference();
         if (m_MainCamera == null) return;
 
+        if (IsInventoryPanelOpen())
+        {
+            ClearCurrentTarget();
+            return;
+        }
+
         // Restore: Detect EVERY frame for maximum responsiveness ("one frame")
         PerformDetection();
 
-        // Frame-perfect input handling
-        if (m_CurrentTarget != null && Input.GetKeyDown(InteractionKey) && m_PickupRoutine == null)
-        {
-            m_PickupRoutine = StartCoroutine(PickupAfterGathering(m_CurrentTarget));
-        }
+        if (Input.GetMouseButtonDown(0))
+            TryStartCursorPickup();
 
         UpdateOutline(m_CurrentTarget);
     }
 
+    public bool TryStartCursorPickup()
+    {
+        if (m_PickupRoutine != null)
+        {
+            AudioManager.Current?.StopFootsteps();
+            return true;
+        }
+
+        if (m_ItemPlacer != null && m_ItemPlacer.IsPlacementModeActive)
+            return false;
+
+        if (IsInventoryPanelOpen())
+            return false;
+
+        UpdateCameraReference();
+        if (m_MainCamera == null)
+            return false;
+
+        PerformDetection();
+        if (m_CurrentTarget == null)
+            return false;
+
+        m_PickupRoutine = StartCoroutine(PickupAfterGathering(m_CurrentTarget));
+        return true;
+    }
+
     private void PerformDetection()
     {
-        Ray ray = m_MainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+        Ray ray = m_MainCamera.ScreenPointToRay(GetCursorScreenPoint());
         float maxDist = InteractionRange + 20f;
 
         // Restore: Use the user-configured layers instead of forcing "Item"
@@ -101,7 +163,7 @@ public class InteractionManager : MonoBehaviour
 
         // Restore: Simple, responsive SphereCastAll for easier targeting
         m_CurrentTarget = null;
-        RaycastHit[] hits = Physics.SphereCastAll(ray, 0.3f, maxDist, layerMask);
+        RaycastHit[] hits = Physics.SphereCastAll(ray, CursorSphereRadius, maxDist, layerMask);
         
         if (hits.Length > 0)
         {
@@ -132,29 +194,96 @@ public class InteractionManager : MonoBehaviour
         return false;
     }
 
-    // LEGACY GUI: Standard OnGUI with Style Caching for FPS
-    private void OnGUI()
+    private void ClearCurrentTarget()
     {
-        if (m_CurrentTarget == null) return;
+        m_CurrentTarget = null;
+        UpdateOutline(null);
+    }
 
-        if (m_PromptStyle == null)
+    public Vector2 GetCursorScreenPoint()
+    {
+        if (CursorRectTransform == null)
+            ResolveCursorRectTransform();
+
+        if (CursorRectTransform == null)
+            return new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+
+        Canvas canvas = CursorRectTransform.GetComponentInParent<Canvas>();
+        Camera uiCamera = null;
+        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            uiCamera = canvas.worldCamera;
+
+        return RectTransformUtility.WorldToScreenPoint(uiCamera, CursorRectTransform.position);
+    }
+
+    public Ray GetCursorWorldRay(Camera sourceCamera = null)
+    {
+        Camera rayCamera = sourceCamera;
+        if (rayCamera == null)
         {
-            m_PromptStyle = new GUIStyle(GUI.skin.label);
-            // Use the skin's default font to avoid "invalid font reference" warnings during reloads
-            m_PromptStyle.font = GUI.skin.font; 
-            m_PromptStyle.alignment = TextAnchor.MiddleCenter;
-            m_PromptStyle.fontSize = FontSize;
-            m_PromptStyle.fontStyle = FontStyle.Bold;
-            m_PromptStyle.normal.textColor = PromptColor;
-            m_ShadowStyle = new GUIStyle(m_PromptStyle);
-            m_ShadowStyle.normal.textColor = Color.black;
+            UpdateCameraReference();
+            rayCamera = m_MainCamera;
         }
 
-        string prompt = $"[ {InteractionKey} ] Pick up {((m_CurrentTarget.Data != null) ? m_CurrentTarget.Data.ItemName : "Item")}";
-        Rect rect = new Rect(Screen.width / 2 - 150, Screen.height / 2 + 50, 300, 50);
-        
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), prompt, m_ShadowStyle);
-        GUI.Label(rect, prompt, m_PromptStyle);
+        if (rayCamera == null)
+            rayCamera = Camera.main;
+
+        if (rayCamera == null)
+            return new Ray(transform.position, transform.forward);
+
+        return rayCamera.ScreenPointToRay(GetCursorScreenPoint());
+    }
+
+    private void ResolveCursorRectTransform()
+    {
+        if (CursorRectTransform != null)
+            return;
+
+        GameObject cursorImage = GameObject.Find("show UI/cursor/Image");
+        if (cursorImage == null)
+        {
+            GameObject cursorRoot = GameObject.Find("show UI/cursor");
+            if (cursorRoot != null)
+            {
+                Transform imageChild = cursorRoot.transform.Find("Image");
+                cursorImage = imageChild != null ? imageChild.gameObject : cursorRoot;
+            }
+        }
+
+        if (cursorImage != null)
+            CursorRectTransform = cursorImage.GetComponent<RectTransform>();
+    }
+
+    private void DisableCursorRaycastTargets()
+    {
+        if (CursorRectTransform == null)
+            return;
+
+        Transform root = CursorRectTransform.parent != null && CursorRectTransform.parent.name == "cursor"
+            ? CursorRectTransform.parent
+            : CursorRectTransform;
+
+        foreach (Image image in root.GetComponentsInChildren<Image>(true))
+        {
+            image.raycastTarget = false;
+        }
+    }
+
+    private bool IsInventoryPanelOpen()
+    {
+        if (m_InventoryPanel == null)
+        {
+            m_InventoryPanel = FindFirstObjectByType<InventoryPanelUI>(FindObjectsInactive.Include);
+            m_InventoryPanelCanvasGroup = m_InventoryPanel != null ? m_InventoryPanel.GetComponent<CanvasGroup>() : null;
+        }
+
+        if (m_InventoryPanel == null)
+            return false;
+
+        if (m_InventoryPanelCanvasGroup != null)
+            return m_InventoryPanelCanvasGroup.alpha > 0.5f;
+
+        return m_InventoryPanel.gameObject.activeInHierarchy;
     }
 
     private void UpdateOutline(LootItem target)
@@ -187,25 +316,43 @@ public class InteractionManager : MonoBehaviour
 
     private void PlayPickupAnimation()
     {
+        AudioManager.Current?.StopFootsteps();
+
         // Method 1: Trigger via PlayerActionsInput pipeline (sets GatherPressed → PlayerAnimation reads it)
-        if (m_PlayerActionsInput == null)
-        {
-            m_PlayerActionsInput = GetComponent<PlayerActionsInput>();
-            if (m_PlayerActionsInput == null)
-                m_PlayerActionsInput = GetComponentInChildren<PlayerActionsInput>();
-        }
-
-        if (m_PlayerActionsInput != null)
-            m_PlayerActionsInput.TriggerGathering(PickupGatherDuration);
-
-        // Method 2: Also directly force-play the Gathering animation via CrossFade
-        // This is the reliable fallback that works regardless of parameter pipeline issues
         if (m_Animator == null)
             FindCorrectAnimator();
 
         if (m_Animator != null)
         {
-            m_Animator.CrossFadeInFixedTime(GatheringStateHash, 0.15f);
+            int pickupLayer = GetPickupAnimationLayer(m_Animator);
+            if (pickupLayer >= 0)
+            {
+                if (pickupLayer == BaseLayerIndex)
+                    MutePickupOverlayLayers();
+
+                m_Animator.Play(NewPickupStateHash, pickupLayer, 0f);
+                m_Animator.Update(0f);
+                m_ActivePickupAnimationLayer = pickupLayer;
+                m_ActivePickupAnimationStateHash = NewPickupStateHash;
+                m_ActivePickupAnimationLength = GetCurrentStateLength(m_Animator, pickupLayer, PickupGatherDuration);
+            }
+            else
+            {
+                if (m_PlayerActionsInput == null)
+                {
+                    m_PlayerActionsInput = GetComponent<PlayerActionsInput>();
+                    if (m_PlayerActionsInput == null)
+                        m_PlayerActionsInput = GetComponentInChildren<PlayerActionsInput>();
+                }
+
+                if (m_PlayerActionsInput != null)
+                    m_PlayerActionsInput.TriggerGathering(PickupGatherDuration);
+
+                m_Animator.CrossFadeInFixedTime(GatheringStateHash, 0.15f);
+                m_ActivePickupAnimationLayer = 0;
+                m_ActivePickupAnimationStateHash = GatheringStateHash;
+                m_ActivePickupAnimationLength = PickupGatherDuration;
+            }
         }
     }
 
@@ -213,15 +360,58 @@ public class InteractionManager : MonoBehaviour
     {
         if (m_Animator != null)
         {
-            m_Animator.CrossFadeInFixedTime(LocomotionStateHash, 0.2f);
+            if (m_ActivePickupAnimationLayer == ArmsOnlyLayerIndex && HasAnimatorState(m_Animator, ArmsOnlyLayerIndex, ArmsOnlyIdleStateHash))
+                m_Animator.CrossFadeInFixedTime(ArmsOnlyIdleStateHash, 0.15f, ArmsOnlyLayerIndex, 0f);
+            else
+                m_Animator.CrossFadeInFixedTime(LocomotionStateHash, 0.2f);
         }
+
+        RestorePickupOverlayLayers();
+        m_ActivePickupAnimationLayer = -1;
+        m_ActivePickupAnimationStateHash = 0;
+        m_ActivePickupAnimationLength = 1f;
+    }
+
+    private void MutePickupOverlayLayers()
+    {
+        if (m_Animator == null || m_PickupMutedOverlayLayers)
+            return;
+
+        m_PrePickupUpperBodyLayerWeight = GetLayerWeightSafe(m_Animator, UpperBodyLayerIndex);
+        m_PrePickupArmsOnlyLayerWeight = GetLayerWeightSafe(m_Animator, ArmsOnlyLayerIndex);
+
+        SetLayerWeightSafe(m_Animator, UpperBodyLayerIndex, 0f);
+        SetLayerWeightSafe(m_Animator, ArmsOnlyLayerIndex, 0f);
+        m_PickupMutedOverlayLayers = true;
+    }
+
+    private void RestorePickupOverlayLayers()
+    {
+        if (m_Animator == null || !m_PickupMutedOverlayLayers)
+            return;
+
+        SetLayerWeightSafe(m_Animator, UpperBodyLayerIndex, m_PrePickupUpperBodyLayerWeight);
+        SetLayerWeightSafe(m_Animator, ArmsOnlyLayerIndex, m_PrePickupArmsOnlyLayerWeight);
+        m_PickupMutedOverlayLayers = false;
     }
 
     private IEnumerator PickupAfterGathering(LootItem target)
     {
         PlayPickupAnimation();
+        m_PickupMovementSlowUntil = Time.time + Mathf.Max(0f, PickupMovementSlowDuration);
 
-        yield return new WaitForSeconds(PickupActionDelay);
+        float elapsed = 0f;
+        float actionDelay = Mathf.Max(0f, PickupActionDelay);
+        float totalAnimationTime = Mathf.Max(PickupGatherDuration, actionDelay);
+
+        while (elapsed < actionDelay)
+        {
+            ForcePickupAnimationAt(elapsed);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        ForcePickupAnimationAt(actionDelay);
 
         if (target != null)
         {
@@ -230,12 +420,95 @@ public class InteractionManager : MonoBehaviour
             target.RequestPickup();
         }
 
-        float remainingAnimationTime = Mathf.Max(0f, PickupGatherDuration - PickupActionDelay);
-        if (remainingAnimationTime > 0f)
-            yield return new WaitForSeconds(remainingAnimationTime);
+        while (elapsed < totalAnimationTime)
+        {
+            ForcePickupAnimationAt(elapsed);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        ForcePickupAnimationAt(totalAnimationTime);
 
         StopPickupAnimation();
 
+        m_PickupMovementSlowUntil = 0f;
         m_PickupRoutine = null;
+    }
+
+    private void ForcePickupAnimationAt(float elapsed)
+    {
+        if (m_Animator == null || m_ActivePickupAnimationLayer < 0 || m_ActivePickupAnimationStateHash == 0)
+            return;
+
+        if (m_ActivePickupAnimationLayer == BaseLayerIndex)
+            MutePickupOverlayLayers();
+
+        float stateLength = Mathf.Max(0.01f, m_ActivePickupAnimationLength);
+        float normalizedTime = Mathf.Clamp(elapsed / stateLength, 0f, 0.999f);
+        m_Animator.Play(m_ActivePickupAnimationStateHash, m_ActivePickupAnimationLayer, normalizedTime);
+    }
+
+    private static bool HasAnimatorState(Animator animator, int layerIndex, int stateHash)
+    {
+        return animator != null
+            && animator.layerCount > layerIndex
+            && animator.HasState(layerIndex, stateHash);
+    }
+
+    private static bool IsPickupAnimator(Animator animator)
+    {
+        return HasAnimatorState(animator, ArmsOnlyLayerIndex, NewPickupStateHash)
+            || HasAnimatorState(animator, BaseLayerIndex, NewPickupStateHash)
+            || HasAnimatorState(animator, BaseLayerIndex, GatheringStateHash)
+            || HasAnimatorParameter(animator, IsGatheringHash);
+    }
+
+    private static int GetPickupAnimationLayer(Animator animator)
+    {
+        if (HasAnimatorState(animator, BaseLayerIndex, NewPickupStateHash))
+            return BaseLayerIndex;
+
+        if (HasAnimatorState(animator, ArmsOnlyLayerIndex, NewPickupStateHash))
+            return ArmsOnlyLayerIndex;
+
+        return -1;
+    }
+
+    private static float GetLayerWeightSafe(Animator animator, int layerIndex)
+    {
+        return animator != null && animator.layerCount > layerIndex
+            ? animator.GetLayerWeight(layerIndex)
+            : 0f;
+    }
+
+    private static void SetLayerWeightSafe(Animator animator, int layerIndex, float weight)
+    {
+        if (animator != null && animator.layerCount > layerIndex)
+            animator.SetLayerWeight(layerIndex, weight);
+    }
+
+    private static float GetCurrentStateLength(Animator animator, int layerIndex, float fallbackLength)
+    {
+        if (animator == null || animator.layerCount <= layerIndex)
+            return Mathf.Max(0.01f, fallbackLength);
+
+        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(layerIndex);
+        if (stateInfo.length <= 0f)
+            return Mathf.Max(0.01f, fallbackLength);
+
+        return stateInfo.length;
+    }
+
+    private static bool HasAnimatorParameter(Animator animator, int parameterHash)
+    {
+        if (animator == null) return false;
+
+        foreach (AnimatorControllerParameter parameter in animator.parameters)
+        {
+            if (parameter.nameHash == parameterHash)
+                return true;
+        }
+
+        return false;
     }
 }

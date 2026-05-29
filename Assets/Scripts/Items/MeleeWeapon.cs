@@ -17,17 +17,28 @@ public class MeleeWeapon : ItemBehaviour
     private Quaternion _swingEndRot;
     private Quaternion _restRotation;
     private bool _hasHitThisSwing = false;
+    private InteractionManager _interactionManager;
     private Coroutine _rawKnifeSwingSoundRoutine;
     private Coroutine _rawKnifeHitRoutine;
+    private Coroutine _rawKnifeSecondHitRoutine;
     private Coroutine _stoneSpearHitRoutine;
+    private float _rawKnifeAttackLockedUntil = -999f;
+    private float _rawKnifeAttackStartedAt = -999f;
+    private bool _rawKnifeSecondHitQueued;
 
     private const float RawKnifeSwingSoundDelay = 0.1f;
     private const float RawKnifeHitDelay = 0.2f;
+    private const float RawKnifeSecondAttackDelayAfterConfirm = 0.6f;
+    private const float RawKnifeSecondAttackPostHitLock = 0.05f;
+    private const float RawKnifeAttackLockDuration = 0.8f;
+    private const float RawKnifeFullAttackLockDuration = 1.2f;
+    private const float RawKnifeMeleeHitRange = 2.5f;
     private const float StoneSpearHitDelay = 0.1f;
 
     public override void OnEquip(ItemData data, Transform owner, Camera cam)
     {
         base.OnEquip(data, owner, cam);
+        _interactionManager = owner != null ? owner.GetComponent<InteractionManager>() : null;
         _restRotation = transform.localRotation;
     }
 
@@ -39,12 +50,19 @@ public class MeleeWeapon : ItemBehaviour
             StopCoroutine(_rawKnifeSwingSoundRoutine);
         if (_rawKnifeHitRoutine != null)
             StopCoroutine(_rawKnifeHitRoutine);
+        if (_rawKnifeSecondHitRoutine != null)
+            StopCoroutine(_rawKnifeSecondHitRoutine);
         if (_stoneSpearHitRoutine != null)
             StopCoroutine(_stoneSpearHitRoutine);
 
         _rawKnifeSwingSoundRoutine = null;
         _rawKnifeHitRoutine = null;
+        _rawKnifeSecondHitRoutine = null;
         _stoneSpearHitRoutine = null;
+        _rawKnifeAttackLockedUntil = -999f;
+        _rawKnifeAttackStartedAt = -999f;
+        _rawKnifeSecondHitQueued = false;
+        _interactionManager = null;
     }
 
     protected virtual void Update()
@@ -84,13 +102,26 @@ public class MeleeWeapon : ItemBehaviour
 
     public override bool Use()
     {
+        if (IsRawKnife() && (_isSwinging || Time.time < _rawKnifeAttackLockedUntil))
+        {
+            if (EquipmentHolder.Instance == null || !EquipmentHolder.Instance.RequestRawKnifeFullAttackAnimation())
+                return false;
+
+            StartRawKnifeSecondAttack();
+            return true;
+        }
+
         if (_isSwinging) return false;
+
         if (!base.Use()) return false;
 
         // Start swing animation
         _isSwinging = true;
         if (IsRawKnife())
         {
+            _rawKnifeAttackStartedAt = Time.time;
+            _rawKnifeAttackLockedUntil = Time.time + RawKnifeAttackLockDuration;
+            _rawKnifeSecondHitQueued = false;
             EquipmentHolder.Instance?.TriggerRawKnifeMeleeAnimation();
             StartRawKnifeSwingSound();
             StartRawKnifeDelayedHit();
@@ -144,6 +175,24 @@ public class MeleeWeapon : ItemBehaviour
         _rawKnifeHitRoutine = StartCoroutine(RawKnifeHitRoutine());
     }
 
+    private void StartRawKnifeSecondAttack()
+    {
+        if (_rawKnifeSecondHitQueued)
+            return;
+
+        _rawKnifeSecondHitQueued = true;
+        _rawKnifeAttackLockedUntil = Mathf.Max(
+            Mathf.Max(
+                _rawKnifeAttackLockedUntil,
+                Time.time + RawKnifeSecondAttackDelayAfterConfirm + RawKnifeSecondAttackPostHitLock),
+            _rawKnifeAttackStartedAt + RawKnifeFullAttackLockDuration);
+
+        if (_rawKnifeSecondHitRoutine != null)
+            StopCoroutine(_rawKnifeSecondHitRoutine);
+
+        _rawKnifeSecondHitRoutine = StartCoroutine(RawKnifeSecondHitRoutine());
+    }
+
     private void StartStoneSpearDelayedHit()
     {
         if (_stoneSpearHitRoutine != null)
@@ -168,6 +217,18 @@ public class MeleeWeapon : ItemBehaviour
             PerformHitDetection();
 
         _rawKnifeHitRoutine = null;
+    }
+
+    private IEnumerator RawKnifeSecondHitRoutine()
+    {
+        yield return new WaitForSeconds(RawKnifeSecondAttackDelayAfterConfirm);
+
+        PlaySwingSound();
+        PerformHitDetection();
+        _rawKnifeAttackLockedUntil = Mathf.Max(
+            _rawKnifeAttackLockedUntil,
+            Time.time + RawKnifeSecondAttackPostHitLock);
+        _rawKnifeSecondHitRoutine = null;
     }
 
     private IEnumerator StoneSpearHitRoutine()
@@ -195,17 +256,27 @@ public class MeleeWeapon : ItemBehaviour
             return;
         }
 
-        // Raycast from camera center
-        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-        RaycastHit[] hits = Physics.RaycastAll(ray, Data.Range, ~0, QueryTriggerInteraction.Collide);
+        Ray ray = GetHitDetectionRay(cam);
+        float hitRange = IsRawKnife() ? RawKnifeMeleeHitRange : Data.Range;
+        RaycastHit[] hits = Physics.RaycastAll(ray, hitRange, ~0, QueryTriggerInteraction.Collide);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
 
+        RaycastHit? firstNonDamageableHit = null;
         foreach (var hit in hits)
         {
             // Skip self
             if (hit.transform == OwnerTransform) continue;
             if (hit.transform.IsChildOf(OwnerTransform)) continue;
             if (hit.transform.IsChildOf(transform)) continue;
+
+            RoofSandStabilizer roof = hit.collider.GetComponentInParent<RoofSandStabilizer>();
+            if (roof != null && roof.TryCut(Data, Data.Damage, hit.point, ray.direction))
+            {
+                _hasHitThisSwing = true;
+                if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponHit);
+                Debug.Log($"[Melee] Cut roof with {Data.ItemName} for {Data.Damage} cut damage.");
+                return;
+            }
 
             // Check for Damageable
             IDamageable damageable = hit.collider.GetComponentInParent<IDamageable>();
@@ -218,11 +289,46 @@ public class MeleeWeapon : ItemBehaviour
                 return;
             }
 
-            // Visual feedback: hit the terrain or environment
-            if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(AudioManager.Instance.weaponHit);
+            if (!firstNonDamageableHit.HasValue)
+                firstNonDamageableHit = hit;
+
+            if (IsTerrainLikeHit(hit))
+                continue;
+
+            break;
+        }
+
+        if (firstNonDamageableHit.HasValue)
+        {
+            RaycastHit hit = firstNonDamageableHit.Value;
             Debug.Log($"[Melee] Struck {hit.collider.name} at {hit.point}");
             _hasHitThisSwing = true;
-            return;
         }
+    }
+
+    private static bool IsTerrainLikeHit(RaycastHit hit)
+    {
+        if (hit.collider == null)
+            return false;
+
+        if (hit.collider.GetComponentInParent<SandChunk>() != null)
+            return true;
+
+        string objectName = hit.collider.gameObject.name.ToLowerInvariant();
+        return objectName.Contains("sand") || objectName.Contains("terrain");
+    }
+
+    private Ray GetHitDetectionRay(Camera cam)
+    {
+        if (UsesDelayedMeleeHit())
+        {
+            if (_interactionManager == null && OwnerTransform != null)
+                _interactionManager = OwnerTransform.GetComponent<InteractionManager>();
+
+            if (_interactionManager != null)
+                return _interactionManager.GetCursorWorldRay(cam);
+        }
+
+        return new Ray(cam.transform.position, cam.transform.forward);
     }
 }

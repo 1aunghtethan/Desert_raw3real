@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEditor;
 using UnityEngine.Rendering;
 
 
@@ -438,8 +437,10 @@ namespace LuxInstantVegetation
 
         public void SyncMaterials()
         {
-            
-            Undo.RegisterCompleteObjectUndo(this, "SyncMaterials");
+
+#if UNITY_EDITOR
+            UnityEditor.Undo.RegisterCompleteObjectUndo(this, "SyncMaterials");
+#endif
 
             foreach (Material mat in materials)
             {

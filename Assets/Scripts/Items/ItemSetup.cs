@@ -10,8 +10,11 @@ public class ItemSetup : MonoBehaviour
     public static ItemSetup Instance;
     public static GameObject MeatTemplate;
 
-    [Header("Drag ItemData assets here to pre-load them into the hotbar")]
-    [Tooltip("Items to load into slots 1-9. Empty entries = empty slot.")]
+    [Header("Starting Inventory")]
+    [Tooltip("Leave off for normal play mode so inventory and hotbar start empty.")]
+    public bool GiveStartingItemsInPlayMode = false;
+
+    [Tooltip("Optional items to load into slots 1-5 when Give Starting Items In Play Mode is enabled.")]
     public ItemData[] StartingItems = new ItemData[5];
 
 void Start()
@@ -22,6 +25,8 @@ void Start()
             Debug.LogError("[ItemSetup] No Inventory found on this GameObject!");
             return;
         }
+
+        ClearInventorySlots(inv);
 
         // Auto-load all ItemData from Resources/Items folder
         ItemData[] allItems = Resources.LoadAll<ItemData>("Items");
@@ -46,31 +51,34 @@ void Start()
             }
         }
 
-        // Also try StartingItems from Inspector (if manually assigned)
-        for (int i = 0; i < StartingItems.Length && i < inv.Slots.Length; i++)
+        if (GiveStartingItemsInPlayMode)
         {
-            if (StartingItems[i] != null)
+            // Also try StartingItems from Inspector (if manually assigned)
+            for (int i = 0; i < StartingItems.Length && i < inv.Slots.Length; i++)
             {
-                inv.Slots[i] = StartingItems[i];
-                inv.SlotCounts[i] = 1;
+                if (StartingItems[i] != null)
+                {
+                    inv.Slots[i] = StartingItems[i];
+                    inv.SlotCounts[i] = 1;
+                }
+            }
+
+            // Fill remaining empty slots with auto-loaded items (up to 5 slots to leave room for loot)
+            int slot = 0;
+            foreach (var item in allItems)
+            {
+                // Find next empty slot
+                while (slot < inv.Slots.Length && inv.Slots[slot] != null) slot++;
+                if (slot >= 5) break; // Limit to 5 slots total for starting gear
+                
+                inv.Slots[slot] = item;
+                inv.SlotCounts[slot] = 1;
+                slot++;
             }
         }
 
-        // Fill remaining empty slots with auto-loaded items (up to 5 slots to leave room for loot)
-        int slot = 0;
-        foreach (var item in allItems)
-        {
-            // Find next empty slot
-            while (slot < inv.Slots.Length && inv.Slots[slot] != null) slot++;
-            if (slot >= 5) break; // Limit to 5 slots total for starting gear
-            
-            inv.Slots[slot] = item;
-            inv.SlotCounts[slot] = 1;
-            slot++;
-        }
-
         // Create arrow projectile if any Ranged item needs one
-        foreach (var item in inv.Slots)
+        foreach (var item in allItems)
         {
             if (item != null && item.Type == ItemType.Ranged && item.ProjectilePrefab == null)
             {
@@ -94,11 +102,11 @@ void Start()
         CreateMeatItemAndPrefab(inv);
 
         // Create Water Bottle Item and Prefab
-        CreateWaterBottleItemAndPrefab(inv);
+        CreateWaterBottleItemAndPrefab();
 
-        // Force the inventory to fire its change event for initial equip
-        inv.SelectSlot(1);
-        inv.SelectSlot(0);
+        // Force the inventory and UI to start in an empty-hand state.
+        inv.SelectSlot(0, true);
+        inv.BroadcastInventoryChange();
 
         // Force HotbarController to redraw the new items
         HotbarController ui = FindFirstObjectByType<HotbarController>();
@@ -118,10 +126,19 @@ void Start()
             Debug.Log("[ItemSetup] Added ItemPlacer component (Right-click to place items)");
         }
 
-        Debug.Log($"[ItemSetup] Item system initialized with {inv.Slots.Length} slots!");
+        Debug.Log($"[ItemSetup] Item system initialized with {inv.Slots.Length} empty starting slots!");
     }
 
-    private void CreateWaterBottleItemAndPrefab(Inventory inv)
+    private static void ClearInventorySlots(Inventory inv)
+    {
+        for (int i = 0; i < inv.Slots.Length; i++)
+        {
+            inv.Slots[i] = null;
+            inv.SlotCounts[i] = 0;
+        }
+    }
+
+    private void CreateWaterBottleItemAndPrefab()
     {
         // 1. Create the Water Bottle ItemData
         ItemData water = ScriptableObject.CreateInstance<ItemData>();
@@ -160,17 +177,6 @@ void Start()
                 waterMat.SetColor("_Color", blueWater);
                 
             rend.material = waterMat;
-        }
-
-        // Add to inventory if there's space (slot 3 or 4)
-        for (int i = 0; i < inv.Slots.Length; i++)
-        {
-            if (inv.Slots[i] == null)
-            {
-                inv.Slots[i] = water;
-                inv.SlotCounts[i] = 1;
-                break;
-            }
         }
 
         // Assign prefab to data

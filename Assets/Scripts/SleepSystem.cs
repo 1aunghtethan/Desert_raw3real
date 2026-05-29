@@ -25,6 +25,14 @@ public class SleepSystem : MonoBehaviour
     [Tooltip("How many in-game clock hours must pass after waking before sleeping again.")]
     public float SleepCooldownHours = 6f;
 
+    [Header("Roof Shade Sleep")]
+    [Tooltip("Daytime roof sleep is allowed when this percent of shade samples are covered by placed Roofs.")]
+    [Range(0f, 1f)] public float RootSleepBlockThreshold = 0.8f;
+    [Tooltip("Radius for the center/forward/back/left/right shade samples around the player.")]
+    public float RootSleepShadeSampleRadius = 0.45f;
+    [Tooltip("Maximum ray distance used when checking if Roof is the shade blocker.")]
+    public float RootSleepShadeRayDistance = 100f;
+
     [Header("Screen Fade Timing (seconds)")]
     [Tooltip("Duration of fade to black.")]
     public float FadeInDuration = 2.5f;
@@ -87,13 +95,86 @@ public class SleepSystem : MonoBehaviour
             return;
         }
 
-        if (IsWithinSleepHours(currentHour) || Stats.IsInShadow)
+        if (IsWithinSleepHours(currentHour))
+        {
+            StartSleep(TimeAdvanceDegrees);
+            return;
+        }
+
+        if (Stats.IsInShadow || IsShelteredByRoof())
         {
             StartSleep(TimeAdvanceDegrees);
             return;
         }
 
         Debug.Log($"[SleepSystem] Can't sleep now. Sleep from {SleepAllowedStartHour:F1} to {SleepAllowedEndHour:F1}, or find shadow during the day.");
+    }
+
+    private bool IsShelteredByRoof()
+    {
+        if (DayNight == null || Stats == null)
+            return false;
+
+        Vector3 sunDir = -DayNight.transform.forward;
+        if (sunDir.sqrMagnitude < 0.001f)
+            return false;
+
+        sunDir.Normalize();
+        float sampleRadius = Mathf.Max(0f, RootSleepShadeSampleRadius);
+        float rayDistance = Mathf.Max(0.1f, RootSleepShadeRayDistance);
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f)
+            forward = Vector3.forward;
+        forward.Normalize();
+
+        Vector3 right = transform.right;
+        right.y = 0f;
+        if (right.sqrMagnitude < 0.001f)
+            right = Vector3.right;
+        right.Normalize();
+
+        Vector3 basePoint = transform.position + Vector3.up;
+        Vector3[] samplePoints =
+        {
+            basePoint,
+            basePoint + forward * sampleRadius,
+            basePoint - forward * sampleRadius,
+            basePoint + right * sampleRadius,
+            basePoint - right * sampleRadius
+        };
+
+        int roofCoveredCount = 0;
+        LayerMask shadowMask = Stats.ShadowLayerMask;
+
+        for (int i = 0; i < samplePoints.Length; i++)
+        {
+            if (!Physics.Raycast(samplePoints[i], sunDir, out RaycastHit hit, rayDistance, shadowMask, QueryTriggerInteraction.Ignore))
+                continue;
+
+            if (hit.transform == transform || hit.transform.IsChildOf(transform))
+                continue;
+
+            if (IsRootShadeBlocker(hit.collider))
+                roofCoveredCount++;
+        }
+
+        float roofCoverageRatio = (float)roofCoveredCount / samplePoints.Length;
+        return roofCoverageRatio >= Mathf.Clamp01(RootSleepBlockThreshold);
+    }
+
+    private static bool IsRootShadeBlocker(Collider collider)
+    {
+        if (collider == null)
+            return false;
+
+        if (collider.GetComponentInParent<RoofSandStabilizer>() != null)
+            return true;
+
+        Transform root = collider.transform.root;
+        return root != null
+            && (root.name.StartsWith("roof_Placed", System.StringComparison.OrdinalIgnoreCase)
+                || root.name.StartsWith("root_Placed", System.StringComparison.OrdinalIgnoreCase));
     }
 
     private void StartSleep(float degreesToAdvance)

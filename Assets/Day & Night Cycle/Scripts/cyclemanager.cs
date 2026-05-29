@@ -16,6 +16,19 @@ public class cyclemanager : MonoBehaviour
     public float CurrentTemperature { get; private set; }
     public bool IsDay => TimeOfDay > 0f && TimeOfDay < 180f;
 
+    [Header("Desert Air Temperature")]
+    [Tooltip("Use a realistic hot-summer desert air temperature curve instead of the legacy sine wave.")]
+    public bool UseDesertTemperatureCurve = true;
+
+    [Tooltip("24-hour temperature curve. X is normalized time of day, Y is degrees Celsius.")]
+    public AnimationCurve DesertTemperatureCurve;
+
+    [Tooltip("Fallback afternoon peak temperature if the desert curve is missing.")]
+    public float TemperatureCurvePeakFallback = 42f;
+
+    [Tooltip("Fallback pre-dawn/night temperature if the desert curve is missing.")]
+    public float TemperatureCurveNightFallback = 24f;
+
     [Header("⏱️ Time Progression")]
     [Tooltip("Current time of day in 24-hour format.")]
     [Range(0f, 24f)] public float currentTime;
@@ -220,10 +233,25 @@ public class cyclemanager : MonoBehaviour
             moonLight.colorTemperature = moonTemperatureCurve.Evaluate(normalizedTime) * 10000f;
         }
 
-        float sunHeight = Mathf.Sin(TimeOfDay * Mathf.Deg2Rad);
-        CurrentTemperature = Mathf.Lerp(MinTemperature, MaxTemperature, (sunHeight + 1f) * 0.5f);
+        CurrentTemperature = GetCurrentDesertTemperature(normalizedTime);
 
         UpdateAmbientLight();
+    }
+
+    private float GetCurrentDesertTemperature(float normalizedTime)
+    {
+        if (!UseDesertTemperatureCurve)
+        {
+            float sunHeight = Mathf.Sin(TimeOfDay * Mathf.Deg2Rad);
+            return Mathf.Lerp(MinTemperature, MaxTemperature, (sunHeight + 1f) * 0.5f);
+        }
+
+        if (DesertTemperatureCurve == null || DesertTemperatureCurve.length == 0)
+            return currentTime >= 10f && currentTime <= 17f
+                ? TemperatureCurvePeakFallback
+                : TemperatureCurveNightFallback;
+
+        return DesertTemperatureCurve.Evaluate(Mathf.Repeat(normalizedTime, 1f));
     }
 
     void CheckShadowStatus(bool applyActiveState = true)
@@ -332,6 +360,24 @@ public class cyclemanager : MonoBehaviour
 
         if (moonTemperatureCurve == null || moonTemperatureCurve.length == 0)
             moonTemperatureCurve = AnimationCurve.Linear(0f, 0.7f, 1f, 0.7f);
+
+        if (DesertTemperatureCurve == null || DesertTemperatureCurve.length == 0)
+            DesertTemperatureCurve = CreateDefaultDesertTemperatureCurve();
+    }
+
+    private static AnimationCurve CreateDefaultDesertTemperatureCurve()
+    {
+        return new AnimationCurve(
+            new Keyframe(0f / 24f, 25f),
+            new Keyframe(4.5f / 24f, 24f),
+            new Keyframe(7f / 24f, 28f),
+            new Keyframe(10f / 24f, 35f),
+            new Keyframe(13.5f / 24f, 42f),
+            new Keyframe(16.5f / 24f, 39f),
+            new Keyframe(18.5f / 24f, 33f),
+            new Keyframe(21f / 24f, 28f),
+            new Keyframe(1f, 25f)
+        );
     }
 
     private void EnsureMoonSetup()
@@ -470,6 +516,23 @@ public class cyclemanager : MonoBehaviour
         if (moonRenderer == null)
             return;
 
+        Color moonColor = moonActive
+            ? new Color(0.95f, 0.94f, 0.82f, Mathf.Clamp01(moonFade))
+            : new Color(0.55f, 0.56f, 0.52f, Mathf.Clamp01(moonFade));
+
+        SpriteRenderer spriteRenderer = moonModel.GetComponent<SpriteRenderer>();
+        if (spriteRenderer != null)
+        {
+            if (moonTexture == null && spriteRenderer.sprite != null)
+                moonTexture = spriteRenderer.sprite.texture;
+
+            spriteRenderer.color = moonColor;
+            if (moonMaterialOverride != null)
+                spriteRenderer.sharedMaterial = moonMaterialOverride;
+
+            return;
+        }
+
         // Try shaders in priority order — pick the first one that exists
         Shader moonShader = Shader.Find("Custom/MoonUnlit");
         if (moonShader == null) moonShader = Shader.Find("Universal Render Pipeline/Unlit");
@@ -504,10 +567,6 @@ public class cyclemanager : MonoBehaviour
 
         // Render after skybox (Background=1000) but before transparent geometry
         moonMaterial.renderQueue = 2501;
-
-        Color moonColor = moonActive
-            ? new Color(0.95f, 0.94f, 0.82f, 1f)
-            : new Color(0.55f, 0.56f, 0.52f, 1f);
 
         Color glowColor = new Color(0.85f, 0.88f, 1f, 1f);
 
@@ -550,6 +609,33 @@ public class cyclemanager : MonoBehaviour
     {
         if (moonTexture != null)
             return;
+
+        if (moonModel != null)
+        {
+            SpriteRenderer spriteRenderer = moonModel.GetComponent<SpriteRenderer>();
+            if (spriteRenderer != null && spriteRenderer.sprite != null && spriteRenderer.sprite.texture != null)
+            {
+                moonTexture = spriteRenderer.sprite.texture;
+                return;
+            }
+
+            Renderer renderer = moonModel.GetComponent<Renderer>();
+            Material material = renderer != null ? renderer.sharedMaterial : null;
+            if (material != null)
+            {
+                Texture texture = null;
+                if (material.HasProperty("_BaseMap"))
+                    texture = material.GetTexture("_BaseMap");
+                if (texture == null && material.HasProperty("_MainTex"))
+                    texture = material.GetTexture("_MainTex");
+                if (texture == null)
+                    texture = material.mainTexture;
+
+                moonTexture = texture as Texture2D;
+                if (moonTexture != null)
+                    return;
+            }
+        }
 
 #if UNITY_EDITOR
         moonTexture = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Day & Night Cycle/Textures/Moon 1.png");

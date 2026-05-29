@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ceb21783dfe8874f93fda9977625099, type: 3}
+  m_Name: CactusSkin_ItemData
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  ItemName: CactusSkin
+  Icon: {fileID: 21300000, guid: 4c742ec22f00d964e8d02b4f1f37a7e6, type: 3}
+  Type: 2
+  Prefab: {fileID: 7296967658733527302, guid: f1dacc14ee2582849bab142b6167ba87, type: 3}
+  PrefabVariants: []
+  MaxStack: 10
+  CanStoreInInventory: 1
+  CanPlaceInWorld: 0
+  DirectPlaceOnCraft: 0
+  PlacementSinkPercent: 0
+  PlacementMoveMultiplier: 1
+  LockRunDuringPlacement: 0
+  LockJumpDuringPlacement: 0
+  Damage: 10
+  AttackSpeed: 1
+  Range: 2
+  ProjectilePrefab: {fileID: 0}
+  ProjectileSpeed: 30
+  DropPrefab: {fileID: 7296967658733527302, guid: f1dacc14ee2582849bab142b6167ba87, type: 3}
+  PickupsSpinAndBob: 0
+  HoldPosition: {x: 0.171, y: -0.068, z: -0.056}
+  HoldRotation: {x: 60.73, y: -105.6, z: -58.41}
+  HoldScale: 0.2
+  DigPower: 0
+  PlacePower: 0
+  DigRadius: 0
+  PlaceRadius: 0
+  DigMultiplier: 1
+  RadiusMultiplier: 1
+  HealthRestore: 0
+  HungerRestore: 0
+  SaturationRestore: 0
+  ThirstRestore: 0

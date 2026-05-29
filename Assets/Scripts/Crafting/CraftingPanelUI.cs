@@ -7,6 +7,7 @@ public class CraftingPanelUI : MonoBehaviour
 {
     private const int IngredientSlotCount = 3;
     private const int OutputSlotIndex = 3;
+    private const int CraftingSlotCapacity = 999;
 
     [Header("Behavior")]
     public bool PauseGameWhenOpen;
@@ -117,8 +118,18 @@ public class CraftingPanelUI : MonoBehaviour
 
             bool emptySlot = _items[slotIndex] == null;
             bool sameItem = _items[slotIndex] != null && _items[slotIndex].ItemName == held.ItemName;
-            if (!emptySlot && !sameItem) return;
-            if (!emptySlot && _counts[slotIndex] >= Mathf.Max(1, held.MaxStack)) return;
+            if (!emptySlot && !sameItem)
+            {
+                ItemData slotItem = _items[slotIndex];
+                int slotCount = _counts[slotIndex];
+                if (_inventoryPanel.TryReplaceHeldItem(slotItem, slotCount))
+                {
+                    _items[slotIndex] = held;
+                    _counts[slotIndex] = heldCount;
+                }
+                return;
+            }
+            if (!emptySlot && _counts[slotIndex] >= CraftingSlotCapacity) return;
 
             int placeAmount;
             if (isRight)
@@ -126,7 +137,7 @@ public class CraftingPanelUI : MonoBehaviour
             else
                 placeAmount = heldCount;
 
-            int space = emptySlot ? held.MaxStack : (held.MaxStack - _counts[slotIndex]);
+            int space = CraftingSlotCapacity - (emptySlot ? 0 : _counts[slotIndex]);
             placeAmount = Mathf.Min(placeAmount, space);
 
             if (_inventoryPanel.TryRemoveHeldAmount(placeAmount))
@@ -152,24 +163,15 @@ public class CraftingPanelUI : MonoBehaviour
     {
         if (_currentRecipe == null || _inventoryPanel == null) return;
         if (!HasIngredientsFor(_currentRecipe)) return;
+        ItemData result = _currentRecipe.Result;
+        if (result == null) return;
 
         // Single-ingredient transformation: replace in-slot instead of cursor
-        if (_currentRecipe.Ingredients.Count == 1 && !_currentRecipe.Ingredients[0].PreserveAfterCraft)
+        if (result.DirectPlaceOnCraft)
         {
-            for (int i = 0; i < IngredientSlotCount; i++)
-            {
-                if (_items[i] != null && _items[i].ItemName == _currentRecipe.Ingredients[0].Item.ItemName)
-                {
-                    _items[i] = _currentRecipe.Result;
-                    _counts[i] = _currentRecipe.ResultAmount;
-                    AudioManager.Instance.PlayCraftSound();
-                    break;
-                }
-            }
-        }
-        else
-        {
-            if (!_inventoryPanel.CanAcceptHeldItem(_currentRecipe.Result, _currentRecipe.ResultAmount)) return;
+            ItemPlacer placer = _inventory != null ? _inventory.GetComponent<ItemPlacer>() : null;
+            if (placer == null) placer = FindFirstObjectByType<ItemPlacer>();
+            if (placer == null || !placer.CanStartDirectPlacement(result)) return;
 
             foreach (CraftingIngredient ingredient in _currentRecipe.Ingredients)
             {
@@ -179,7 +181,36 @@ public class CraftingPanelUI : MonoBehaviour
                     ConsumeIngredient(ingredient);
             }
 
-            _inventoryPanel.AddToHeldItem(_currentRecipe.Result, _currentRecipe.ResultAmount);
+            AudioManager.Instance.PlayCraftSound();
+            _inventoryPanel.SetVisible(false);
+            placer.BeginDirectPlacement(result);
+        }
+        else if (_currentRecipe.Ingredients.Count == 1 && !_currentRecipe.Ingredients[0].PreserveAfterCraft)
+        {
+            for (int i = 0; i < IngredientSlotCount; i++)
+            {
+                if (_items[i] != null && _items[i].ItemName == _currentRecipe.Ingredients[0].Item.ItemName)
+                {
+                    _items[i] = result;
+                    _counts[i] = _currentRecipe.ResultAmount;
+                    AudioManager.Instance.PlayCraftSound();
+                    break;
+                }
+            }
+        }
+        else
+        {
+            if (!_inventoryPanel.CanAcceptHeldItem(result, _currentRecipe.ResultAmount)) return;
+
+            foreach (CraftingIngredient ingredient in _currentRecipe.Ingredients)
+            {
+                if (ingredient.TransformAfterCraft != null)
+                    TransformIngredientSlot(ingredient, ingredient.TransformAfterCraft);
+                else if (!ingredient.PreserveAfterCraft)
+                    ConsumeIngredient(ingredient);
+            }
+
+            _inventoryPanel.AddToHeldItem(result, _currentRecipe.ResultAmount);
             AudioManager.Instance.PlayCraftSound();
         }
     }

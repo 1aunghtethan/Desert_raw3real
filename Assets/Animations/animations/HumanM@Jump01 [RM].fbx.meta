@@ -943,18 +943,17 @@ ModelImporter:
       scale: {x: 1, y: 0.9999949, z: 1.0000048}
     armTwist: 0.5
     foreArmTwist: 0.5
-    upperLegTwist: 0.5
-    legTwist: 0.5
+    upperLegTwist: 0
+    legTwist: 0
     armStretch: 0.05
-    legStretch: 0.05
+    legStretch: 0
     feetSpacing: 0
     globalScale: 1
     rootMotionBoneName: Rig/B-root
     hasTranslationDoF: 0
     hasExtraRoot: 0
     skeletonHasParents: 1
-  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: 2faa610713d3b3c439473daa55e8c60a,
-    type: 3}
+  lastHumanDescriptionAvatarSource: {fileID: 9000000, guid: da97a9bdcb9a63841b42ff466fc31af2, type: 3}
   autoGenerateAvatarMappingIfUnspecified: 1
   animationType: 3
   humanoidOversampling: 1

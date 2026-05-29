@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e3e470b190639443ab2bb332c74fffe, type: 3}
+  m_Name: WoodShovel_Recipe
+  m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipe
+  Result: {fileID: 11400000, guid: 53c20159b8c21104daa24da9598b64a3, type: 2}
+  ResultAmount: 1
+  Ingredients:
+  - Item: {fileID: 11400000, guid: da4182179e0020d45bc446dada9efe8a, type: 2}
+    Amount: 1
+    PreserveAfterCraft: 0
+    TransformAfterCraft: {fileID: 0}
+  - Item: {fileID: 11400000, guid: 619da2c74922b0248b8f45e020af0ffc, type: 2}
+    Amount: 2
+    PreserveAfterCraft: 0
+    TransformAfterCraft: {fileID: 0}
+  - Item: {fileID: 11400000, guid: 037d4dc02ca9cb649b0f9435cbde9cb5, type: 2}
+    Amount: 2
+    PreserveAfterCraft: 0
+    TransformAfterCraft: {fileID: 0}

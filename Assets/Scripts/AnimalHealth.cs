@@ -48,6 +48,10 @@ public class AnimalHealth : MonoBehaviour, IDamageable
         Debug.Log($"[AnimalHealth] {gameObject.name} took {damage} damage. Health: {m_CurrentHealth}/{maxH}");
 
         ShowHeartFeedback();
+        if (m_CurrentHealth > 0 && Data != null)
+        {
+            PlayAnimalSound(Data.PainSound, Data.PainSoundVolume);
+        }
 
         // Reactive AI: If this is a fish, make it flee on hit
         OasisFishAI fishAI = GetComponent<OasisFishAI>();
@@ -108,6 +112,11 @@ public class AnimalHealth : MonoBehaviour, IDamageable
 
         m_IsDead = true;
         Debug.Log($"[AnimalHealth] {gameObject.name} has died.");
+        if (Data != null)
+        {
+            PlayAnimalSound(Data.DeathSound, Data.DeathSoundVolume);
+        }
+
         DisableMovementSystem();
 
         // Play death animation if animator exists
@@ -159,6 +168,27 @@ public class AnimalHealth : MonoBehaviour, IDamageable
         Destroy(gameObject, 0.2f);
     }
 
+    private void PlayAnimalSound(AudioClip clip, float volume)
+    {
+        if (clip == null || volume <= 0f)
+            return;
+
+        GameObject soundObject = new GameObject($"{gameObject.name}_{clip.name}_Audio");
+        soundObject.transform.position = transform.position;
+
+        AudioSource source = soundObject.AddComponent<AudioSource>();
+        source.clip = clip;
+        source.volume = volume;
+        source.spatialBlend = 1f;
+        source.minDistance = 1.5f;
+        source.maxDistance = 35f;
+        source.rolloffMode = AudioRolloffMode.Linear;
+        source.playOnAwake = false;
+        source.Play();
+
+        Destroy(soundObject, clip.length + 0.1f);
+    }
+
     private void SpawnLoot()
     {
         // Priority: 1. LootPrefabOverride, 2. Data.LootPrefab, 3. ItemSetup.MeatTemplate
@@ -177,6 +207,8 @@ public class AnimalHealth : MonoBehaviour, IDamageable
         
         if (lootTemplate != null)
         {
+            int lootCount = Data != null ? Mathf.Max(1, Data.LootCount) : 1;
+
             // Position it slightly above the terrain surface
             Vector3 spawnPos = transform.position;
             if (TerrainManager.Instance != null)
@@ -192,28 +224,38 @@ public class AnimalHealth : MonoBehaviour, IDamageable
                 spawnPos.y += 0.5f;
             }
 
-            GameObject meat = Instantiate(lootTemplate, spawnPos, Quaternion.identity);
-            meat.name = lootTemplate.name; // Keep name clean
-            meat.SetActive(true);
-
-            // Give it a slight toss so it falls naturally
-            Rigidbody rb = meat.GetComponent<Rigidbody>();
-            if (rb != null)
+            for (int i = 0; i < lootCount; i++)
             {
-                rb.isKinematic = false;
-                rb.useGravity = true;
-                
-                // NaN Protection for normalization
-                Vector3 randomDir = Random.insideUnitSphere;
-                Vector3 combined = randomDir + Vector3.up;
-                if (combined.sqrMagnitude < 0.001f) combined = Vector3.up; // Fallback if exactly opposite
-                
-                Vector3 tossDir = combined.normalized;
-                rb.AddForce(tossDir * 3f, ForceMode.Impulse);
-                rb.AddTorque(Random.insideUnitSphere * 10f, ForceMode.Impulse);
+                Vector2 offset = Random.insideUnitCircle * 0.35f;
+                Vector3 itemSpawnPos = spawnPos + new Vector3(offset.x, 0f, offset.y);
+
+                GameObject meat = Instantiate(lootTemplate, itemSpawnPos, Quaternion.identity);
+                meat.name = lootTemplate.name; // Keep name clean
+                if (Data != null && Data.LootWorldScale > 0f)
+                {
+                    meat.transform.localScale = Vector3.one * Data.LootWorldScale;
+                }
+                meat.SetActive(true);
+
+                // Give it a slight toss so it falls naturally
+                Rigidbody rb = meat.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    rb.isKinematic = false;
+                    rb.useGravity = true;
+
+                    // NaN Protection for normalization
+                    Vector3 randomDir = Random.insideUnitSphere;
+                    Vector3 combined = randomDir + Vector3.up;
+                    if (combined.sqrMagnitude < 0.001f) combined = Vector3.up; // Fallback if exactly opposite
+
+                    Vector3 tossDir = combined.normalized;
+                    rb.AddForce(tossDir * 3f, ForceMode.Impulse);
+                    rb.AddTorque(Random.insideUnitSphere * 10f, ForceMode.Impulse);
+                }
             }
             
-            Debug.Log($"[AnimalHealth] {gameObject.name} dropped {meat.name} at {spawnPos}");
+            Debug.Log($"[AnimalHealth] {gameObject.name} dropped {lootCount}x {lootTemplate.name} at {spawnPos}");
         }
         else
         {

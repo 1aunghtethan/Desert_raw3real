@@ -64,6 +64,9 @@ public class Inventory : MonoBehaviour
         if (visibleHotbarSlots <= 0)
             return;
 
+        if (EquipmentHolder.Instance != null && EquipmentHolder.Instance.IsWoodShovelUseLocked)
+            return;
+
         // Number keys 1-5 select only the visible handbar/bag slots.
         for (int i = 0; i < visibleHotbarSlots; i++)
         {
@@ -101,6 +104,9 @@ public class Inventory : MonoBehaviour
     /// </summary>
     public void SelectSlot(int index, bool force = false)
     {
+        if (!force && EquipmentHolder.Instance != null && EquipmentHolder.Instance.IsWoodShovelUseLocked)
+            return;
+
         if (index < 0 || index >= Slots.Length) return;
         if (!force && index == SelectedIndex) return;
 
@@ -125,6 +131,11 @@ public class Inventory : MonoBehaviour
     {
         if (item == null) return false;
         if (amount <= 0) return true;
+        if (!item.CanStoreInInventory)
+        {
+            Debug.LogWarning($"[Inventory] {item.ItemName} cannot be stored in inventory.");
+            return false;
+        }
 
         int[] originalCounts = (int[])SlotCounts.Clone();
         ItemData[] originalSlots = (ItemData[])Slots.Clone();

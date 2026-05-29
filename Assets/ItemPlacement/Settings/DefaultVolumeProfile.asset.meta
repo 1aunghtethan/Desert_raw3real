@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 238cd62f6b58cb04e9c34749c4a015a7
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 303673
+  packageName: Modular Footstep System
+  packageVersion: 1.0.5
+  assetPath: Assets/ItemPlacement/Settings/DefaultVolumeProfile.asset
+  uploadId: 748953

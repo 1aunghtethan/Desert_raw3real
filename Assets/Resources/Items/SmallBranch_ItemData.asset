@@ -26,9 +26,9 @@ MonoBehaviour:
   DropPrefab: {fileID: 1199903840170090464, guid: 2c711cb8dbe15b542a4a65ae71ae8384,
     type: 3}
   PickupsSpinAndBob: 0
-  HoldPosition: {x: 0.3, y: -0.2, z: 0.6}
-  HoldRotation: {x: 0, y: 90, z: 30}
-  HoldScale: 0.4
+  HoldPosition: {x: -0.2, y: -0.007, z: -0.014}
+  HoldRotation: {x: -179.9, y: 89.29, z: -0.39}
+  HoldScale: 0.36
   DigMultiplier: 1.5
   RadiusMultiplier: 1
   HealthRestore: 0

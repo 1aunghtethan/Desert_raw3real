@@ -32,9 +32,6 @@ public class ThirdPersonCamera : MonoBehaviour
     public float CameraHeight = 1.5f;
     public float MinCameraHeight = 0.5f;
     public float MaxCameraHeight = 4f;
-    public float CameraHeightStep = 0.25f;
-    public KeyCode CameraHighKey = KeyCode.PageUp;
-    public KeyCode CameraLowKey = KeyCode.PageDown;
     public Vector3 TargetOffset = new Vector3(0, 1.5f, 0); // Look above player feet
     [Tooltip("Pushes the camera to the right (over the shoulder).")]
     public float RightOffset = 0.5f;
@@ -69,7 +66,7 @@ public class ThirdPersonCamera : MonoBehaviour
         if (Target == null) return;
 
         HandleInput();
-        UpdateCameraPosition();
+        UpdateCameraPosition(false);
         
         // Apply FOV
         if (_cam != null) _cam.fieldOfView = FOV;
@@ -92,16 +89,8 @@ public class ThirdPersonCamera : MonoBehaviour
         }
 
         if (!_cursorLocked) return;
-
-        if (Input.GetKeyDown(CameraHighKey))
-        {
-            AddCameraHeight(CameraHeightStep);
-        }
-
-        if (Input.GetKeyDown(CameraLowKey))
-        {
-            AddCameraHeight(-CameraHeightStep);
-        }
+        if (EquipmentHolder.Instance != null && EquipmentHolder.Instance.IsWoodShovelCameraLocked)
+            return;
 
         // Mouse rotation
         float mouseX = Input.GetAxis("Mouse X") * MouseSensitivity;
@@ -120,7 +109,16 @@ public class ThirdPersonCamera : MonoBehaviour
         // }
     }
 
-    void UpdateCameraPosition()
+    public void ForceFollowTargetNow()
+    {
+        if (Target == null) return;
+
+        _smoothVelocity = Vector3.zero;
+        UpdateCameraPosition(true);
+        if (_cam != null) _cam.fieldOfView = FOV;
+    }
+
+    void UpdateCameraPosition(bool instant)
     {
         TargetOffset.y = CameraHeight;
         Vector3 baseTargetPos = Target.position + TargetOffset;
@@ -149,7 +147,7 @@ public class ThirdPersonCamera : MonoBehaviour
         Vector3 finalPosition = targetPos - (targetRotation * Vector3.forward * _currentDistance);  
 
         // Smooth movement
-        if (PositionSmoothTime > 0)
+        if (!instant && PositionSmoothTime > 0)
         {
             transform.position = Vector3.SmoothDamp(transform.position, finalPosition, ref _smoothVelocity, PositionSmoothTime);
         }

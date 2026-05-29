@@ -27,6 +27,22 @@ public class ItemData : ScriptableObject
     public List<GameObject> PrefabVariants = new List<GameObject>();
     public int MaxStack = 1;
 
+    [Header("Inventory & Placement")]
+    [Tooltip("If disabled, this item cannot be added to the hotbar, backpack, or cursor.")]
+    public bool CanStoreInInventory = true;
+    [Tooltip("If disabled, this item cannot be placed from the hotbar or by direct crafting placement.")]
+    public bool CanPlaceInWorld = true;
+    [Tooltip("If enabled, crafting this item starts placement preview immediately instead of attaching it to the cursor.")]
+    public bool DirectPlaceOnCraft;
+    [Range(0f, 1f)]
+    [Tooltip("Fraction of the placed object's visible height to sink below the terrain.")]
+    public float PlacementSinkPercent;
+    [Range(0f, 1f)]
+    [Tooltip("Movement multiplier while this item is in direct placement preview.")]
+    public float PlacementMoveMultiplier = 1f;
+    public bool LockRunDuringPlacement;
+    public bool LockJumpDuringPlacement;
+
     [Header("Combat")]
     public float Damage = 10f;
     [Tooltip("Attacks per second")]
@@ -52,6 +68,14 @@ public class ItemData : ScriptableObject
     public float HoldScale = 1f;
 
     [Header("Tool Settings (only for Tool type)")]
+    [Tooltip("Base sand depth removed by one dig click.")]
+    public float DigPower = 0.35f;
+    [Tooltip("Base sand height added by one place click.")]
+    public float PlacePower = 0.35f;
+    [Tooltip("Base dig brush radius.")]
+    public float DigRadius = 1f;
+    [Tooltip("Base place brush radius.")]
+    public float PlaceRadius = 1f;
     [Tooltip("Dig strength multiplier when using this tool")]
     public float DigMultiplier = 1.5f;
     [Tooltip("Dig radius multiplier")]

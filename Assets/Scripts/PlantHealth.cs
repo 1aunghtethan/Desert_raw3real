@@ -17,15 +17,8 @@ public class PlantHealth : MonoBehaviour, IDamageable
 
     void Start()
     {
-        // FALLBACK: If data was lost or not assigned in prefab, try to load it from Resources
         if (Data == null)
-        {
-            if (gameObject.name.ToLower().Contains("joshuatree"))
-            {
-                Data = Resources.Load<PlantData>("Plants/JoshuaTreeData");
-                if (Data != null) Debug.Log($"[PlantHealth] Automatically recovered PlantData for {gameObject.name}");
-            }
-        }
+            Data = ResolvePlantDataFromObject();
 
         if (Data != null)
         {
@@ -36,6 +29,49 @@ public class PlantHealth : MonoBehaviour, IDamageable
             m_CurrentHealth = 100f;
             Debug.LogWarning($"[PlantHealth] No PlantData assigned to {gameObject.name}. Using default health of 100.");
         }
+    }
+
+    private PlantData ResolvePlantDataFromObject()
+    {
+        string names = BuildHierarchySearchText(transform);
+
+        if (names.Contains("joshuatree")) return Resources.Load<PlantData>("Plants/JoshuaTreeData");
+        if (names.Contains("cactus01_m")) return Resources.Load<PlantData>("Plants/cactus01_m_Data");
+        if (names.Contains("cactus02_m")) return Resources.Load<PlantData>("Plants/cactus02_m_Data");
+        if (names.Contains("cactus03_m")) return Resources.Load<PlantData>("Plants/cactus03_m_Data");
+        if (names.Contains("cactus04")) return Resources.Load<PlantData>("Plants/Cactus04_Data");
+        if (names.Contains("cactus_01") || names.Contains("cactus 01")) return Resources.Load<PlantData>("Plants/Cactus_01_Data");
+        if (names.Contains("bush 4")) return Resources.Load<PlantData>("Plants/Grass1Data");
+        if (names.Contains("bush 5")) return Resources.Load<PlantData>("Plants/Grass2Data");
+        if (names.Contains("bush01") || names.Contains("bush 1")) return Resources.Load<PlantData>("Plants/bush1Data");
+        if (names.Contains("bush02") || names.Contains("bush 2")) return Resources.Load<PlantData>("Plants/bush2Data");
+
+        if (names.Contains("desertplant"))
+            return Resources.Load<PlantData>("Plants/cactus01_m_Data");
+
+        return null;
+    }
+
+    private static string BuildHierarchySearchText(Transform root)
+    {
+        if (root == null)
+            return string.Empty;
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            builder.Append(child.name);
+            builder.Append(' ');
+
+            MeshFilter mesh = child.GetComponent<MeshFilter>();
+            if (mesh != null && mesh.sharedMesh != null)
+            {
+                builder.Append(mesh.sharedMesh.name);
+                builder.Append(' ');
+            }
+        }
+
+        return builder.ToString().ToLowerInvariant();
     }
 
     public void TakeDamage(float damage, Vector3 hitPoint, Vector3 hitDirection)

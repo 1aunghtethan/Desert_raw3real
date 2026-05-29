@@ -16,6 +16,7 @@ public class TerrainManager : MonoBehaviour
                 {
                     if (inst.Config != null) 
                     {
+                        inst.PrepareRuntimeConfig();
                         _instance = inst;
                         break;
                     }
@@ -48,9 +49,13 @@ public class TerrainManager : MonoBehaviour
     private HashSet<Vector2Int> _pendingSceneryLoadSet = new HashSet<Vector2Int>();
     private Queue<Vector2Int> _pendingVegetationLoads = new Queue<Vector2Int>();
     private HashSet<Vector2Int> _pendingVegetationLoadSet = new HashSet<Vector2Int>();
+    private Queue<Vector2Int> _pendingRealGrassLoads = new Queue<Vector2Int>();
+    private HashSet<Vector2Int> _pendingRealGrassLoadSet = new HashSet<Vector2Int>();
     private HashSet<Vector2Int> _desiredTerrainCoords = new HashSet<Vector2Int>();
     private HashSet<Vector2Int> _desiredSceneryCoords = new HashSet<Vector2Int>();
     private HashSet<Vector2Int> _desiredVegetationCoords = new HashSet<Vector2Int>();
+    private HashSet<Vector2Int> _desiredRealGrassCoords = new HashSet<Vector2Int>();
+    private int _heavyWorkPhase;
 
     // ── Oasis Management ──
     public struct OasisData
@@ -77,15 +82,32 @@ public class TerrainManager : MonoBehaviour
     private Dictionary<Vector2Int, List<GameObject>> _activeOasisBushes = new Dictionary<Vector2Int, List<GameObject>>();
     private float _bushCheckTimer = 0f;
     private bool _hasTeleportedToMountain = false;
+    private bool _runtimeConfigPrepared;
     public Vector2Int TestMountainChunk { get; private set; } = new Vector2Int(-99999, -99999);
 
     void Awake()
     {
         _instance = this;
+        PrepareRuntimeConfig();
+
         if (ChunkPrefab == null)
         {
             Debug.LogError("ChunkPrefab is not assigned in TerrainManager!");
         }
+    }
+
+    private void PrepareRuntimeConfig()
+    {
+        if (_runtimeConfigPrepared || Config == null)
+        {
+            return;
+        }
+
+        Config = Instantiate(Config);
+        Config.name = $"{Config.name}_Runtime";
+        Config.Seed = WorldSeedManager.EnsureSeed(Config.RandomizeSeedOnPlay, Config.Seed);
+        _runtimeConfigPrepared = true;
+        Debug.Log($"[TerrainManager] Runtime terrain seed: {Config.Seed}");
     }
 
     void Start()
@@ -123,7 +145,8 @@ public class TerrainManager : MonoBehaviour
         }
 
         UpdateChunks();
-        ProcessStreamingQueues();
+        _heavyWorkPhase = 1;
+        ProcessHeavyTerrainWork();
     }
 
     private float GetPlayerGroundClearance()
@@ -141,7 +164,7 @@ public class TerrainManager : MonoBehaviour
         if (Player == null) return;
 
         UpdateChunks();
-        ProcessStreamingQueues();
+        ProcessHeavyTerrainWork();
 
         // 1. Every-Frame LOD Updates (Distance check must be fast)
         float chunkSizeWorld = (Config.ChunkSize - 1) * Config.CellSize;
@@ -153,35 +176,6 @@ public class TerrainManager : MonoBehaviour
                 new Vector2(chunk.transform.position.x + chunkSizeWorld * 0.5f, chunk.transform.position.z + chunkSizeWorld * 0.5f)
             );
             chunk.UpdateLOD(dist2D, Config.ColliderLODDistance, Config.SimulationLODDistance);
-        }
-
-        // 1b. Deferred Collider Baking (1 chunk per frame to spread the spike)
-        int bakedThisFrame = 0;
-        foreach (var chunk in _chunks.Values)
-        {
-            if (bakedThisFrame >= Mathf.Max(0, MaxColliderBakesPerFrame)) break;
-            if (chunk.NeedsColliderBake)
-            {
-                chunk.BakeCollider();
-                bakedThisFrame++;
-            }
-        }
-
-        // 1c. Staggered Mesh Rebuilds (1 neighbor per frame to spread the transition spike)
-        int rebuiltThisFrame = 0;
-        int meshBudget = Mathf.Max(0, MaxMeshRebuildsPerFrame);
-        for (int i = _pendingMeshRebuilds.Count - 1; i >= 0 && rebuiltThisFrame < meshBudget; i--)
-        {
-            SandChunk chunk = _pendingMeshRebuilds[i];
-            if (chunk == null || !_chunks.ContainsKey(chunk.ChunkCoord))
-            {
-                _pendingMeshRebuilds.RemoveAt(i);
-                continue;
-            }
-            chunk.ScheduleMeshUpdate(default).Complete();
-            chunk.ApplyMeshUpdate();
-            _pendingMeshRebuilds.RemoveAt(i);
-            rebuiltThisFrame++;
         }
 
         // 2. Throttled Simulation (0.1s interval)
@@ -212,6 +206,27 @@ public class TerrainManager : MonoBehaviour
         // 1. Reset Flags and Schedule Simulation
         int i = 0;
         List<SandChunk> chunkList = new List<SandChunk>(_chunks.Values);
+        if (Config.RootSandStabilizationEnabled)
+        {
+            HashSet<SandChunk> chunksNeedingRootMask = new HashSet<SandChunk>();
+            foreach (var chunk in chunkList)
+            {
+                if (chunk == null || !chunk.IsInitialized || !chunk.IsSimulating || !chunk.HasActiveFlow)
+                    continue;
+
+                chunksNeedingRootMask.Add(chunk);
+                for (int n = 0; n < chunk.Neighbors.Length; n++)
+                {
+                    SandChunk neighbor = chunk.Neighbors[n];
+                    if (neighbor != null && neighbor.IsInitialized)
+                        chunksNeedingRootMask.Add(neighbor);
+                }
+            }
+
+            foreach (SandChunk chunk in chunksNeedingRootMask)
+                chunk.RefreshRootStabilityMask();
+        }
+
         foreach (var chunk in chunkList)
         {
             if (!chunk.IsInitialized) {
@@ -243,12 +258,19 @@ public class TerrainManager : MonoBehaviour
 
             var job = new SandJobs.SimulationJob {
                 Size = Config.ChunkSize, FlowThreshold = Config.FlowThreshold, FlowSpeed = Config.FlowSpeed,
+                UseStabilityMask = Config.RootSandStabilizationEnabled && chunk.RootStabilityMask.IsCreated,
+                RootSandEdgeFlowMultiplier = Mathf.Clamp01(Config.RootSandEdgeFlowMultiplier),
                 ReadHeights = chunk.HeightsRead, WriteHeights = chunk.HeightsWrite,
+                StabilityMask = chunk.RootStabilityMask,
                 
                 ReadN = (nN != null && nN.IsInitialized && nN.HeightsRead.IsCreated) ? nN.HeightsRead : chunk.HeightsRead,
                 ReadS = (nS != null && nS.IsInitialized && nS.HeightsRead.IsCreated) ? nS.HeightsRead : chunk.HeightsRead,
                 ReadE = (nE != null && nE.IsInitialized && nE.HeightsRead.IsCreated) ? nE.HeightsRead : chunk.HeightsRead,
                 ReadW = (nW != null && nW.IsInitialized && nW.HeightsRead.IsCreated) ? nW.HeightsRead : chunk.HeightsRead,
+                StabilityN = (nN != null && nN.IsInitialized && nN.RootStabilityMask.IsCreated) ? nN.RootStabilityMask : chunk.RootStabilityMask,
+                StabilityS = (nS != null && nS.IsInitialized && nS.RootStabilityMask.IsCreated) ? nS.RootStabilityMask : chunk.RootStabilityMask,
+                StabilityE = (nE != null && nE.IsInitialized && nE.RootStabilityMask.IsCreated) ? nE.RootStabilityMask : chunk.RootStabilityMask,
+                StabilityW = (nW != null && nW.IsInitialized && nW.RootStabilityMask.IsCreated) ? nW.RootStabilityMask : chunk.RootStabilityMask,
                 HasN = nN != null && nN.IsInitialized && nN.HeightsRead.IsCreated, 
                 HasS = nS != null && nS.IsInitialized && nS.HeightsRead.IsCreated,
                 HasE = nE != null && nE.IsInitialized && nE.HeightsRead.IsCreated, 
@@ -258,6 +280,10 @@ public class TerrainManager : MonoBehaviour
                 ReadNW = (nNW != null && nNW.IsInitialized && nNW.HeightsRead.IsCreated) ? nNW.HeightsRead : chunk.HeightsRead,
                 ReadSE = (nSE != null && nSE.IsInitialized && nSE.HeightsRead.IsCreated) ? nSE.HeightsRead : chunk.HeightsRead,
                 ReadSW = (nSW != null && nSW.IsInitialized && nSW.HeightsRead.IsCreated) ? nSW.HeightsRead : chunk.HeightsRead,
+                StabilityNE = (nNE != null && nNE.IsInitialized && nNE.RootStabilityMask.IsCreated) ? nNE.RootStabilityMask : chunk.RootStabilityMask,
+                StabilityNW = (nNW != null && nNW.IsInitialized && nNW.RootStabilityMask.IsCreated) ? nNW.RootStabilityMask : chunk.RootStabilityMask,
+                StabilitySE = (nSE != null && nSE.IsInitialized && nSE.RootStabilityMask.IsCreated) ? nSE.RootStabilityMask : chunk.RootStabilityMask,
+                StabilitySW = (nSW != null && nSW.IsInitialized && nSW.RootStabilityMask.IsCreated) ? nSW.RootStabilityMask : chunk.RootStabilityMask,
                 HasNE = nNE != null && nNE.IsInitialized && nNE.HeightsRead.IsCreated, 
                 HasNW = nNW != null && nNW.IsInitialized && nNW.HeightsRead.IsCreated,
                 HasSE = nSE != null && nSE.IsInitialized && nSE.HeightsRead.IsCreated, 
@@ -423,10 +449,13 @@ public class TerrainManager : MonoBehaviour
         _desiredTerrainCoords = activeCoords;
         _desiredSceneryCoords = mountainCoords;
         _desiredVegetationCoords = vegetationCoords;
+        _desiredRealGrassCoords = BuildDesiredRealGrassCoords(Player.position, chunkSizeWorld);
 
         QueueMissingCoordsByDistance(_desiredSceneryCoords, _pendingSceneryLoads, _pendingSceneryLoadSet, coord => true);
         QueueMissingCoordsByDistance(_desiredTerrainCoords, _pendingChunkCreates, _pendingChunkCreateSet, coord => !_chunks.ContainsKey(coord));
         QueueMissingCoordsByDistance(_desiredVegetationCoords, _pendingVegetationLoads, _pendingVegetationLoadSet, coord => true);
+        QueueMissingCoordsByDistance(_desiredRealGrassCoords, _pendingRealGrassLoads, _pendingRealGrassLoadSet, coord =>
+            PlantSpawner.Instance == null || !PlantSpawner.Instance.IsRealGrassLoadedForChunk(coord));
 
         List<Vector2Int> toRemove = new List<Vector2Int>();
         foreach (var kvp in _chunks)
@@ -450,17 +479,40 @@ public class TerrainManager : MonoBehaviour
         if (MountainSpawner.Instance != null) MountainSpawner.Instance.UnloadDistantMountains(_desiredSceneryCoords);
         UnloadDistantOases(_desiredSceneryCoords);
         if (PlantSpawner.Instance != null) PlantSpawner.Instance.UnloadDistantPlants(_desiredVegetationCoords);
+        if (PlantSpawner.Instance != null) PlantSpawner.Instance.UnloadDistantRealGrass(_desiredRealGrassCoords);
         if (ApronBushSpawner.Instance != null) ApronBushSpawner.Instance.UnloadDistantBushes(_desiredVegetationCoords);
     }
 
-    private void ProcessStreamingQueues()
+    private bool ProcessHeavyTerrainWork()
     {
-        ProcessPendingSceneryLoads();
-        ProcessPendingChunkCreates();
-        ProcessPendingVegetationLoads();
+        for (int i = 0; i < 6; i++)
+        {
+            int phase = _heavyWorkPhase;
+            _heavyWorkPhase = (_heavyWorkPhase + 1) % 6;
+
+            if (phase == 0 && ProcessPendingSceneryLoads())
+                return true;
+
+            if (phase == 1 && ProcessPendingChunkCreates())
+                return true;
+
+            if (phase == 2 && ProcessPendingVegetationLoads())
+                return true;
+
+            if (phase == 3 && ProcessPendingRealGrassLoads())
+                return true;
+
+            if (phase == 4 && ProcessPendingColliderBakes())
+                return true;
+
+            if (phase == 5 && ProcessPendingMeshRebuilds())
+                return true;
+        }
+
+        return false;
     }
 
-    private void ProcessPendingSceneryLoads()
+    private bool ProcessPendingSceneryLoads()
     {
         int budget = Mathf.Max(0, MaxSceneryLoadsPerFrame);
         int processed = 0;
@@ -479,9 +531,11 @@ public class TerrainManager : MonoBehaviour
             LoadOasisAssetsForChunk(coord);
             processed++;
         }
+
+        return processed > 0;
     }
 
-    private void ProcessPendingChunkCreates()
+    private bool ProcessPendingChunkCreates()
     {
         int budget = Mathf.Max(0, MaxChunkCreatesPerFrame);
         int processed = 0;
@@ -506,9 +560,11 @@ public class TerrainManager : MonoBehaviour
 
             processed++;
         }
+
+        return processed > 0;
     }
 
-    private void ProcessPendingVegetationLoads()
+    private bool ProcessPendingVegetationLoads()
     {
         int budget = Mathf.Max(0, MaxVegetationLoadsPerFrame);
         int processed = 0;
@@ -529,6 +585,122 @@ public class TerrainManager : MonoBehaviour
 
             processed++;
         }
+
+        return processed > 0;
+    }
+
+    private bool ProcessPendingRealGrassLoads()
+    {
+        int budget = Mathf.Max(0, MaxVegetationLoadsPerFrame);
+        int processed = 0;
+
+        while (_pendingRealGrassLoads.Count > 0 && processed < budget)
+        {
+            Vector2Int coord = _pendingRealGrassLoads.Dequeue();
+            _pendingRealGrassLoadSet.Remove(coord);
+
+            if (!_desiredRealGrassCoords.Contains(coord))
+                continue;
+
+            if (PlantSpawner.Instance != null)
+                PlantSpawner.Instance.LoadRealGrassForChunk(coord);
+
+            processed++;
+        }
+
+        return processed > 0;
+    }
+
+    private HashSet<Vector2Int> BuildDesiredRealGrassCoords(Vector3 playerPosition, float chunkSizeWorld)
+    {
+        HashSet<Vector2Int> coords = new HashSet<Vector2Int>();
+        float radius = Config != null ? Mathf.Max(0f, Config.RealGrassLoadRadiusMeters) : 0f;
+        if (chunkSizeWorld <= 0f || radius <= 0f)
+            return coords;
+
+        float treeZoneGrassPadding = Config != null ? Mathf.Max(0f, Config.TreeZoneGrassOuterRadius) : 0f;
+        int scanRadius = Mathf.CeilToInt((radius + treeZoneGrassPadding + chunkSizeWorld) / chunkSizeWorld) + 1;
+        float radiusSqr = radius * radius;
+
+        for (int y = -scanRadius; y <= scanRadius; y++)
+        {
+            for (int x = -scanRadius; x <= scanRadius; x++)
+            {
+                Vector2Int coord = _currentChunkCoord + new Vector2Int(x, y);
+                if (DoesChunkBoundsIntersectCircle(coord, playerPosition, radiusSqr, chunkSizeWorld, 0f))
+                {
+                    coords.Add(coord);
+                    continue;
+                }
+
+                if (TerrainManager.IsTreeZoneChunk(coord, Config) &&
+                    DoesChunkBoundsIntersectCircle(coord, playerPosition, radiusSqr, chunkSizeWorld, treeZoneGrassPadding))
+                {
+                    coords.Add(coord);
+                }
+            }
+        }
+
+        return coords;
+    }
+
+    private static bool DoesChunkBoundsIntersectCircle(
+        Vector2Int coord,
+        Vector3 circleCenter,
+        float radiusSqr,
+        float chunkSizeWorld,
+        float padding)
+    {
+        float minX = coord.x * chunkSizeWorld - padding;
+        float maxX = coord.x * chunkSizeWorld + chunkSizeWorld + padding;
+        float minZ = coord.y * chunkSizeWorld - padding;
+        float maxZ = coord.y * chunkSizeWorld + chunkSizeWorld + padding;
+        float closestX = Mathf.Clamp(circleCenter.x, minX, maxX);
+        float closestZ = Mathf.Clamp(circleCenter.z, minZ, maxZ);
+        float dx = circleCenter.x - closestX;
+        float dz = circleCenter.z - closestZ;
+        return dx * dx + dz * dz <= radiusSqr;
+    }
+
+    private bool ProcessPendingColliderBakes()
+    {
+        int budget = Mathf.Max(0, MaxColliderBakesPerFrame);
+        int processed = 0;
+
+        foreach (var chunk in _chunks.Values)
+        {
+            if (processed >= budget) break;
+            if (chunk.NeedsColliderBake)
+            {
+                chunk.BakeCollider();
+                processed++;
+            }
+        }
+
+        return processed > 0;
+    }
+
+    private bool ProcessPendingMeshRebuilds()
+    {
+        int budget = Mathf.Max(0, MaxMeshRebuildsPerFrame);
+        int processed = 0;
+
+        for (int i = _pendingMeshRebuilds.Count - 1; i >= 0 && processed < budget; i--)
+        {
+            SandChunk chunk = _pendingMeshRebuilds[i];
+            if (chunk == null || !_chunks.ContainsKey(chunk.ChunkCoord))
+            {
+                _pendingMeshRebuilds.RemoveAt(i);
+                continue;
+            }
+
+            chunk.ScheduleMeshUpdate(default).Complete();
+            chunk.ApplyMeshUpdate();
+            _pendingMeshRebuilds.RemoveAt(i);
+            processed++;
+        }
+
+        return processed > 0;
     }
 
     private void QueueMissingCoordsByDistance(
@@ -638,6 +810,7 @@ public class TerrainManager : MonoBehaviour
         int maxX = Mathf.FloorToInt((worldPos.x + radius) / chunkSizeWorld);
         int minZ = Mathf.FloorToInt((worldPos.z - radius) / chunkSizeWorld);
         int maxZ = Mathf.FloorToInt((worldPos.z + radius) / chunkSizeWorld);
+        bool modifiedAnyChunk = false;
 
         for (int z = minZ; z <= maxZ; z++)
         {
@@ -648,9 +821,15 @@ public class TerrainManager : MonoBehaviour
                     if (chunk.ModifyHeight(worldPos, amount, radius))
                     {
                         ActivateFlowAround(chunk);
+                        modifiedAnyChunk = true;
                     }
                 }
             }
+        }
+
+        if (modifiedAnyChunk && Player != null && Vector3.Distance(Player.position, worldPos) <= 10f)
+        {
+            AudioManager.Instance.PlaySandFlowAt(worldPos);
         }
     }
 
@@ -686,7 +865,11 @@ public class TerrainManager : MonoBehaviour
         
         if (_chunks.TryGetValue(new Vector2Int(pX, pZ), out SandChunk chunk))
         {
-            return chunk.GetHeightAt(worldPos);
+            float chunkHeight = chunk.GetHeightAt(worldPos);
+            if (HighwayWinManager.TryApplyHighwayFlattening(worldPos.x, worldPos.z, chunkHeight, out float highwayHeight, out _))
+                return highwayHeight;
+
+            return chunkHeight;
         }
         
         float influence = 0f;
@@ -766,6 +949,338 @@ public class TerrainManager : MonoBehaviour
         return (Config.ChunkSize - 1) * Config.CellSize;
     }
 
+    public struct TreeZoneTerrainInfluence
+    {
+        public float FlatChunkInfluence;
+        public float LowWaveInfluence;
+        public float BaseHeightInfluence;
+        public float TargetBaseHeight;
+        public Vector2Int SourceCoord;
+    }
+
+    public struct TreeZoneTextureInfluence
+    {
+        public float Influence;
+        public Vector2 NormalizedPosition;
+        public Vector2Int SourceCoord;
+    }
+
+    public static bool IsTreeZoneChunk(Vector2Int coord, TerrainConfig config)
+    {
+        if (config == null)
+            return false;
+
+        if (config.TreeZoneUseHighwayFlatSpacing
+            && HighwayWinManager.TryGetFlatCorridorReference(out HighwayWinManager.FlatCorridorReference reference))
+        {
+            return IsHighwayAnchoredTreeZoneChunk(coord, config, reference);
+        }
+
+        if (config.TreeZoneSpawnChance <= 0f)
+            return false;
+
+        float chance = Mathf.Clamp01(config.TreeZoneSpawnChance);
+        return HashToUnit(config.Seed, coord.x, coord.y, 3109) < chance;
+    }
+
+    public static bool IsHighwayAnchoredTreeZoneChunk(Vector2Int coord, TerrainConfig config, HighwayWinManager.FlatCorridorReference reference)
+    {
+        if (config == null)
+            return false;
+
+        float chunkSizeWorld = (config.ChunkSize - 1) * config.CellSize;
+        float spacing = Mathf.Max(1f, config.TreeZoneSpacingFromFlatMeters);
+        if (chunkSizeWorld <= 0f || spacing <= 0f)
+            return false;
+
+        int perpendicularChunkIndex = reference.PerpendicularAxisIsX ? coord.x : coord.y;
+        int alongChunkIndex = reference.PerpendicularAxisIsX ? coord.y : coord.x;
+        float halfChunk = chunkSizeWorld * 0.5f;
+        float perpendicularCenter = perpendicularChunkIndex * chunkSizeWorld + halfChunk;
+        float alongCenter = alongChunkIndex * chunkSizeWorld + halfChunk;
+
+        float distanceFromRoadCenter = Mathf.Abs(perpendicularCenter - reference.CenterCoordinate);
+        float distanceFromFlatEdge = distanceFromRoadCenter - Mathf.Max(0f, reference.OuterHalfWidth);
+        if (distanceFromFlatEdge <= 0f)
+            return false;
+
+        int perpendicularRing = Mathf.RoundToInt(distanceFromFlatEdge / spacing);
+        if (perpendicularRing < 1)
+            return false;
+
+        float side = perpendicularCenter >= reference.CenterCoordinate ? 1f : -1f;
+        float targetPerpendicular = reference.CenterCoordinate + side * (Mathf.Max(0f, reference.OuterHalfWidth) + perpendicularRing * spacing);
+        if (perpendicularChunkIndex != GetNearestChunkIndexForWorldCoordinate(targetPerpendicular, chunkSizeWorld))
+            return false;
+
+        int alongRing = Mathf.RoundToInt((alongCenter - reference.AlongAnchorCoordinate) / spacing);
+        float targetAlong = reference.AlongAnchorCoordinate + alongRing * spacing;
+        return alongChunkIndex == GetNearestChunkIndexForWorldCoordinate(targetAlong, chunkSizeWorld);
+    }
+
+    private static bool CanEvaluateTreeZones(TerrainConfig config)
+    {
+        if (config == null)
+            return false;
+
+        return config.TreeZoneSpawnChance > 0f
+            || (config.TreeZoneUseHighwayFlatSpacing && config.TreeZoneSpacingFromFlatMeters > 0f);
+    }
+
+    private static int GetNearestChunkIndexForWorldCoordinate(float worldCoordinate, float chunkSizeWorld)
+    {
+        return Mathf.RoundToInt((worldCoordinate - chunkSizeWorld * 0.5f) / chunkSizeWorld);
+    }
+
+    public static float GetTreeZoneInfluence(Vector2Int coord, TerrainConfig config, float worldX, float worldZ)
+    {
+        if (!IsTreeZoneChunk(coord, config))
+            return 0f;
+
+        if (!TryGetTreeZoneAreaBounds(coord, config, out float minX, out float maxX, out float minZ, out float maxZ))
+            return 0f;
+
+        if (worldX < minX || worldX > maxX || worldZ < minZ || worldZ > maxZ)
+            return 0f;
+
+        float edgeDistance = Mathf.Min(Mathf.Min(worldX - minX, maxX - worldX), Mathf.Min(worldZ - minZ, maxZ - worldZ));
+        float zoneWidth = Mathf.Max(0.01f, maxX - minX);
+        float edgeBlend = Mathf.Clamp(config.TreeZoneEdgeBlendMeters, 0.01f, zoneWidth * 0.5f);
+        return Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edgeDistance / edgeBlend));
+    }
+
+    public static bool TryGetTreeZoneAreaBounds(Vector2Int coord, TerrainConfig config, out float minX, out float maxX, out float minZ, out float maxZ)
+    {
+        minX = maxX = minZ = maxZ = 0f;
+
+        if (config == null)
+            return false;
+
+        float chunkSizeWorld = (config.ChunkSize - 1) * config.CellSize;
+        if (chunkSizeWorld <= 0f)
+            return false;
+
+        float areaWidth = GetTreeZoneAreaWidthMeters(coord, config, chunkSizeWorld);
+        float halfWidth = areaWidth * 0.5f;
+        float centerX = coord.x * chunkSizeWorld + chunkSizeWorld * 0.5f;
+        float centerZ = coord.y * chunkSizeWorld + chunkSizeWorld * 0.5f;
+
+        minX = centerX - halfWidth;
+        maxX = centerX + halfWidth;
+        minZ = centerZ - halfWidth;
+        maxZ = centerZ + halfWidth;
+        return true;
+    }
+
+    public static float GetTreeZoneAreaWidthMeters(Vector2Int coord, TerrainConfig config)
+    {
+        if (config == null)
+            return 0f;
+
+        float chunkSizeWorld = (config.ChunkSize - 1) * config.CellSize;
+        return GetTreeZoneAreaWidthMeters(coord, config, chunkSizeWorld);
+    }
+
+    private static float GetTreeZoneAreaWidthMeters(Vector2Int coord, TerrainConfig config, float chunkSizeWorld)
+    {
+        if (config == null || chunkSizeWorld <= 0f)
+            return 0f;
+
+        float minArea = Mathf.Max(1f, config.TreeZoneMinAreaMeters);
+        float maxArea = Mathf.Max(1f, config.TreeZoneMaxAreaMeters);
+        if (minArea > maxArea)
+        {
+            float oldMin = minArea;
+            minArea = maxArea;
+            maxArea = oldMin;
+        }
+
+        if (Mathf.Approximately(minArea, maxArea))
+            return minArea;
+
+        float t = HashToUnit(config.Seed, coord.x, coord.y, 7331);
+        return Mathf.Lerp(minArea, maxArea, t);
+    }
+
+    public static TreeZoneTextureInfluence GetTreeZoneTextureInfluence(Vector2Int sampleCoord, TerrainConfig config, float worldX, float worldZ)
+    {
+        TreeZoneTextureInfluence result = new TreeZoneTextureInfluence
+        {
+            Influence = 0f,
+            NormalizedPosition = Vector2.zero,
+            SourceCoord = sampleCoord
+        };
+
+        if (!CanEvaluateTreeZones(config))
+            return result;
+
+        float chunkSizeWorld = (config.ChunkSize - 1) * config.CellSize;
+        if (chunkSizeWorld <= 0f)
+            return result;
+
+        float maxAreaWidth = Mathf.Max(1f, Mathf.Max(config.TreeZoneMinAreaMeters, config.TreeZoneMaxAreaMeters));
+        float scanDistance = chunkSizeWorld + maxAreaWidth * 0.5f;
+        int scanRadius = Mathf.Max(1, Mathf.CeilToInt(scanDistance / chunkSizeWorld));
+
+        for (int z = -scanRadius; z <= scanRadius; z++)
+        {
+            for (int x = -scanRadius; x <= scanRadius; x++)
+            {
+                Vector2Int coord = sampleCoord + new Vector2Int(x, z);
+                if (!IsTreeZoneChunk(coord, config))
+                    continue;
+
+                if (!TryGetTreeZoneAreaBounds(coord, config, out float minX, out float maxX, out float minZ, out float maxZ))
+                    continue;
+
+                if (worldX < minX || worldX > maxX || worldZ < minZ || worldZ > maxZ)
+                    continue;
+
+                float edgeDistance = Mathf.Min(Mathf.Min(worldX - minX, maxX - worldX), Mathf.Min(worldZ - minZ, maxZ - worldZ));
+                float textureEdgeBlend = Mathf.Max(0.01f, config.TreeZoneTextureEdgeBlendMeters);
+                float influence = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(edgeDistance / textureEdgeBlend));
+                if (influence <= result.Influence)
+                    continue;
+
+                float width = Mathf.Max(0.01f, maxX - minX);
+                float depth = Mathf.Max(0.01f, maxZ - minZ);
+                result.Influence = influence;
+                result.NormalizedPosition = new Vector2(
+                    Mathf.Clamp01((worldX - minX) / width),
+                    Mathf.Clamp01((worldZ - minZ) / depth));
+                result.SourceCoord = coord;
+            }
+        }
+
+        return result;
+    }
+
+    public static float GetTreeZoneBaseHeight(Vector2Int coord, TerrainConfig config)
+    {
+        if (config == null)
+            return 0f;
+
+        float minHeight = Mathf.Min(config.TreeZoneMinBaseHeight, config.TreeZoneMaxBaseHeight);
+        float maxHeight = Mathf.Max(config.TreeZoneMinBaseHeight, config.TreeZoneMaxBaseHeight);
+        if (Mathf.Approximately(minHeight, maxHeight))
+            return minHeight;
+
+        float t = HashToUnit(config.Seed, coord.x, coord.y, 4217);
+        return Mathf.Lerp(minHeight, maxHeight, t);
+    }
+
+    public static TreeZoneTerrainInfluence GetTreeZoneTerrainInfluence(Vector2Int sampleCoord, TerrainConfig config, float worldX, float worldZ)
+    {
+        TreeZoneTerrainInfluence result = new TreeZoneTerrainInfluence
+        {
+            FlatChunkInfluence = 0f,
+            LowWaveInfluence = 0f,
+            BaseHeightInfluence = 0f,
+            TargetBaseHeight = config != null ? config.BaseHeight : 0f,
+            SourceCoord = sampleCoord
+        };
+
+        if (!CanEvaluateTreeZones(config))
+            return result;
+
+        float chunkSizeWorld = (config.ChunkSize - 1) * config.CellSize;
+        if (chunkSizeWorld <= 0f)
+            return result;
+
+        float lowWaveRadius = Mathf.Max(0f, config.TreeZoneLowWaveRadius);
+        float maxAreaWidth = Mathf.Max(1f, Mathf.Max(config.TreeZoneMinAreaMeters, config.TreeZoneMaxAreaMeters));
+        float scanDistance = chunkSizeWorld + lowWaveRadius + maxAreaWidth * 0.5f;
+        int scanRadius = Mathf.Max(1, Mathf.CeilToInt(scanDistance / chunkSizeWorld));
+
+        for (int z = -scanRadius; z <= scanRadius; z++)
+        {
+            for (int x = -scanRadius; x <= scanRadius; x++)
+            {
+                Vector2Int coord = sampleCoord + new Vector2Int(x, z);
+                if (!IsTreeZoneChunk(coord, config))
+                    continue;
+
+                float flatInfluence = GetTreeZoneInfluence(coord, config, worldX, worldZ);
+                if (flatInfluence > result.FlatChunkInfluence)
+                {
+                    result.FlatChunkInfluence = flatInfluence;
+                    result.SourceCoord = coord;
+                }
+
+                float baseHeightInfluence = flatInfluence * Mathf.Clamp01(config.TreeZoneFlatStrength);
+
+                if (lowWaveRadius <= 0f)
+                {
+                    if (baseHeightInfluence > result.BaseHeightInfluence)
+                    {
+                        result.BaseHeightInfluence = baseHeightInfluence;
+                        result.TargetBaseHeight = GetTreeZoneBaseHeight(coord, config);
+                    }
+                    continue;
+                }
+
+                float distanceFromChunk = GetDistanceFromTreeZoneAreaBounds(coord, config, worldX, worldZ);
+                if (distanceFromChunk <= lowWaveRadius)
+                {
+                    float edgeBlend = Mathf.Max(0.01f, config.TreeZoneLowWaveEdgeBlend);
+                    float fadeStart = Mathf.Max(0f, lowWaveRadius - edgeBlend);
+                    float lowWaveInfluence = distanceFromChunk <= fadeStart
+                        ? 1f
+                        : 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((distanceFromChunk - fadeStart) / edgeBlend));
+
+                    result.LowWaveInfluence = Mathf.Max(result.LowWaveInfluence, lowWaveInfluence);
+                    baseHeightInfluence = Mathf.Max(baseHeightInfluence, lowWaveInfluence * Mathf.Clamp01(config.TreeZoneLowWaveStrength));
+                }
+
+                if (baseHeightInfluence > result.BaseHeightInfluence)
+                {
+                    result.BaseHeightInfluence = baseHeightInfluence;
+                    result.TargetBaseHeight = GetTreeZoneBaseHeight(coord, config);
+                    result.SourceCoord = coord;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static float GetDistanceFromChunkBounds(Vector2Int coord, TerrainConfig config, float worldX, float worldZ)
+    {
+        float chunkSizeWorld = (config.ChunkSize - 1) * config.CellSize;
+        float minX = coord.x * chunkSizeWorld;
+        float minZ = coord.y * chunkSizeWorld;
+        float maxX = minX + chunkSizeWorld;
+        float maxZ = minZ + chunkSizeWorld;
+
+        float dx = Mathf.Max(Mathf.Max(minX - worldX, 0f), worldX - maxX);
+        float dz = Mathf.Max(Mathf.Max(minZ - worldZ, 0f), worldZ - maxZ);
+        return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+
+    private static float GetDistanceFromTreeZoneAreaBounds(Vector2Int coord, TerrainConfig config, float worldX, float worldZ)
+    {
+        if (!TryGetTreeZoneAreaBounds(coord, config, out float minX, out float maxX, out float minZ, out float maxZ))
+            return float.PositiveInfinity;
+
+        float dx = Mathf.Max(Mathf.Max(minX - worldX, 0f), worldX - maxX);
+        float dz = Mathf.Max(Mathf.Max(minZ - worldZ, 0f), worldZ - maxZ);
+        return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+
+    private static float HashToUnit(int seed, int x, int y, int salt)
+    {
+        unchecked
+        {
+            uint h = (uint)seed;
+            h ^= (uint)(x * 374761393);
+            h ^= (uint)(y * 668265263);
+            h ^= (uint)salt * 2246822519u;
+            h = (h ^ (h >> 13)) * 1274126177u;
+            h ^= h >> 16;
+            return (h & 0x00FFFFFF) / 16777216f;
+        }
+    }
+
     /// <summary>
     /// Centralized procedural height calculation. 
     /// Matches the logic in SandChunk.GenerateInitialTerrain.
@@ -802,6 +1317,21 @@ public class TerrainManager : MonoBehaviour
         // 1. Calculate a very small 'micro wave' for the flat area
         float microWave = (Mathf.Sin(worldX * 0.2f) + Mathf.Cos(worldZ * 0.2f)) * (Config.MicroWaveHeight * 0.16f) 
                         + Mathf.PerlinNoise(worldX * 0.08f + s, worldZ * 0.08f + s) * Config.MicroWaveHeight;
+
+        float chunkSizeWorld = GetChunkSizeWorld();
+        Vector2Int sampleCoord = chunkSizeWorld > 0f
+            ? new Vector2Int(Mathf.FloorToInt(worldX / chunkSizeWorld), Mathf.FloorToInt(worldZ / chunkSizeWorld))
+            : Vector2Int.zero;
+        TreeZoneTerrainInfluence treeZoneInfluence = GetTreeZoneTerrainInfluence(sampleCoord, Config, worldX, worldZ);
+        float treeZoneFlattening = Mathf.Max(
+            treeZoneInfluence.FlatChunkInfluence * Mathf.Clamp01(Config.TreeZoneFlatStrength),
+            treeZoneInfluence.LowWaveInfluence * Mathf.Clamp01(Config.TreeZoneLowWaveStrength));
+        float treeZoneOasisSuppression = 1f - Mathf.Clamp01(oasisDipInfluence + oasisFlatInfluence);
+        treeZoneFlattening *= treeZoneOasisSuppression;
+        float baseHeight = Mathf.Lerp(
+            Config.BaseHeight,
+            treeZoneInfluence.TargetBaseHeight,
+            Mathf.Clamp01(treeZoneInfluence.BaseHeightInfluence * treeZoneOasisSuppression));
         
         // 2. Calculate patch-based asymmetrical pileup using low-frequency noise
         float pileUpNoise = Mathf.PerlinNoise(worldX * Config.MountainPileupNoiseScale + s, 
@@ -814,7 +1344,7 @@ public class TerrainManager : MonoBehaviour
         pileUpHeight *= (1.0f - oasisDipInfluence);
 
         // Blend the heavy dunes down to the gentle micro waves — oasis completely flattens dunes out to basin+100
-        float combinedFlatness = Mathf.Max(Mathf.Clamp01(flatness), oasisFlatInfluence);
+        float combinedFlatness = Mathf.Max(Mathf.Max(Mathf.Clamp01(flatness), oasisFlatInfluence), treeZoneFlattening);
         
         // ── Oasis Concave Basin Logic ──
         // Use a CONSTANT rim height (no noise) so the bowl interior is perfectly smooth.
@@ -835,7 +1365,11 @@ public class TerrainManager : MonoBehaviour
             
             // Inside the basin: start from BaseHeight + Rim and carve downward.
             float h = rimHeight + (oasisRimInfluence * Config.OasisRimHeight) - oasisDip;
-            return Mathf.Max(h, -Config.BottomDepth + 1f);
+            h = Mathf.Max(h, -Config.BottomDepth + 1f);
+            if (HighwayWinManager.TryApplyHighwayFlattening(worldX, worldZ, h, out float highwayHeight, out _))
+                return highwayHeight;
+
+            return h;
         }
         
         // Outside the basin but within the flat transition zone: enforce rim as a floor.
@@ -851,8 +1385,12 @@ public class TerrainManager : MonoBehaviour
         }
 
         // Add Base + Noise + Pileup + Rim Height + NEW Shore Ridge
-        float hFinal = Config.BaseHeight + finalNoiseHeight + pileUpHeight + (oasisRimInfluence * Config.OasisRimHeight) + (oasisShoreRidgeInfluence * Config.OasisRimHeight * 0.5f);
-        return Mathf.Max(hFinal, -Config.BottomDepth + 1f);
+        float hFinal = baseHeight + finalNoiseHeight + pileUpHeight + (oasisRimInfluence * Config.OasisRimHeight) + (oasisShoreRidgeInfluence * Config.OasisRimHeight * 0.5f);
+        hFinal = Mathf.Max(hFinal, -Config.BottomDepth + 1f);
+        if (HighwayWinManager.TryApplyHighwayFlattening(worldX, worldZ, hFinal, out float finalHighwayHeight, out _))
+            return finalHighwayHeight;
+
+        return hFinal;
     }
 
     #region Oasis Logic

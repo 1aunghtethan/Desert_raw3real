@@ -32,6 +32,7 @@ public class PlayerStats : MonoBehaviour, IDamageable
     [Header("Temperature Influence")]
     public float BaseThirstDecay = 0.15f;
     public float HeatThirstMultiplier = 3.0f; // Thirst drops 3x faster at 50C
+    public float CurrentEffectiveTemperature { get; private set; } = 25f;
     private cyclemanager _cycle;
     
     [Header("Effects")]
@@ -43,6 +44,13 @@ public class PlayerStats : MonoBehaviour, IDamageable
     [Header("Shadow Shelter")]
     public float ShadeTemperatureReduction = 15f; // Reduce temp by 15C in shade
     public bool IsInShadow { get; private set; }
+    public bool IsInJoshuaTreeShade { get; private set; }
+    [Range(0f, 1f)]
+    public float JoshuaShadeCoverageThreshold = 0.9f;
+    [Range(0f, 1f)]
+    public float JoshuaShadeTemperatureMultiplier = 0.6f;
+    public float JoshuaShadeSampleRadius = 0.45f;
+    public float JoshuaShadeRayDistance = 100f;
 
     [Header("Performance Optimization")]
     [Tooltip("How often to check for shadow (in seconds). Higher = better performance.")]
@@ -67,6 +75,7 @@ public class PlayerStats : MonoBehaviour, IDamageable
     private Rigidbody _rb;
     private float _damageTimer;
     private float _regenTimer;
+    private bool _isDead;
 
     private void Awake()
     {
@@ -79,6 +88,9 @@ public class PlayerStats : MonoBehaviour, IDamageable
 
     private void Update()
     {
+        if (_isDead)
+            return;
+
         HandleDecay();
         HandleEffects();
     }
@@ -119,36 +131,14 @@ public class PlayerStats : MonoBehaviour, IDamageable
             {
                 _shadowCheckTimer = 0f;
                 Vector3 sunDir = -_cycle.transform.forward; 
-                Vector3 lightDir = _cycle.transform.forward; 
-                bool blocked = false;
-
-                // 1. Forward Cast from 3 heights
-                float[] heights = { 0.3f, 1.0f, 1.8f };
-                foreach (float h in heights)
-                {
-                    if (Physics.Raycast(transform.position + Vector3.up * h, sunDir, 100f, ShadowLayerMask))
-                    {
-                        blocked = true;
-                        break;
-                    }
-                }
-
-                // 2. Reverse check (only if not already blocked)
-                if (!blocked)
-                {
-                    Vector3 checkOrigin = transform.position + Vector3.up * 1.0f - lightDir * 50f;
-                    if (Physics.Raycast(checkOrigin, lightDir, out RaycastHit revHit, 55f, ShadowLayerMask))
-                    {
-                        if (revHit.transform != transform && !revHit.transform.IsChildOf(transform))
-                        {
-                            blocked = true;
-                        }
-                    }
-                }
-                IsInShadow = blocked;
+                UpdateShadowState(sunDir);
             }
             
-            if (IsInShadow)
+            if (IsInJoshuaTreeShade)
+            {
+                currentTemp *= Mathf.Clamp01(JoshuaShadeTemperatureMultiplier);
+            }
+            else if (IsInShadow)
             {
                 currentTemp = Mathf.Max(25f, currentTemp - ShadeTemperatureReduction);
             }
@@ -156,7 +146,10 @@ public class PlayerStats : MonoBehaviour, IDamageable
         else
         {
             IsInShadow = false;
+            IsInJoshuaTreeShade = false;
         }
+
+        CurrentEffectiveTemperature = currentTemp;
 
         float tempFactor = Mathf.InverseLerp(20f, 50f, currentTemp); 
         float actualThirstDecay = BaseThirstDecay * Mathf.Lerp(1.0f, HeatThirstMultiplier, tempFactor) * sleepMult;
@@ -217,8 +210,113 @@ public class PlayerStats : MonoBehaviour, IDamageable
         }
     }
 
+    private void UpdateShadowState(Vector3 sunDir)
+    {
+        if (sunDir.sqrMagnitude < 0.001f)
+        {
+            IsInShadow = false;
+            IsInJoshuaTreeShade = false;
+            return;
+        }
+
+        sunDir.Normalize();
+
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.001f)
+            forward = Vector3.forward;
+        forward.Normalize();
+
+        Vector3 right = transform.right;
+        right.y = 0f;
+        if (right.sqrMagnitude < 0.001f)
+            right = Vector3.right;
+        right.Normalize();
+
+        float sampleRadius = Mathf.Max(0f, JoshuaShadeSampleRadius);
+        float rayDistance = Mathf.Max(0.1f, JoshuaShadeRayDistance);
+        int blockedCount = 0;
+        int joshuaBlockedCount = 0;
+        int sampleCount = 0;
+
+        SampleShadePoint(transform.position, sunDir, rayDistance, ref blockedCount, ref joshuaBlockedCount, ref sampleCount);
+        SampleShadePoint(transform.position + forward * sampleRadius, sunDir, rayDistance, ref blockedCount, ref joshuaBlockedCount, ref sampleCount);
+        SampleShadePoint(transform.position - forward * sampleRadius, sunDir, rayDistance, ref blockedCount, ref joshuaBlockedCount, ref sampleCount);
+        SampleShadePoint(transform.position + right * sampleRadius, sunDir, rayDistance, ref blockedCount, ref joshuaBlockedCount, ref sampleCount);
+        SampleShadePoint(transform.position - right * sampleRadius, sunDir, rayDistance, ref blockedCount, ref joshuaBlockedCount, ref sampleCount);
+
+        float joshuaCoverage = sampleCount > 0 ? (float)joshuaBlockedCount / sampleCount : 0f;
+        IsInShadow = blockedCount > 0;
+        IsInJoshuaTreeShade = joshuaCoverage >= Mathf.Clamp01(JoshuaShadeCoverageThreshold);
+        if (IsInJoshuaTreeShade)
+            IsInShadow = true;
+    }
+
+    private void SampleShadePoint(
+        Vector3 basePosition,
+        Vector3 sunDir,
+        float rayDistance,
+        ref int blockedCount,
+        ref int joshuaBlockedCount,
+        ref int sampleCount)
+    {
+        SampleShadeRay(basePosition + Vector3.up * 0.3f, sunDir, rayDistance, ref blockedCount, ref joshuaBlockedCount, ref sampleCount);
+        SampleShadeRay(basePosition + Vector3.up * 1.8f, sunDir, rayDistance, ref blockedCount, ref joshuaBlockedCount, ref sampleCount);
+    }
+
+    private void SampleShadeRay(
+        Vector3 origin,
+        Vector3 sunDir,
+        float rayDistance,
+        ref int blockedCount,
+        ref int joshuaBlockedCount,
+        ref int sampleCount)
+    {
+        sampleCount++;
+        if (!Physics.Raycast(origin, sunDir, out RaycastHit hit, rayDistance, ShadowLayerMask, QueryTriggerInteraction.Ignore))
+            return;
+
+        if (hit.transform == transform || hit.transform.IsChildOf(transform))
+            return;
+
+        blockedCount++;
+        if (IsJoshuaTreeShadeBlocker(hit.collider))
+            joshuaBlockedCount++;
+    }
+
+    private static bool IsJoshuaTreeShadeBlocker(Collider collider)
+    {
+        if (collider == null)
+            return false;
+
+        PlantHealth health = collider.GetComponentInParent<PlantHealth>();
+        if (health != null && IsJoshuaPlantData(health.Data))
+            return true;
+
+        Transform root = collider.transform.root;
+        string rootName = root != null ? root.name : collider.name;
+        return ContainsJoshua(rootName) || ContainsJoshua(collider.name);
+    }
+
+    private static bool IsJoshuaPlantData(PlantData data)
+    {
+        if (data == null)
+            return false;
+
+        return ContainsJoshua(data.PlantName) || ContainsJoshua(data.name);
+    }
+
+    private static bool ContainsJoshua(string value)
+    {
+        return !string.IsNullOrEmpty(value)
+            && value.IndexOf("joshua", System.StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
     public void TakeDamage(float damage, Vector3 hitPoint, Vector3 hitDirection)
     {
+        if (_isDead)
+            return;
+
         float previousHealth = CurrentHealth;
         CurrentHealth = Mathf.Max(0, CurrentHealth - damage);
         Debug.Log($"[PlayerStats] Took {damage} damage. HP: {CurrentHealth}/{MaxHealth}");
@@ -247,8 +345,16 @@ public class PlayerStats : MonoBehaviour, IDamageable
 
     private void Die()
     {
+        if (_isDead)
+            return;
+
+        _isDead = true;
         Debug.Log("[PlayerStats] Player has died!");
-        // Reload scene or show game over UI
-        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
+
+        if (!EndGameUIController.TryShowDied())
+        {
+            _isDead = false;
+            Debug.LogWarning("[PlayerStats] EndGameUIController not found. Death panel could not be shown.");
+        }
     }
 }

@@ -19,13 +19,17 @@ public class AnimalAI : MonoBehaviour
     private const float EatDurationMax = 8f;
     private const float EatReachDistance = 1.5f;
     private const float GrassSearchRadius = 30f;
+    private const float GrassCollisionIgnoreRadius = 4f;
     private const int GrassSearchFrameInterval = 5;
+    private const int GrassCollisionIgnoreFrameInterval = 10;
     private const int GrassSearchHitBufferSize = 64;
 
     private CreatureMover m_Mover;
     private Transform m_Player;
+    private cyclemanager m_DayNight;
     private GameObject m_GrassEatTarget;
     private readonly Collider[] m_GrassSearchHits = new Collider[GrassSearchHitBufferSize];
+    private readonly Collider[] m_GrassCollisionHits = new Collider[GrassSearchHitBufferSize];
     private Vector3 m_Target;
     private float m_NextWanderTime;
     private float m_DamageFleeEndTime;
@@ -33,9 +37,13 @@ public class AnimalAI : MonoBehaviour
     private float m_NextPlayerFleeRetargetTime;
     private float m_NextFleeProgressCheckTime;
     private float m_LastPlayerDistance;
+    private float m_NextAwaySoundTime;
+    private float m_NextDayNightSearchTime;
     private float m_EatEndTime;
     private int m_NextGrassSearchFrame;
+    private int m_NextGrassCollisionIgnoreFrame;
     private Vector3 m_DamageFleeDirection;
+    private AudioSource m_AwayAudioSource;
     private bool m_Initialized;
     private bool m_IgnoredPlayerCollisions;
     private bool m_IsPlayerFleeing;
@@ -73,6 +81,8 @@ public class AnimalAI : MonoBehaviour
     private void Update()
     {
         InitializeAI();
+        UpdateAwaySound();
+        IgnoreNearbyRealGrassCollisions();
 
         if (UsesAvoidance)
         {
@@ -81,6 +91,94 @@ public class AnimalAI : MonoBehaviour
         }
 
         UpdateSimpleWander();
+    }
+
+    private void UpdateAwaySound()
+    {
+        if (Data == null || Data.AwaySound == null)
+            return;
+
+        if (m_Player == null && Time.time >= m_NextPlayerSearchTime)
+            FindPlayer();
+
+        if (m_Player == null)
+            return;
+
+        if (!IsWithinAwaySoundHours())
+            return;
+
+        float minDistance = Mathf.Min(Data.AwaySoundMinDistance, Data.AwaySoundMaxDistance);
+        float maxDistance = Mathf.Max(Data.AwaySoundMinDistance, Data.AwaySoundMaxDistance);
+        float flatDistance = GetFlatPlayerDistance();
+
+        if (flatDistance < minDistance || flatDistance > maxDistance)
+            return;
+
+        if (Time.time < m_NextAwaySoundTime)
+            return;
+
+        AudioSource source = EnsureAwayAudioSource();
+        if (source.isPlaying)
+            return;
+
+        source.clip = Data.AwaySound;
+        source.volume = Mathf.Max(0f, Data.AwaySoundVolume);
+        source.loop = false;
+        source.Play();
+
+        m_NextAwaySoundTime = Time.time + Mathf.Max(0f, Data.AwaySoundCooldown);
+    }
+
+    private bool IsWithinAwaySoundHours()
+    {
+        float rawStart = Data.AwaySoundStartHour;
+        float rawEnd = Data.AwaySoundEndHour;
+        if (Mathf.Approximately(rawStart, rawEnd) || Mathf.Abs(rawEnd - rawStart) >= 23.99f)
+            return true;
+
+        if (m_DayNight == null && Time.time >= m_NextDayNightSearchTime)
+        {
+            m_NextDayNightSearchTime = Time.time + 1f;
+            m_DayNight = FindFirstObjectByType<cyclemanager>();
+        }
+
+        if (m_DayNight == null)
+            return false;
+
+        float hour = Mathf.Repeat(m_DayNight.currentTime, 24f);
+        float start = Mathf.Repeat(rawStart, 24f);
+        float end = Mathf.Repeat(rawEnd, 24f);
+
+        if (start < end)
+            return hour >= start && hour <= end;
+
+        return hour >= start || hour <= end;
+    }
+
+    private AudioSource EnsureAwayAudioSource()
+    {
+        if (m_AwayAudioSource == null)
+        {
+            Transform sourceTransform = transform.Find("AwaySoundSource");
+            if (sourceTransform == null)
+            {
+                GameObject sourceObject = new GameObject("AwaySoundSource");
+                sourceTransform = sourceObject.transform;
+                sourceTransform.SetParent(transform, false);
+                sourceTransform.localPosition = Vector3.zero;
+            }
+
+            m_AwayAudioSource = sourceTransform.GetComponent<AudioSource>();
+            if (m_AwayAudioSource == null)
+                m_AwayAudioSource = sourceTransform.gameObject.AddComponent<AudioSource>();
+        }
+
+        m_AwayAudioSource.playOnAwake = false;
+        m_AwayAudioSource.spatialBlend = 1f;
+        m_AwayAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        m_AwayAudioSource.minDistance = 15f;
+        m_AwayAudioSource.maxDistance = Mathf.Max(150f, Mathf.Max(Data.AwaySoundMinDistance, Data.AwaySoundMaxDistance) + 30f);
+        return m_AwayAudioSource;
     }
 
     public void FleeFrom(Vector3 threatPosition, float duration)
@@ -374,8 +472,40 @@ public class AnimalAI : MonoBehaviour
         if (m_GrassEatTarget == null)
             return;
 
+        IgnoreCollisionsWithGrass(m_GrassEatTarget);
+    }
+
+    private void IgnoreNearbyRealGrassCollisions()
+    {
+        if (!CanEatGrass || Time.frameCount < m_NextGrassCollisionIgnoreFrame)
+            return;
+
+        m_NextGrassCollisionIgnoreFrame = Time.frameCount + GrassCollisionIgnoreFrameInterval;
+
+        int hitCount = Physics.OverlapSphereNonAlloc(transform.position, GrassCollisionIgnoreRadius, m_GrassCollisionHits);
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = m_GrassCollisionHits[i];
+            m_GrassCollisionHits[i] = null;
+
+            if (hit == null)
+                continue;
+
+            LootItem loot = hit.GetComponentInParent<LootItem>();
+            if (loot == null || !IsRealGrass(loot))
+                continue;
+
+            IgnoreCollisionsWithGrass(loot.gameObject);
+        }
+    }
+
+    private void IgnoreCollisionsWithGrass(GameObject grassObject)
+    {
+        if (grassObject == null)
+            return;
+
         Collider[] animalColliders = GetComponentsInChildren<Collider>(true);
-        Collider[] grassColliders = m_GrassEatTarget.GetComponentsInChildren<Collider>(true);
+        Collider[] grassColliders = grassObject.GetComponentsInChildren<Collider>(true);
 
         foreach (Collider animalCollider in animalColliders)
         {

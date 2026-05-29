@@ -9,9 +9,6 @@ public class TransformSelectedItemOnUse : ItemBehaviour
 
     public override bool Use()
     {
-        if (!base.Use())
-            return false;
-
         Inventory inventory = Inventory.Instance;
         if (inventory == null || ResultItem == null)
             return false;
@@ -21,6 +18,12 @@ public class TransformSelectedItemOnUse : ItemBehaviour
             return false;
 
         if (inventory.Slots[slot] == null || Data == null || inventory.Slots[slot].ItemName != Data.ItemName)
+            return false;
+
+        if (IsBlockedByHighHunger(Data))
+            return false;
+
+        if (!base.Use())
             return false;
 
         // Apply stat restoration before transforming
@@ -36,5 +39,14 @@ public class TransformSelectedItemOnUse : ItemBehaviour
         inventory.SelectSlot(slot, true);
         inventory.BroadcastInventoryChange();
         return true;
+    }
+
+    private static bool IsBlockedByHighHunger(ItemData item)
+    {
+        if (item == null || PlayerStats.Instance == null)
+            return false;
+
+        bool isBlockedFood = item.ItemName == "Beef" || item.ItemName == "Died Cat";
+        return isBlockedFood && PlayerStats.Instance.CurrentHunger >= PlayerStats.Instance.MaxHunger * 0.8f;
     }
 }

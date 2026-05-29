@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class AudioManager : MonoBehaviour
@@ -32,10 +33,16 @@ public class AudioManager : MonoBehaviour
     public AudioClip weaponSwing;
     public AudioClip weaponHit;
     public AudioClip reduceHeart;
+    public AudioClip heartbeat;
+    public AudioClip sandFlow;
+    public float ReduceHeartSoundCooldown = 3f;
 
     private AudioSource _sfxSource;
     private AudioSource _stepSource;
+    private AudioSource _heartbeatSource;
+    private Coroutine _heartbeatRoutine;
     private float _nextStepTime;
+    private float _nextReduceHeartSoundTime;
 
     void Awake()
     {
@@ -50,6 +57,12 @@ public class AudioManager : MonoBehaviour
         _stepSource.playOnAwake = false;
         _stepSource.spatialBlend = 0f;
         _stepSource.volume = 1f;
+
+        _heartbeatSource = gameObject.AddComponent<AudioSource>();
+        _heartbeatSource.playOnAwake = false;
+        _heartbeatSource.spatialBlend = 0f;
+        _heartbeatSource.loop = true;
+        _heartbeatSource.volume = 1f;
 
         LoadClips();
     }
@@ -70,6 +83,8 @@ public class AudioManager : MonoBehaviour
         weaponSwing = Resources.Load<AudioClip>("Sounds/Swift a dagger that made of stone whoosh through a (mp3cut.net)");
         weaponHit = Resources.Load<AudioClip>("Sounds/Wet tearing, one sound of a rough stone dagger sli (mp3cut.net)");
         reduceHeart = Resources.Load<AudioClip>("Sounds/reduce heart");
+        heartbeat = Resources.Load<AudioClip>("Sounds/heartbeat");
+        sandFlow = Resources.Load<AudioClip>("Sounds/sand_fall_#2-1779329339923");
 
         if (pickupStick == null) Debug.LogWarning("[AudioManager] Missing: pickupStick");
         if (pickupHay == null) Debug.LogWarning("[AudioManager] Missing: pickupHay");
@@ -85,6 +100,8 @@ public class AudioManager : MonoBehaviour
         if (weaponSwing == null) Debug.LogWarning("[AudioManager] Missing: weaponSwing");
         if (weaponHit == null) Debug.LogWarning("[AudioManager] Missing: weaponHit");
         if (reduceHeart == null) Debug.LogWarning("[AudioManager] Missing: reduceHeart");
+        if (heartbeat == null) Debug.LogWarning("[AudioManager] Missing: heartbeat");
+        if (sandFlow == null) Debug.LogWarning("[AudioManager] Missing: sandFlow");
     }
 
     public void PlaySFX(AudioClip clip, float volume = 1f)
@@ -147,8 +164,91 @@ public class AudioManager : MonoBehaviour
         PlaySFX(inventoryOpen);
     }
 
+    public void PlaySandFlowAt(Vector3 position, float volume = 0.7f)
+    {
+        if (sandFlow == null) return;
+
+        GameObject soundObject = new GameObject("SandFlowSound");
+        soundObject.transform.position = position;
+
+        AudioSource source = soundObject.AddComponent<AudioSource>();
+        source.playOnAwake = false;
+        source.spatialBlend = 1f;
+        source.loop = false;
+        source.rolloffMode = AudioRolloffMode.Linear;
+        source.minDistance = 1.5f;
+        source.maxDistance = 10f;
+        source.volume = Mathf.Clamp01(volume);
+        source.clip = sandFlow;
+        source.Play();
+
+        Destroy(soundObject, sandFlow.length + 0.1f);
+    }
+
     public void PlayReduceHeartSound()
     {
+        if (Time.time < _nextReduceHeartSoundTime) return;
+
+        _nextReduceHeartSoundTime = Time.time + Mathf.Max(0f, ReduceHeartSoundCooldown);
         PlaySFX(reduceHeart);
+    }
+
+    public void PlayHeartbeatLoop(float totalSeconds = 12f, float fadeOutSeconds = 3f, float volume = 1f)
+    {
+        if (heartbeat == null) return;
+
+        if (_heartbeatRoutine != null)
+            StopCoroutine(_heartbeatRoutine);
+
+        totalSeconds = Mathf.Max(0f, totalSeconds);
+        _heartbeatRoutine = StartCoroutine(PlayHeartbeatLoopRoutine(
+            totalSeconds,
+            Mathf.Min(Mathf.Max(0f, fadeOutSeconds), totalSeconds),
+            Mathf.Clamp01(volume)));
+    }
+
+    public void StopHeartbeat()
+    {
+        if (_heartbeatRoutine != null)
+        {
+            StopCoroutine(_heartbeatRoutine);
+            _heartbeatRoutine = null;
+        }
+
+        if (_heartbeatSource != null)
+        {
+            _heartbeatSource.Stop();
+            _heartbeatSource.clip = null;
+        }
+    }
+
+    private IEnumerator PlayHeartbeatLoopRoutine(float totalSeconds, float fadeOutSeconds, float volume)
+    {
+        _heartbeatSource.Stop();
+        _heartbeatSource.clip = heartbeat;
+        _heartbeatSource.loop = true;
+        _heartbeatSource.volume = volume;
+        _heartbeatSource.Play();
+
+        float holdSeconds = Mathf.Max(0f, totalSeconds - fadeOutSeconds);
+        if (holdSeconds > 0f)
+            yield return new WaitForSeconds(holdSeconds);
+
+        if (fadeOutSeconds > 0f)
+        {
+            float elapsed = 0f;
+            while (elapsed < fadeOutSeconds)
+            {
+                elapsed += Time.deltaTime;
+                float fade = Mathf.Clamp01(elapsed / fadeOutSeconds);
+                _heartbeatSource.volume = Mathf.Lerp(volume, 0f, fade);
+                yield return null;
+            }
+        }
+
+        _heartbeatSource.Stop();
+        _heartbeatSource.clip = null;
+        _heartbeatSource.volume = volume;
+        _heartbeatRoutine = null;
     }
 }
