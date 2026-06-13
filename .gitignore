@@ -6,6 +6,9 @@
 [Bb]uilds/
 [Ll]ogs/
 [Mm]emoryCaptures/
+[Uu]ser[Ss]ettings/
+.vs/
+.idea/
 
 # Asset store packages can be very large, they should be ignored if you can re-download them
 # Assets/AssetStoreTools*
